@@ -1,6 +1,6 @@
 {
-  "name": "Lumen Console",
-  "short_name": "Lumen",
+  "name": "Cirrus Console",
+  "short_name": "Cirrus",
   "description": "Control plane for your projects, environments, and entitlements.",
   "start_url": "/orgs",
   "scope": "/",

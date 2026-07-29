@@ -1,9 +1,9 @@
-// Typed error hierarchy for the Lumen SDK.
+// Typed error hierarchy for the Cirrus SDK.
 //
 // The api-edge error envelope is:
 //   { error: { code: string, message: string, details: object, requestId?: string } }
 // where `code` is one of `ERROR_CODES` from `@saas/contracts/errors`. Unknown
-// codes (forward compatibility) fall back to the generic `LumenError`
+// codes (forward compatibility) fall back to the generic `CirrusError`
 // base class with the raw envelope preserved.
 //
 // `RateLimitError` decodes the `Retry-After` and `X-RateLimit-{Limit,Remaining,
@@ -20,7 +20,7 @@ export interface ErrorEnvelope {
   requestId?: string;
 }
 
-export interface LumenErrorInit {
+export interface CirrusErrorInit {
   envelope: ErrorEnvelope;
   status: number;
   requestId: string;
@@ -30,10 +30,10 @@ export interface LumenErrorInit {
 
 /**
  * Base error type. Unknown error codes (forward-compat, e.g. a future
- * `quota_exceeded`) decode to this class — `instanceof LumenError`
+ * `quota_exceeded`) decode to this class — `instanceof CirrusError`
  * still matches.
  */
-export class LumenError extends Error {
+export class CirrusError extends Error {
   readonly code: string;
   readonly status: number;
   readonly requestId: string;
@@ -42,9 +42,9 @@ export class LumenError extends Error {
   /** Present only when the error was synthesised from a real Response. */
   readonly response: Response | undefined;
 
-  constructor(init: LumenErrorInit) {
+  constructor(init: CirrusErrorInit) {
     super(init.envelope.message);
-    this.name = "LumenError";
+    this.name = "CirrusError";
     this.code = init.envelope.code;
     this.status = init.status;
     this.requestId = init.requestId;
@@ -54,46 +54,46 @@ export class LumenError extends Error {
   }
 }
 
-export class BadRequestError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class BadRequestError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "BadRequestError";
   }
 }
 
-export class UnauthenticatedError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class UnauthenticatedError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "UnauthenticatedError";
   }
 }
 
-export class ForbiddenError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class ForbiddenError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "ForbiddenError";
   }
 }
 
-export class NotFoundError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class NotFoundError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "NotFoundError";
   }
 }
 
-export class ConflictError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class ConflictError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "ConflictError";
   }
 }
 
-export class ValidationError extends LumenError {
+export class ValidationError extends CirrusError {
   /** Field-level violations, when the server provides them. */
   readonly fields: Record<string, string[]>;
 
-  constructor(init: LumenErrorInit) {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "ValidationError";
     const raw = init.envelope.details["fields"];
@@ -101,22 +101,22 @@ export class ValidationError extends LumenError {
   }
 }
 
-export class PreconditionFailedError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class PreconditionFailedError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "PreconditionFailedError";
   }
 }
 
-export class UnsupportedError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class UnsupportedError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "UnsupportedError";
   }
 }
 
-export class InternalError extends LumenError {
-  constructor(init: LumenErrorInit) {
+export class InternalError extends CirrusError {
+  constructor(init: CirrusErrorInit) {
     super(init);
     this.name = "InternalError";
   }
@@ -131,14 +131,14 @@ export interface RateLimitWindow {
   resetAt: number | null;
 }
 
-export interface RateLimitErrorInit extends LumenErrorInit {
+export interface RateLimitErrorInit extends CirrusErrorInit {
   retryAfterSeconds: number | null;
   /** Scope that tripped the limit (echoed from `details.scope`). */
   scope: "org" | "identity" | null;
   windows: RateLimitWindow[];
 }
 
-export class RateLimitError extends LumenError {
+export class RateLimitError extends CirrusError {
   readonly retryAfterSeconds: number | null;
   readonly scope: "org" | "identity" | null;
   readonly windows: RateLimitWindow[];
@@ -167,19 +167,19 @@ export class RateLimitError extends LumenError {
 // ---------------------------------------------------------------------------
 
 /**
- * Decode an HTTP `Response` into the appropriate `LumenError` subclass.
+ * Decode an HTTP `Response` into the appropriate `CirrusError` subclass.
  *
- * Forward-compatible: unknown error codes resolve to the base `LumenError`.
+ * Forward-compatible: unknown error codes resolve to the base `CirrusError`.
  * Robust to non-JSON 5xx bodies (gateway HTML, empty body, etc.) — synthesises
  * a generic `InternalError` envelope in that case.
  */
 export async function decodeError(
   response: Response,
   fallbackRequestId: string,
-): Promise<LumenError> {
+): Promise<CirrusError> {
   const envelope = await readErrorEnvelope(response, fallbackRequestId);
   const requestId = envelope.requestId ?? fallbackRequestId;
-  const init: LumenErrorInit = {
+  const init: CirrusErrorInit = {
     envelope,
     status: response.status,
     requestId,
@@ -209,12 +209,12 @@ export async function decodeError(
       return decodeRateLimit(init, response);
     default:
       // Forward-compat: unknown codes still surface a typed error.
-      return new LumenError(init);
+      return new CirrusError(init);
   }
 }
 
 function decodeRateLimit(
-  init: LumenErrorInit,
+  init: CirrusErrorInit,
   response: Response,
 ): RateLimitError {
   const retryAfter = parseIntHeader(response.headers.get("retry-after"));

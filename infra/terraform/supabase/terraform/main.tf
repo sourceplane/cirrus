@@ -48,7 +48,7 @@ variable "owner" {
 
 variable "repo" {
   type    = string
-  default = "lumen"
+  default = "cirrus"
 }
 
 variable "namespace" {
@@ -109,7 +109,7 @@ variable "supabaseRegion" {
 locals {
   supabase_org_id = var.supabaseOrgId
   supabase_region = var.supabaseRegion
-  project_name    = "lumen-${var.environment}"
+  project_name    = "cirrus-${var.environment}"
 }
 
 # --- Generate database password ---

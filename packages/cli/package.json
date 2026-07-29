@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "lumen": "./dist/cli.js"
+    "cirrus": "./dist/cli.js"
   },
   "exports": {
     ".": "./src/index.ts"

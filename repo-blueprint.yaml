@@ -1,10 +1,10 @@
 apiVersion: orun.dev/v1
 kind: Blueprint
 metadata:
-  name: lumen-baseline
+  name: cirrus-baseline
   description: >-
-    Lumen as a Blueprint of itself — instantiate a new Cloudflare + Supabase
-    multi-tenant SaaS repo from the Lumen baseline. This is the unified
+    Cirrus as a Blueprint of itself — instantiate a new Cloudflare + Supabase
+    multi-tenant SaaS repo from the Cirrus baseline. This is the unified
     replacement for tooling/fork/components.mjs (its prerequisite graph + copy
     ordering now live in orun's own DAG over the declared dependsOn edges below)
     and tooling/rebrand/rebrand.mjs (its instance-identity rename map is declared
@@ -67,7 +67,7 @@ inputs:
       that fails loudly rather than silently cross-tenanting.
 
 # ── SOURCES ───────────────────────────────────────────────────────────────
-# The baseline is this repo itself. Run `orun new` from the Lumen repo root so
+# The baseline is this repo itself. Run `orun new` from the Cirrus repo root so
 # `path: .` resolves to the baseline; orun pins it by digest into the object
 # store before any module reads it, so a fork is reproducible + provenanced.
 sources:

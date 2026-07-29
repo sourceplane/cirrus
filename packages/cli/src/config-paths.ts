@@ -2,10 +2,10 @@
 // fallback and the context store.
 //
 // Layout (per task scope §Integration Notes):
-//   - `~/.config/lumen/credentials.json` (0600)
-//   - `~/.config/lumen/config.json`     (0644)
+//   - `~/.config/cirrus/credentials.json` (0600)
+//   - `~/.config/cirrus/config.json`     (0644)
 //
-// Override via `LUMEN_CONFIG_DIR` (used heavily by tests).
+// Override via `CIRRUS_CONFIG_DIR` (used heavily by tests).
 
 import * as os from "node:os";
 import * as path from "node:path";
@@ -17,7 +17,7 @@ export function resolveConfigDir(): string {
   const override = process.env[CONFIG_DIR_ENV_VAR];
   if (override && override.length > 0) return override;
   // Honour `XDG_CONFIG_HOME` when set (Linux convention) so XDG users get
-  // the dir they expect; fall back to `~/.config/lumen` everywhere
+  // the dir they expect; fall back to `~/.config/cirrus` everywhere
   // else (macOS, Windows w/o XDG, Linux w/o XDG).
   const xdg = process.env["XDG_CONFIG_HOME"];
   if (xdg && xdg.length > 0) return path.join(xdg, APP_DIR);

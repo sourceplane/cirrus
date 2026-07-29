@@ -1,0 +1,51 @@
+name: Verify
+
+# Workspace-level verification that needs nothing but the repo: no Orun
+# workspace, no connected integrations, no cloud credentials. This is what
+# makes a PR reviewable on day one, before `ci.yml` can run at all (see
+# BOOTSTRAP.md §1). Once the platform is bootstrapped, `ci.yml` supersedes it
+# for anything that touches infrastructure — Verify stays as the fast check.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verify-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Worker `wrangler.jsonc` files are rendered, never committed: resource
+      # ids come from the wiring manifest at deploy time. Verify lanes render
+      # from each worker's committed `wiring.fixture.json` instead, which is
+      # exactly what the Orun verify profile does. Without this, `build`
+      # (wrangler deploy --dry-run) has no config to read.
+      - name: Render wrangler configs from committed wiring fixtures
+        run: pnpm -r --filter "./apps/*" run wire:fixture
+
+      # Sequential rather than one `turbo run` invocation: when a PR breaks
+      # three things at once, three named failures beat one aggregated log.
+      - run: pnpm exec turbo run typecheck
+      - run: pnpm exec turbo run lint
+      - run: pnpm exec turbo run test
+      - run: pnpm exec turbo run build

@@ -45,7 +45,7 @@ variable "owner" {
 
 variable "repo" {
   type    = string
-  default = "lumen"
+  default = "cirrus"
 }
 
 variable "namespace" {

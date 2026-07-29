@@ -117,11 +117,11 @@ nothing interactive.
 export ORUN_TOKEN=…          # orun auth, headless
 export GITHUB_TOKEN=…        # fine-grained PAT (scopes below)
 
-orun workflow run github:sourceplane/lumen@<ref>//flows/phases/01-scaffold/workflow.yaml \
+orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/01-scaffold/workflow.yaml \
   --set workspace=ws_… --set reponame=acme --set productname="Acme Cloud" \
   --set productdomain=acme.dev --set subdomain=<workers-dev-subdomain>
 
-orun workflow run github:sourceplane/lumen@<ref>//flows/phases/02-foundation/workflow.yaml \
+orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/02-foundation/workflow.yaml \
   --set workspace=ws_… --set repo=sourceplane/acme
 # … phases 03–07 identically, at your pace. Add --set dryrun=true to preview.
 ```
@@ -130,7 +130,7 @@ orun workflow run github:sourceplane/lumen@<ref>//flows/phases/02-foundation/wor
 |---|---|
 | image deps | `git`, `gh`, `node` (≥20), `python3`, `orun` ≥ v2.50.0 |
 | `ORUN_TOKEN` | orun access token; preflight authenticates with it (no login flow) |
-| `GITHUB_TOKEN` | fine-grained PAT: **read** on `sourceplane/lumen` (baseline fetch); on the PRODUCT repo: **contents write** (pushes), **pull-requests write** (landings), **actions read+write** (converge watches runs and auto-resumes via `gh run rerun`), **checks read**; **repo create** on the org if phase 01 creates the repo (or pre-create it — supported) |
+| `GITHUB_TOKEN` | fine-grained PAT: **read** on `sourceplane/cirrus` (baseline fetch); on the PRODUCT repo: **contents write** (pushes), **pull-requests write** (landings), **actions read+write** (converge watches runs and auto-resumes via `gh run rerun`), **checks read**; **repo create** on the org if phase 01 creates the repo (or pre-create it — supported) |
 | pinning | the `@<ref>` in the remote reference pins EVERYTHING — the flow fetches its baseline at that exact commit (`ORUN_FLOW_SOURCE_SHA`). Use a tag for reproducible bootstraps; `@main` for latest |
 | workdir | phases share `baseline/` and `product/` anchored at the invocation cwd (stable across phases and re-runs — idempotent) |
 | classic-token caveat | a CLASSIC PAT or gh OAuth token additionally needs the `workflow` scope to push `.github/workflows/` (hit live); fine-grained PATs need only `contents: write` |

@@ -1,12 +1,12 @@
 # `@saas/cli`
 
-`lumen` — first-class TypeScript CLI for the Lumen control
+`cirrus` — first-class TypeScript CLI for the Cirrus control
 plane. Wraps `@saas/sdk` (the only transport allowed) and surfaces a
 small set of read-only commands today; write commands land in Task 0101.
 
 ## Install (workspace)
 
-This package is internal to the `lumen` monorepo and is not
+This package is internal to the `cirrus` monorepo and is not
 published. Build the binary with:
 
 ```sh
@@ -19,36 +19,36 @@ node packages/cli/dist/cli.js --help
 Auth (Task 0100):
 
 ```
-lumen login    [--api-url=URL] [--token=BEARER]
-lumen logout
-lumen whoami
+cirrus login    [--api-url=URL] [--token=BEARER]
+cirrus logout
+cirrus whoami
 ```
 
 Reads (Task 0100):
 
 ```
-lumen org list
-lumen org use <org-id>
-lumen org members
-lumen project list
+cirrus org list
+cirrus org use <org-id>
+cirrus org members
+cirrus project list
 ```
 
 Writes (Task 0101):
 
 ```
-lumen org invite <email> [--role=ROLE] [--idempotency-key=KEY] [--org=ORG_ID]
-lumen project create <name> [--idempotency-key=KEY]
-lumen env create <project-id> <name> [--idempotency-key=KEY]
-lumen api-key create <name> [--scope=SCOPE] [--idempotency-key=KEY]
-lumen webhook create <url> [--event=EVENT[,EVENT2,...]] [--idempotency-key=KEY]
+cirrus org invite <email> [--role=ROLE] [--idempotency-key=KEY] [--org=ORG_ID]
+cirrus project create <name> [--idempotency-key=KEY]
+cirrus env create <project-id> <name> [--idempotency-key=KEY]
+cirrus api-key create <name> [--scope=SCOPE] [--idempotency-key=KEY]
+cirrus webhook create <url> [--event=EVENT[,EVENT2,...]] [--idempotency-key=KEY]
 ```
 
 Cross-resource reads (Task 0101):
 
 ```
-lumen usage summary    [--metric=METRIC] [--from=ISO] [--to=ISO]
-lumen billing summary
-lumen audit list       [--limit=N] [--cursor=CURSOR] [--category=CAT] [--all]
+cirrus usage summary    [--metric=METRIC] [--from=ISO] [--to=ISO]
+cirrus billing summary
+cirrus audit list       [--limit=N] [--cursor=CURSOR] [--category=CAT] [--all]
 ```
 
 All commands accept `--output=human|json`. JSON mode emits one document
@@ -81,7 +81,7 @@ command remains retry-safe under partial failure.
 ### Active organization
 
 Most write/cross-read commands resolve the org from the persisted
-context (`lumen org use <org-id>`). Only `org invite` accepts an
+context (`cirrus org use <org-id>`). Only `org invite` accepts an
 explicit `--org=ORG_ID` override; the others throw "no active
 organization" (exit 5) when context is unset.
 
@@ -94,7 +94,7 @@ downstream pipeline can stream without buffering.
 
 ## Auth
 
-The shipped V1 is **token-paste**: `lumen login` prompts for a
+The shipped V1 is **token-paste**: `cirrus login` prompts for a
 Bearer token, validates it via `client.organizations.list()`, and stores
 it. Switching to a device-flow grant once api-edge ships
 `/v1/auth/device/{start,poll}` is a one-line dispatch in
@@ -104,12 +104,12 @@ Token storage:
 - `KeychainTokenStore` (preferred): macOS Keychain / Windows Credential
   Vault / Secret Service via `keytar` (lazy import; in
   `optionalDependencies`).
-- `FileTokenStore` fallback: `~/.config/lumen/credentials.json`,
+- `FileTokenStore` fallback: `~/.config/cirrus/credentials.json`,
   mode **0600**, parent directory mode **0700**.
 
 Active organization context lives at
-`~/.config/lumen/config.json` (mode 0644, not a secret). Override
-both via `LUMEN_CONFIG_DIR` (used by tests).
+`~/.config/cirrus/config.json` (mode 0644, not a secret). Override
+both via `CIRRUS_CONFIG_DIR` (used by tests).
 
 ## Output stability
 

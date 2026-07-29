@@ -22,6 +22,12 @@ permissions:
 
 jobs:
   plan:
+    # Orun CI needs a linked workspace (`execution.state.workspace` in
+    # intent.yaml) and connected Cloudflare + GitHub integrations. A fresh fork
+    # has neither, so every PR would open with a red check that says nothing
+    # about the PR. Set the `ORUN_CI` repository variable to `true` once
+    # BOOTSTRAP.md §1 is done; until then `verify.yml` is the PR gate.
+    if: ${{ vars.ORUN_CI == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       job-matrix: ${{ steps.matrix.outputs.job-matrix }}

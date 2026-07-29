@@ -22,7 +22,7 @@ or deleting anything.
 ## The switch
 
 `SOLO_MODE` is a deploy-time flag, set in three places (all default to *off* in
-code, so the baseline is the safe default; this Lumen instance turns it *on*):
+code, so the baseline is the safe default; this Cirrus instance turns it *on*):
 
 | Surface | Where | Read by |
 |---|---|---|

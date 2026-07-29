@@ -2,7 +2,7 @@
 // create, api-key create, webhook create) and cross-resource reads (usage
 // summary, billing summary, audit list).
 //
-// The harness mirrors `commands.test.ts`: a captured-fetch `Lumen`
+// The harness mirrors `commands.test.ts`: a captured-fetch `Cirrus`
 // is injected via `sdkFactory`, a `MemoryTokenStore` carries the bearer
 // token, and a temp-dir `ContextStore` carries the active-org. We assert
 // against the recorded fetch URLs/methods/headers/body, the formatted
@@ -14,7 +14,7 @@ import * as path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { Lumen } from "@saas/sdk";
+import { Cirrus } from "@saas/sdk";
 
 import { runCli } from "../cli-runner.js";
 import { ContextStore } from "../context/store.js";
@@ -226,7 +226,7 @@ async function withHarness(
         tokenStore,
         contextStore,
         sdkFactory: (baseUrl, token) =>
-          new Lumen({
+          new Cirrus({
             baseUrl,
             auth: { kind: "bearer", token },
             fetch: fetchFn,

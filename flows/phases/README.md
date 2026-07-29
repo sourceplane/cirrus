@@ -53,7 +53,7 @@ container with two env tokens is the entire contract (see
 
 ```bash
 export ORUN_TOKEN=… GITHUB_TOKEN=…
-orun workflow run github:sourceplane/lumen@<ref>//flows/phases/03-infrastructure/workflow.yaml \
+orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/03-infrastructure/workflow.yaml \
   --set workspace=ws_… --set repo=sourceplane/acme
 ```
 
@@ -98,7 +98,7 @@ files.
 
 Each phase folder carries its own `blueprint.yaml` — the slice it applies.
 They are derived from the baseline's monolithic `repo-blueprint.yaml`
-(Lumen as a Blueprint of itself); regenerate them after editing it:
+(Cirrus as a Blueprint of itself); regenerate them after editing it:
 
 ```bash
 python3 tooling/blueprint/split-phases.py repo-blueprint.yaml flows/phases

@@ -1,14 +1,14 @@
-// `@saas/sdk` — Lumen TypeScript SDK.
+// `@saas/sdk` — Cirrus TypeScript SDK.
 //
 // Stable public surface:
-//   - `Lumen`              → the client class
+//   - `Cirrus`              → the client class
 //   - Per-resource clients reachable via `client.<resource>`
 //   - typed error hierarchy from `./errors`
 //   - request/response types re-exported from `@saas/contracts`
 //
 // The transport (`Transport`, `generateRequestId`) is exported for advanced
 // callers (custom retry middleware, alt resource fan-out) but the typical
-// integration path is the `Lumen` class.
+// integration path is the `Cirrus` class.
 
 import { ApiKeysClient } from "./apiKeys.js";
 import { AuthClient } from "./auth.js";
@@ -26,7 +26,7 @@ import { SecurityEventsClient } from "./securityEvents.js";
 import { WebhooksClient } from "./webhooks.js";
 import { Transport, type ClientOptions } from "./transport.js";
 
-export class Lumen {
+export class Cirrus {
   readonly organizations: OrganizationsClient;
   readonly projects: ProjectsClient;
   readonly environments: EnvironmentsClient;
@@ -111,7 +111,7 @@ export {
 
 // Typed error hierarchy.
 export {
-  LumenError,
+  CirrusError,
   BadRequestError,
   UnauthenticatedError,
   ForbiddenError,

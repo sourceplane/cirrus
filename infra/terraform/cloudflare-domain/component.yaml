@@ -19,14 +19,14 @@ spec:
     stackName: cloudflare-domain
     terraformDir: terraform
     terraformVersion: "1.15.3"
-    baseDomain: lumen.app
+    baseDomain: cirrus.app
     zoneMode: existing
-    workerNamePrefix: lumen-web-console-next
+    workerNamePrefix: cirrus-web-console-next
     # NOTE: `CONSOLE_CUSTOM_DOMAIN` is intentionally NOT declared here.
     # It is supplied per-environment via
     # `environments.{dev,stage,prod}.parameterDefaults.terraform.CONSOLE_CUSTOM_DOMAIN`
-    # in `intent.yaml` (dev: "", stage: stage.lumen.app,
-    # prod: prod.lumen.app) and surfaced to Terraform as
+    # in `intent.yaml` (dev: "", stage: stage.cirrus.app,
+    # prod: prod.cirrus.app) and surfaced to Terraform as
     # `TF_VAR_CONSOLE_CUSTOM_DOMAIN` by the generic `.parameters` →
     # `TF_VAR_<key>` loop in the cloudflare-domain-validate job template.
     # Declaring a default here would shadow the parameterDefault override
@@ -40,7 +40,7 @@ spec:
     - component: web-console-next
 
   # PARKED — no environment subscriptions, so no jobs are planned. The zone
-  # this stack manages (baseDomain lumen.app) is not delegated to Cloudflare
+  # this stack manages (baseDomain cirrus.app) is not delegated to Cloudflare
   # and does not exist in the connected account (the domain is parked at
   # dns.ws — a rebrand artifact), so `data.cloudflare_zone.existing` fails
   # every plan with "no zone found". Restore the subscribe block below once

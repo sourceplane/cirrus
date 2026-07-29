@@ -2,8 +2,8 @@ import { handlePreflight, applyCorsHeaders, isAllowedOrigin } from "@api-edge/co
 import { consoleWorkersDevOrigin } from "@api-edge/app-config";
 import type { Env } from "@api-edge/env";
 
-const stageEnv: Env = { ENVIRONMENT: "stage", CONSOLE_CUSTOM_DOMAIN: "stage.lumen.app" };
-const prodEnv: Env = { ENVIRONMENT: "prod", CONSOLE_CUSTOM_DOMAIN: "prod.lumen.app" };
+const stageEnv: Env = { ENVIRONMENT: "stage", CONSOLE_CUSTOM_DOMAIN: "stage.cirrus.app" };
+const prodEnv: Env = { ENVIRONMENT: "prod", CONSOLE_CUSTOM_DOMAIN: "prod.cirrus.app" };
 const testEnv: Env = { ENVIRONMENT: "test" };
 
 // Post Task 0083: legacy `apps/web-console` (Pages) was decommissioned. The CORS
@@ -18,7 +18,7 @@ const DEV_WORKER_ORIGIN = consoleWorkersDevOrigin("dev");
 describe("api-edge cors", () => {
   describe("isAllowedOrigin — stage environment", () => {
     it("allows the stage custom domain origin", () => {
-      expect(isAllowedOrigin("https://stage.lumen.app", stageEnv)).toBe(true);
+      expect(isAllowedOrigin("https://stage.cirrus.app", stageEnv)).toBe(true);
     });
 
     it("allows the stage workers.dev origin", () => {
@@ -26,7 +26,7 @@ describe("api-edge cors", () => {
     });
 
     it("rejects the prod custom domain origin", () => {
-      expect(isAllowedOrigin("https://prod.lumen.app", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://prod.cirrus.app", stageEnv)).toBe(false);
     });
 
     it("rejects the prod workers.dev origin", () => {
@@ -34,10 +34,10 @@ describe("api-edge cors", () => {
     });
 
     it("rejects the legacy Pages console origins", () => {
-      expect(isAllowedOrigin("https://lumen-web-console.pages.dev", stageEnv)).toBe(false);
-      expect(isAllowedOrigin("https://lumen-web-console-stage.pages.dev", stageEnv)).toBe(false);
-      expect(isAllowedOrigin("https://lumen-web-console-prod.pages.dev", stageEnv)).toBe(false);
-      expect(isAllowedOrigin("https://abc123.lumen-web-console-stage.pages.dev", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console.pages.dev", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console-stage.pages.dev", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console-prod.pages.dev", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://abc123.cirrus-web-console-stage.pages.dev", stageEnv)).toBe(false);
     });
 
     it("allows localhost origins", () => {
@@ -53,7 +53,7 @@ describe("api-edge cors", () => {
 
   describe("isAllowedOrigin — prod environment", () => {
     it("allows the prod custom domain origin", () => {
-      expect(isAllowedOrigin("https://prod.lumen.app", prodEnv)).toBe(true);
+      expect(isAllowedOrigin("https://prod.cirrus.app", prodEnv)).toBe(true);
     });
 
     it("allows the prod workers.dev origin", () => {
@@ -61,7 +61,7 @@ describe("api-edge cors", () => {
     });
 
     it("rejects the stage custom domain origin", () => {
-      expect(isAllowedOrigin("https://stage.lumen.app", prodEnv)).toBe(false);
+      expect(isAllowedOrigin("https://stage.cirrus.app", prodEnv)).toBe(false);
     });
 
     it("rejects the stage workers.dev origin", () => {
@@ -69,9 +69,9 @@ describe("api-edge cors", () => {
     });
 
     it("rejects the legacy Pages console origins", () => {
-      expect(isAllowedOrigin("https://lumen-web-console.pages.dev", prodEnv)).toBe(false);
-      expect(isAllowedOrigin("https://lumen-web-console-prod.pages.dev", prodEnv)).toBe(false);
-      expect(isAllowedOrigin("https://feat-branch-42.lumen-web-console-stage.pages.dev", prodEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console.pages.dev", prodEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console-prod.pages.dev", prodEnv)).toBe(false);
+      expect(isAllowedOrigin("https://feat-branch-42.cirrus-web-console-stage.pages.dev", prodEnv)).toBe(false);
     });
 
     it("allows localhost origins", () => {
@@ -85,8 +85,8 @@ describe("api-edge cors", () => {
 
   describe("isAllowedOrigin — fallback (test/unknown environment)", () => {
     it("rejects custom domain origins when CONSOLE_CUSTOM_DOMAIN is not set", () => {
-      expect(isAllowedOrigin("https://stage.lumen.app", testEnv)).toBe(false);
-      expect(isAllowedOrigin("https://prod.lumen.app", testEnv)).toBe(false);
+      expect(isAllowedOrigin("https://stage.cirrus.app", testEnv)).toBe(false);
+      expect(isAllowedOrigin("https://prod.cirrus.app", testEnv)).toBe(false);
     });
 
     it("allows custom domain origin when CONSOLE_CUSTOM_DOMAIN is set", () => {
@@ -101,8 +101,8 @@ describe("api-edge cors", () => {
     });
 
     it("rejects legacy Pages console origins in fallback env", () => {
-      expect(isAllowedOrigin("https://lumen-web-console-stage.pages.dev", testEnv)).toBe(false);
-      expect(isAllowedOrigin("https://lumen-web-console-prod.pages.dev", testEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console-stage.pages.dev", testEnv)).toBe(false);
+      expect(isAllowedOrigin("https://cirrus-web-console-prod.pages.dev", testEnv)).toBe(false);
     });
 
     it("allows localhost origins", () => {
@@ -142,13 +142,13 @@ describe("api-edge cors", () => {
     it("returns 204 with CORS headers for allowed stage custom domain", () => {
       const req = new Request("https://api.test/v1/auth/session", {
         method: "OPTIONS",
-        headers: { origin: "https://stage.lumen.app" },
+        headers: { origin: "https://stage.cirrus.app" },
       });
       const res = handlePreflight(req, stageEnv);
       expect(res).not.toBeNull();
       expect(res!.status).toBe(204);
       expect(res!.headers.get("access-control-allow-origin")).toBe(
-        "https://stage.lumen.app",
+        "https://stage.cirrus.app",
       );
       expect(res!.headers.get("access-control-allow-credentials")).toBe("true");
     });
@@ -176,7 +176,7 @@ describe("api-edge cors", () => {
     it("returns 204 without CORS headers when prod custom domain hits stage API", () => {
       const req = new Request("https://api.test/v1/auth/session", {
         method: "OPTIONS",
-        headers: { origin: "https://prod.lumen.app" },
+        headers: { origin: "https://prod.cirrus.app" },
       });
       const res = handlePreflight(req, stageEnv);
       expect(res).not.toBeNull();
@@ -220,14 +220,14 @@ describe("api-edge cors", () => {
   describe("applyCorsHeaders", () => {
     it("adds CORS headers for stage custom domain on stage env", () => {
       const req = new Request("https://api.test/v1/auth/session", {
-        headers: { origin: "https://stage.lumen.app" },
+        headers: { origin: "https://stage.cirrus.app" },
       });
       const original = Response.json({ data: {} }, { status: 200 });
       const res = applyCorsHeaders(original, req, stageEnv);
 
       expect(res.status).toBe(200);
       expect(res.headers.get("access-control-allow-origin")).toBe(
-        "https://stage.lumen.app",
+        "https://stage.cirrus.app",
       );
       expect(res.headers.get("access-control-allow-credentials")).toBe("true");
       expect(res.headers.get("vary")).toBe("Origin");
@@ -248,7 +248,7 @@ describe("api-edge cors", () => {
 
     it("does not add CORS headers for prod custom domain on stage env", () => {
       const req = new Request("https://api.test/v1/auth/session", {
-        headers: { origin: "https://prod.lumen.app" },
+        headers: { origin: "https://prod.cirrus.app" },
       });
       const original = Response.json({ data: {} }, { status: 200 });
       const res = applyCorsHeaders(original, req, stageEnv);
@@ -268,7 +268,7 @@ describe("api-edge cors", () => {
 
     it("does not add CORS headers for stage custom domain on prod env", () => {
       const req = new Request("https://api.test/v1/auth/session", {
-        headers: { origin: "https://stage.lumen.app" },
+        headers: { origin: "https://stage.cirrus.app" },
       });
       const original = Response.json({ data: {} }, { status: 200 });
       const res = applyCorsHeaders(original, req, prodEnv);
