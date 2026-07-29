@@ -1,0 +1,183 @@
+apiVersion: orun.dev/v1
+kind: Workflow
+metadata:
+  name: phase-01-scaffold
+# Phase 1 of the paced bootstrap: birth the product repo from the workspace
+# blueprint (flows/phases/01-scaffold/blueprint.yaml — intent, CI, flows, tooling,
+# .rebrand/values.json), push it to GitHub, and link it to the workspace.
+# Every later phase reads the identity from the repo's own
+# .rebrand/values.json, so this is the only phase that takes identity inputs.
+#
+# Run from the baseline checkout (local mode: --set out=<path>), or from
+# ANYWHERE — a fresh container included — by remote ref (headless mode:
+# out defaults to ./product; needs GITHUB_TOKEN + ORUN_TOKEN in the env):
+#   orun workflow run github:sourceplane/lumen@<ref>//flows/phases/01-scaffold/workflow.yaml \
+#     --set workspace=ws_… --set reponame=acme --set productname="Acme Cloud" \
+#     --set productdomain=acme.dev --set subdomain=<workers-dev-subdomain>
+# The baseline content is fetched at the SAME commit the flow came from
+# (ORUN_FLOW_SOURCE_SHA), so one remote reference pins everything.
+inputs:
+  out:
+    type: string
+    default: ""
+    description: Path where the product repo is created. Empty = ./product (headless default).
+  baselineref:
+    type: string
+    default: ""
+    description: Baseline git ref to fetch when no local checkout exists. Empty = the commit this flow was fetched from, else main.
+  workspace:
+    type: string
+    description: Workspace id (ws_…) or slug this product deploys against.
+  reponame:
+    type: string
+    description: Repo slug (lowercase; becomes sourceplane/<reponame>).
+  productname:
+    type: string
+    description: Human product display name.
+  productdomain:
+    type: string
+    description: Product domain (e.g. acme.dev).
+  subdomain:
+    type: string
+    description: workers.dev subdomain (keeping the baseline's is supported).
+  githuborg:
+    type: string
+    default: "sourceplane"
+    description: GitHub org the repo is created under.
+  dryrun:
+    type: string
+    default: "false"
+    description: '"true" renders the scaffold into a temp dir and reports, creating nothing.'
+steps:
+  - name: blueprint
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    run:
+      - /bin/bash
+      - -c
+      - |
+        set -euo pipefail
+        # ── context: baseline (local checkout, or self-pinned fetch) ──
+        if BL="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -f "$BL/repo-blueprint.yaml" ] && [ -d "$BL/flows/phases" ]; then
+          L="$BL"
+        else
+          # Steps run in the exec-specific wfruns dir — anchor shared content
+          # one level up so baseline/ and product/ persist across phases.
+          case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
+          L="$W/baseline"
+          if [ ! -e "$L/.git" ]; then
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            bref="{{ inputs.baselineref }}"
+            [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
+            echo "fetching baseline $brepo@$bref"
+            git init -q "$L"
+            git -C "$L" remote add origin "https://github.com/$brepo"
+            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
+            git -C "$L" checkout -q FETCH_HEAD
+          fi
+        fi
+        out="{{ inputs.out }}"
+        if [ -z "$out" ]; then
+          case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
+          out="$W/product"
+        fi
+        if [ "{{ inputs.dryrun }}" = "true" ]; then
+          out="$(mktemp -d)/scaffold-preview"
+          echo "DRY RUN: rendering scaffold into $out"
+        fi
+        mkdir -p "$out"
+        # Empty discovery roots FIRST: orun new's repo-scale gate (and later
+        # `orun plan` in the product's CI) discovers apps/infra/packages/tests
+        # — which by design are empty until later phases fill them.
+        mkdir -p "$out/apps" "$out/infra" "$out/packages" "$out/tests"
+        for d in apps infra packages tests; do touch "$out/$d/.gitkeep"; done
+        # No --run-hooks: the blueprint's hook chain is replicated below
+        # (git init/stage, rebrand, intent workspace rewrite) so the phased
+        # path controls each piece.
+        orun new --blueprint "$L/flows/phases/01-scaffold/blueprint.yaml" --out "$out" \
+          --set "repoName={{ inputs.reponame }}" \
+          --set "productName={{ inputs.productname }}" \
+          --set "productDomain={{ inputs.productdomain }}" \
+          --set "workersDevSubdomain={{ inputs.subdomain }}" \
+          --set "orunWorkspace={{ inputs.workspace }}"
+        cd "$out"
+        [ -d .git ] || git init -q -b main
+        git add -A
+        node tooling/rebrand/rebrand.mjs --values .rebrand/values.json --allow-dirty
+        python3 - <<'PYEOF'
+        import json, re
+        ws = (json.load(open(".rebrand/values.json")).get("orunWorkspace") or "").strip() or "ws_SET_ME"
+        s = open("intent.yaml").read()
+        s2 = re.sub(r"^(\s*workspace:\s*).*$", r"\g<1>" + ws, s, count=1, flags=re.M)
+        assert s2 != s or ws in s, "no workspace: line in intent.yaml"
+        open("intent.yaml", "w").write(s2)
+        print("intent.yaml workspace ->", ws)
+        PYEOF
+        git add -A
+        if [ "{{ inputs.dryrun }}" = "true" ]; then
+          echo "DRY RUN: scaffold rendered $(git ls-files | wc -l | xargs) file(s); removing"
+          cd / && rm -rf "$out"
+          exit 0
+        fi
+    timeout: 10m
+
+  - name: repo
+    needs: [blueprint]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    run:
+      - /bin/bash
+      - -c
+      - |
+        set -euo pipefail
+        [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: would git init + gh repo create {{ inputs.githuborg }}/{{ inputs.reponame }} --private --push"; exit 0; }
+        out="{{ inputs.out }}"
+        if [ -z "$out" ]; then
+          case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
+          out="$W/product"
+        fi
+        cd "$out"
+        [ -d .git ] || git init -q -b main
+        git config credential.helper '!gh auth git-credential'
+        if ! git config user.email >/dev/null 2>&1 && ! git config --global user.email >/dev/null 2>&1; then
+          git config user.email "bootstrap-bot@users.noreply.github.com"
+          git config user.name "bootstrap-bot"
+        fi
+        git add -A
+        git diff --cached --quiet || git commit -q -m "scaffold: {{ inputs.reponame }} from the baseline workspace blueprint"
+        # Three supported states, in order: origin already wired → push;
+        # repo pre-created on GitHub (org policy may restrict creation to
+        # admins) → wire origin and push; nothing anywhere → create private
+        # repo and push. Idempotent across re-runs in every case.
+        slug="{{ inputs.githuborg }}/{{ inputs.reponame }}"
+        if git remote get-url origin >/dev/null 2>&1; then
+          git push -qu origin main
+        elif gh repo view "$slug" >/dev/null 2>&1; then
+          echo "repo $slug already exists on GitHub — wiring origin and pushing"
+          git remote add origin "https://github.com/$slug"
+          git push -qu origin main
+        else
+          gh repo create "$slug" --private --source . --push
+        fi
+    timeout: 5m
+
+  - name: link
+    needs: [repo]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    run:
+      - /bin/bash
+      - -c
+      - |
+        set -euo pipefail
+        [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: would orun cloud link --org {{ inputs.workspace }}"; exit 0; }
+        out="{{ inputs.out }}"
+        if [ -z "$out" ]; then
+          case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
+          out="$W/product"
+        fi
+        cd "$out"
+        orun cloud link --org "{{ inputs.workspace }}" || true
+        orun cloud check --org "{{ inputs.workspace }}" || {
+          echo "repo not allow-listed for {{ inputs.workspace }} — grant it in the console (Git Repos) and re-run this phase" >&2
+          exit 1
+        }
+        echo "scaffold complete: repo live and linked. Next: flows/phases/02-foundation"
+    timeout: 5m
