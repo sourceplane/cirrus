@@ -1,6 +1,6 @@
 // Test helpers: in-memory token store + context store + fake SDK.
 
-import type { Lumen } from "@saas/sdk";
+import type { Cirrus } from "@saas/sdk";
 
 import type { StoredCredential, TokenStore } from "../token-store/types.js";
 
@@ -54,4 +54,4 @@ export function envelope<T>(data: T, requestId = "req_test"): {
   return { data, meta: { requestId, cursor: null } };
 }
 
-export type LumenFactory = (baseUrl: string, token: string) => Lumen;
+export type CirrusFactory = (baseUrl: string, token: string) => Cirrus;

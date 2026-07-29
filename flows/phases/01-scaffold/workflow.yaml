@@ -11,7 +11,7 @@ metadata:
 # Run from the baseline checkout (local mode: --set out=<path>), or from
 # ANYWHERE — a fresh container included — by remote ref (headless mode:
 # out defaults to ./product; needs GITHUB_TOKEN + ORUN_TOKEN in the env):
-#   orun workflow run github:sourceplane/lumen@<ref>//flows/phases/01-scaffold/workflow.yaml \
+#   orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/01-scaffold/workflow.yaml \
 #     --set workspace=ws_… --set reponame=acme --set productname="Acme Cloud" \
 #     --set productdomain=acme.dev --set subdomain=<workers-dev-subdomain>
 # The baseline content is fetched at the SAME commit the flow came from
@@ -65,7 +65,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"

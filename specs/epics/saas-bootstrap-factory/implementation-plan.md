@@ -132,12 +132,12 @@ names); stage smoke is green.
 
 ### BF4 — Generalize runtime binding names
 
-**Why now.** Every DB-using worker binds Hyperdrive as `LUMEN_DB`, and
+**Why now.** Every DB-using worker binds Hyperdrive as `CIRRUS_DB`, and
 code reads that name. Binding names are API between infra and code; a generic
 name removes a whole class of rename churn from instantiation.
 
 **Scope.**
-- Rename `LUMEN_DB` → `PLATFORM_DB` (final name decided in
+- Rename `CIRRUS_DB` → `PLATFORM_DB` (final name decided in
   `risks-and-open-questions.md`) across all 13 `wrangler.jsonc` files and
   every `env.` accessor; same for any other branded binding/var names found in
   the sweep.

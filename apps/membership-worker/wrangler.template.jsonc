@@ -3,7 +3,7 @@
 // resolved from AWS Secrets Manager at deploy time (wire-live) or from the
 // committed wiring.fixture.json for offline dry-runs (wire-fixture).
 {
-  "name": "lumen-membership-worker",
+  "name": "cirrus-membership-worker",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.ts",
@@ -34,15 +34,15 @@
       "services": [
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-stage"
+          "service": "cirrus-policy-worker-stage"
         },
         {
           "binding": "BILLING_WORKER",
-          "service": "lumen-billing-worker-stage"
+          "service": "cirrus-billing-worker-stage"
         },
         {
           "binding": "NOTIFICATIONS_WORKER",
-          "service": "lumen-notifications-worker-stage"
+          "service": "cirrus-notifications-worker-stage"
         }
       ]
     },
@@ -61,15 +61,15 @@
       "services": [
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-prod"
+          "service": "cirrus-policy-worker-prod"
         },
         {
           "binding": "BILLING_WORKER",
-          "service": "lumen-billing-worker-prod"
+          "service": "cirrus-billing-worker-prod"
         },
         {
           "binding": "NOTIFICATIONS_WORKER",
-          "service": "lumen-notifications-worker-prod"
+          "service": "cirrus-notifications-worker-prod"
         }
       ]
     }

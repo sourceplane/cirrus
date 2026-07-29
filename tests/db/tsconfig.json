@@ -21,7 +21,11 @@
       "@saas/db/config": ["../../packages/db/src/config/index.ts"],
       "@saas/db/webhooks": ["../../packages/db/src/webhooks/index.ts"],
       "@saas/db/metering": ["../../packages/db/src/metering/index.ts"],
-      "@saas/db/billing": ["../../packages/db/src/billing/index.ts"]
+      "@saas/db/billing": ["../../packages/db/src/billing/index.ts"],
+      "@saas/db/notifications": ["../../packages/db/src/notifications/index.ts"],
+      "@saas/db/support": ["../../packages/db/src/support/index.ts"],
+      "@saas/db/integrations": ["../../packages/db/src/integrations/index.ts"],
+      "@saas/db/ids": ["../../packages/db/src/ids/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

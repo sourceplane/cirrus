@@ -1,8 +1,8 @@
 apiVersion: orun.dev/v1
 kind: Blueprint
 metadata:
-  name: lumen-baseline-workers
-  description: Phase 3/7 (workers) of lumen-baseline. Cross-phase dependsOn edges are pruned; ordering
+  name: cirrus-baseline-workers
+  description: Phase 3/7 (workers) of cirrus-baseline. Cross-phase dependsOn edges are pruned; ordering
     is enforced by running the phases in sequence into the same --out.
 inputs:
   repoName:

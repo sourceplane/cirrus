@@ -1,7 +1,7 @@
-// Tests for Task 0120 — `lumen webhook deliveries` CLI subcommand.
+// Tests for Task 0120 — `cirrus webhook deliveries` CLI subcommand.
 //
 // The harness injects a *fake SDK* via `sdkFactory` rather than going through
-// the real `Lumen` client + a captured-fetch — the command is a thin
+// the real `Cirrus` client + a captured-fetch — the command is a thin
 // adapter over `sdk.webhooks.listDeliveryAttemptsPage`, so direct SDK-layer
 // injection lets us assert the call shape (orgId, endpointId, query) and the
 // cursor-following loop without modelling the request envelope. The fake
@@ -20,7 +20,7 @@ import * as path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
-  Lumen,
+  Cirrus,
   PublicWebhookDeliveryAttempt,
   DeliveryAttemptsPage,
 } from "@saas/sdk";
@@ -132,7 +132,7 @@ async function withHarness(
 
     const fakeSdk = {
       webhooks: { listDeliveryAttemptsPage },
-    } as unknown as Lumen;
+    } as unknown as Cirrus;
 
     const runArgv = (argv: string[]): Promise<{ exitCode: number }> =>
       runCli(argv, {
@@ -333,7 +333,7 @@ describe("commands — webhook deliveries", () => {
       const r = await runArgv(["webhook", "deliveries"]);
       expect(r.exitCode).toBe(2);
       expect(cap.stderr.join("\n")).toMatch(
-        /usage: lumen webhook deliveries/,
+        /usage: cirrus webhook deliveries/,
       );
       expect(cap.pageCalls).toHaveLength(0);
     });
@@ -385,7 +385,7 @@ describe("commands — webhook deliveries", () => {
       const r = await runArgv(["--help"]);
       expect(r.exitCode).toBe(0);
       expect(cap.stdout.join("\n")).toContain(
-        "lumen webhook deliveries <endpointId> [--limit=N] [--cursor=CURSOR] [--all] [--output=human|json]",
+        "cirrus webhook deliveries <endpointId> [--limit=N] [--cursor=CURSOR] [--all] [--output=human|json]",
       );
     });
   });

@@ -1,31 +1,48 @@
-# lumen
+# cirrus
 
-Reusable Cloudflare + Supabase multi-tenant SaaS starter, built as an
-[Orun](https://opencode.ai/docs) component-native desired-state repo. Identity,
-organizations, projects, RBAC, audit, metering, billing, webhooks, and
-notifications ship as separate bounded-context Cloudflare Workers behind a single
-public edge API, with a Next.js console on Workers + Static Assets.
+**An all-Cloudflare multi-tenant SaaS baseline.** Identity, organizations,
+projects, RBAC, audit, metering, billing, webhooks, and notifications ship as
+separate bounded-context Cloudflare Workers behind a single public edge API,
+with a Next.js console on Workers + Static Assets — and **Cloudflare D1 as the
+system of record**. No Postgres, no Supabase, no AWS. One cloud account and a
+GitHub repo is the entire supplier list.
+
+Built as an [Orun](https://opencode.ai/docs) component-native desired-state
+repo: every deployable unit declares itself in a `component.yaml`, and CI calls
+`orun plan` / `orun run` rather than Wrangler, Terraform, or pnpm directly.
 
 ## Status
 
-- **Runtime is live, per environment, through Orun.** The edge API, the
-  bounded-context Workers, and the console deploy to `stage` and `prod` via
-  `orun run` (no direct Wrangler/Terraform/pnpm in CI).
-- **Data plane is provisioned by Terraform:** Supabase `stage` and `prod`
-  projects, Cloudflare Hyperdrive (pooled Postgres for Workers), and the
-  `api-edge` idempotency KV namespace, with credentials in AWS Secrets Manager.
-- **Database migrations** run through the `db-migrate` component (plan on PRs,
-  apply on merge to `main`).
-- **Billing** is live end-to-end via the Polar adapter (embedded checkout,
-  plan changes, multi-org fan-out).
-- **Known credential-blocked tails** (see `specs/epics/saas-baseline/`): full
-  production OAuth/magic-link auth and Stripe require human-supplied
-  credentials. The notifications email provider is Cloudflare Email Service
-  (`cloudflare-email`, no API key — the `send_email` binding is the
-  credential); it needs one-time account setup: Workers Paid plan and the
-  sending domain verified in Email Service (DKIM/SPF).
-- The `dev` environment is verify-only (no provisioned Supabase project by
-  design).
+Cirrus is a **fork of [`sourceplane/lumen`](https://github.com/sourceplane/lumen)**
+(`e1fbee6`) whose data plane is being moved from Supabase Postgres to
+Cloudflare D1, milestone by milestone. The runtime, contracts, console, and
+component model come over intact and proven; the storage layer is the work.
+
+Progress lives in **[`specs/epics/cloudflare-native/`](specs/epics/cloudflare-native/)** —
+read the [epic README](specs/epics/cloudflare-native/README.md) for the thesis
+and the trade-offs it accepts, [`design.md`](specs/epics/cloudflare-native/design.md)
+for the dialect contract, and
+[`IMPLEMENTATION-STATUS.md`](specs/epics/cloudflare-native/IMPLEMENTATION-STATUS.md)
+for what has landed.
+
+Inherited from the baseline and still true:
+
+- **Billing** runs end-to-end via the Polar adapter (embedded checkout, plan
+  changes, multi-org fan-out). Polar is a payment provider, not
+  infrastructure — "all-Cloudflare" is about where the product runs and stores.
+- **Notifications** deliver through Cloudflare Email Service (`send_email`
+  binding, no API key), which needs one-time account setup: Workers Paid plan
+  and the sending domain verified for DKIM/SPF.
+- **Production OAuth / magic-link auth** needs human-supplied credentials; the
+  code paths are complete and the secrets are wire-now-seed-later.
+
+## Two CI workflows, on purpose
+
+`verify.yml` runs install → typecheck → lint → test → build and needs nothing
+but the repo, so a PR is reviewable on day one. `ci.yml` is the Orun plan/run
+pipeline that provisions and deploys; it needs a linked workspace and connected
+integrations, so it stays gated behind the `ORUN_CI` repository variable until
+[BOOTSTRAP.md](BOOTSTRAP.md) §1 is done.
 
 ## Forking / rebranding
 
@@ -80,17 +97,18 @@ packages/contracts        Shared API, tenancy, event, and error types + validato
 packages/policy-engine    RBAC evaluation logic
 packages/db               Migration harness, manifest, and runner
 packages/sdk              TypeScript SDK (contract-driven)
-packages/cli              `lumen` CLI
+packages/cli              `cirrus` CLI
 packages/notifications-client  Notifications client
 packages/shared           Generic helpers (IDs, errors) — no domain logic
 packages/testing          Test fixtures and utilities
 
-infra/terraform/bootstrap          Verifies AWS state backend + Secrets access
-infra/terraform/supabase           Supabase project provisioning (stage/prod)
-infra/terraform/cloudflare-hyperdrive  Hyperdrive config fronting Supabase
 infra/terraform/cloudflare-kv      api-edge idempotency KV namespace
 infra/terraform/cloudflare-domain  Zone adoption + console custom domain
 infra/db-migrate                   Database migration runner component
+
+infra/terraform/supabase           ⚠ inherited — deleted in CN5
+infra/terraform/cloudflare-hyperdrive  ⚠ inherited — deleted in CN5
+                                   (replaced by infra/terraform/cloudflare-d1)
 
 tooling/tsconfig          Shared TypeScript configurations
 tooling/eslint            Shared ESLint configuration
@@ -126,13 +144,22 @@ environment promotion or cross-component dependencies (`--view dag`).
 
 ## Infrastructure
 
-Terraform provisions Supabase projects, Cloudflare Hyperdrive, and the
-`api-edge` KV namespace for `stage` and `prod`. Credentials are generated by
-Terraform and stored in AWS Secrets Manager under
-`<org>/lumen/<component>/<env>`. Terraform state uses the shared S3
-buckets `sourceplane-<env>` (IAM roles and buckets are owned by the `aws-admin`
-repo). See `specs/core/access-and-infra.md` for the access model and the
-manual prerequisites.
+Terraform provisions the Cloudflare resources for `stage` and `prod`. There is
+no AWS: **state** lives on the Orun control plane (`backend "http" {}`, the
+runner exports `TF_HTTP_*` per job with the run token as the credential), and
+**secrets** are Orun-managed — brokered fresh per run from the workspace's
+integrations, resolved lease-bound by the jobs that declare them, and
+log-redacted. CI holds exactly one credential, GitHub's own `GITHUB_TOKEN`.
+
+Resource ids are never committed. Each infra component lease-publishes a
+`WIRING_<COMPONENT>` document onto the project/env secret rung after apply, and
+the worker compositions render `wrangler.jsonc` from it at deploy time —
+`wiring.fixture.json` stands in for offline verify lanes.
+
+Once CN5 lands, the full provisioned surface is: one D1 database, one KV
+namespace, and (optionally) a zone for the console's custom domain. See
+`specs/core/access-and-infra.md` for the access model and the manual
+prerequisites.
 
 ## Adding a New Component
 

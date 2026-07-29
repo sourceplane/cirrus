@@ -34,7 +34,7 @@ describe("cli — argv routing", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(out.stdout.join("\n")).toContain("USAGE:");
-    expect(out.stdout.join("\n")).toContain("lumen org list");
+    expect(out.stdout.join("\n")).toContain("cirrus org list");
   });
 
   it("no argv prints help and exits 0", async () => {
@@ -46,7 +46,7 @@ describe("cli — argv routing", () => {
       contextStore: new ContextStore({ configDir: "/tmp/cli-test-noargs" }),
     });
     expect(result.exitCode).toBe(0);
-    expect(out.stdout.join("\n")).toContain("lumen v");
+    expect(out.stdout.join("\n")).toContain("cirrus v");
   });
 
   it("`--version` (human) prints the version", async () => {
