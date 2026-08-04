@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   AcceptInvitationInput,
   BootstrapOrganizationInput,
@@ -16,6 +16,7 @@ import type {
   PageQueryParams,
   RoleAssignment,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
 
 function mapOrganization(row: Record<string, unknown>): Organization {
   return {
@@ -93,21 +94,13 @@ function safeError(message: string, cause?: unknown): MembershipResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 export function createMembershipRepository(executor: SqlExecutor): MembershipRepository {
   return {
     async createOrganization(input: CreateOrganizationInput): Promise<MembershipResult<Organization>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO membership.organizations (id, name, slug, slug_lower, created_at, updated_at)
+          `INSERT INTO membership_organizations (id, name, slug, slug_lower, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $5)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -128,7 +121,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async getOrganizationById(id: string): Promise<MembershipResult<Organization>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.organizations WHERE id = $1`,
+          `SELECT * FROM membership_organizations WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) {
@@ -143,7 +136,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async getOrganizationBySlug(slugLower: string): Promise<MembershipResult<Organization>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.organizations WHERE slug_lower = $1`,
+          `SELECT * FROM membership_organizations WHERE slug_lower = $1`,
           [slugLower],
         );
         if (result.rowCount === 0) {
@@ -158,7 +151,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async listChildOrganizations(parentOrgId: string): Promise<MembershipResult<Organization[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.organizations WHERE parent_org_id = $1 ORDER BY created_at ASC`,
+          `SELECT * FROM membership_organizations WHERE parent_org_id = $1 ORDER BY created_at ASC`,
           [parentOrgId],
         );
         return { ok: true, value: result.rows.map(mapOrganization) };
@@ -170,7 +163,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async setOrganizationStatus(orgId: string, status: string, updatedAt: Date): Promise<MembershipResult<Organization>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE membership.organizations SET status = $2, updated_at = $3 WHERE id = $1 RETURNING *`,
+          `UPDATE membership_organizations SET status = $2, updated_at = $3 WHERE id = $1 RETURNING *`,
           [orgId, status, updatedAt.toISOString()],
         );
         if (result.rowCount === 0) {
@@ -185,8 +178,8 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async listOrganizationsForSubject(subjectId: string): Promise<MembershipResult<Organization[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT o.* FROM membership.organizations o
-           INNER JOIN membership.organization_members m ON m.org_id = o.id
+          `SELECT o.* FROM membership_organizations o
+           INNER JOIN membership_organization_members m ON m.org_id = o.id
            WHERE m.subject_id = $1 AND m.status = 'active'`,
           [subjectId],
         );
@@ -202,16 +195,16 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
         let sql: string;
         let values: unknown[];
         if (params.cursor) {
-          sql = `SELECT o.* FROM membership.organizations o
-           INNER JOIN membership.organization_members m ON m.org_id = o.id
+          sql = `SELECT o.* FROM membership_organizations o
+           INNER JOIN membership_organization_members m ON m.org_id = o.id
            WHERE m.subject_id = $1 AND m.status = 'active'
              AND (o.created_at, o.id) < ($3, $4)
            ORDER BY o.created_at DESC, o.id DESC
            LIMIT $2`;
           values = [subjectId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
-          sql = `SELECT o.* FROM membership.organizations o
-           INNER JOIN membership.organization_members m ON m.org_id = o.id
+          sql = `SELECT o.* FROM membership_organizations o
+           INNER JOIN membership_organization_members m ON m.org_id = o.id
            WHERE m.subject_id = $1 AND m.status = 'active'
            ORDER BY o.created_at DESC, o.id DESC
            LIMIT $2`;
@@ -235,20 +228,20 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `WITH new_org AS (
-            INSERT INTO membership.organizations (id, name, slug, slug_lower, parent_org_id, created_at, updated_at)
+            INSERT INTO membership_organizations (id, name, slug, slug_lower, parent_org_id, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $19, $5, $5)
             ON CONFLICT (id) DO NOTHING
             RETURNING *
           ),
           new_member AS (
-            INSERT INTO membership.organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
+            INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
             SELECT $6, $7, $8, $9, $10, $10
             FROM new_org
             ON CONFLICT (id) DO NOTHING
             RETURNING *
           ),
           new_role AS (
-            INSERT INTO membership.role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
+            INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
             SELECT $11, $12, $13, $14, $15, $16, $17, $18
             FROM new_member
             ON CONFLICT (id) DO NOTHING
@@ -291,7 +284,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async createMember(input: CreateOrganizationMemberInput): Promise<MembershipResult<OrganizationMember>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO membership.organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
+          `INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $5)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -312,7 +305,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async getMemberById(orgId: string, memberId: string): Promise<MembershipResult<OrganizationMember>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.organization_members WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM membership_organization_members WHERE org_id = $1 AND id = $2`,
           [orgId, memberId],
         );
         if (result.rowCount === 0) {
@@ -331,7 +324,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async listMembers(orgId: string): Promise<MembershipResult<OrganizationMember[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.organization_members WHERE org_id = $1 AND status = 'active'`,
+          `SELECT * FROM membership_organization_members WHERE org_id = $1 AND status = 'active'`,
           [orgId],
         );
         return { ok: true, value: result.rows.map(mapMember) };
@@ -346,14 +339,14 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
         let sql: string;
         let values: unknown[];
         if (params.cursor) {
-          sql = `SELECT * FROM membership.organization_members
+          sql = `SELECT * FROM membership_organization_members
            WHERE org_id = $1 AND status = 'active'
              AND (created_at, id) < ($3, $4)
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
           values = [orgId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
-          sql = `SELECT * FROM membership.organization_members
+          sql = `SELECT * FROM membership_organization_members
            WHERE org_id = $1 AND status = 'active'
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
@@ -376,7 +369,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async removeMember(orgId: string, memberId: string, updatedAt: Date): Promise<MembershipResult<OrganizationMember>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE membership.organization_members
+          `UPDATE membership_organization_members
            SET status = 'removed', updated_at = $3
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING *`,
@@ -394,7 +387,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async createInvitation(input: CreateInvitationInput): Promise<MembershipResult<OrganizationInvitation>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO membership.organization_invitations (id, org_id, email, email_lower, role, token_hash, invited_by, expires_at, created_at)
+          `INSERT INTO membership_organization_invitations (id, org_id, email, email_lower, role, token_hash, invited_by, expires_at, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (id) DO NOTHING
            RETURNING id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at`,
@@ -416,7 +409,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations WHERE org_id = $1 AND id = $2`,
+           FROM membership_organization_invitations WHERE org_id = $1 AND id = $2`,
           [orgId, invitationId],
         );
         if (result.rowCount === 0) {
@@ -442,7 +435,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations WHERE token_hash = $1`,
+           FROM membership_organization_invitations WHERE token_hash = $1`,
           [tokenHash],
         );
         if (result.rowCount === 0) {
@@ -468,7 +461,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations WHERE org_id = $1`,
+           FROM membership_organization_invitations WHERE org_id = $1`,
           [orgId],
         );
         return { ok: true, value: result.rows.map(mapInvitation) };
@@ -484,7 +477,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
         let values: unknown[];
         if (params.cursor) {
           sql = `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations
+           FROM membership_organization_invitations
            WHERE org_id = $1
              AND (created_at, id) < ($3, $4)
            ORDER BY created_at DESC, id DESC
@@ -492,7 +485,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
           values = [orgId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
           sql = `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations
+           FROM membership_organization_invitations
            WHERE org_id = $1
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
@@ -515,7 +508,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async revokeInvitation(orgId: string, invitationId: string, revokedAt: Date): Promise<MembershipResult<OrganizationInvitation>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE membership.organization_invitations
+          `UPDATE membership_organization_invitations
            SET status = 'revoked', revoked_at = $3
            WHERE org_id = $1 AND id = $2 AND status = 'pending' AND revoked_at IS NULL AND accepted_at IS NULL
            RETURNING id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at`,
@@ -534,7 +527,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const checkResult = await executor.execute<Record<string, unknown>>(
           `SELECT id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
-           FROM membership.organization_invitations WHERE token_hash = $1`,
+           FROM membership_organization_invitations WHERE token_hash = $1`,
           [input.tokenHash],
         );
         if (checkResult.rowCount === 0) {
@@ -559,19 +552,19 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
 
         const result = await executor.execute<Record<string, unknown>>(
           `WITH accepted_inv AS (
-            UPDATE membership.organization_invitations
+            UPDATE membership_organization_invitations
             SET status = 'accepted', accepted_at = $2
             WHERE token_hash = $1 AND org_id = $3 AND email_lower = $4 AND status = 'pending' AND revoked_at IS NULL AND accepted_at IS NULL AND expires_at > $2
             RETURNING id, org_id, email, email_lower, role, status, invited_by, expires_at, accepted_at, revoked_at, created_at
           ),
           new_member AS (
-            INSERT INTO membership.organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
+            INSERT INTO membership_organization_members (id, org_id, subject_id, subject_type, created_at, updated_at)
             SELECT $5, org_id, $6, $7, $8, $8
             FROM accepted_inv
             RETURNING *
           ),
           new_role AS (
-            INSERT INTO membership.role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
+            INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
             SELECT $9, org_id, $10, $11, role, 'organization', NULL, $12
             FROM accepted_inv
             RETURNING *
@@ -613,7 +606,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async createRoleAssignment(input: CreateRoleAssignmentInput): Promise<MembershipResult<RoleAssignment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO membership.role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
+          `INSERT INTO membership_role_assignments (id, org_id, subject_id, subject_type, role, scope_kind, scope_ref, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -634,7 +627,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async listRoleAssignments(orgId: string, subjectId: string): Promise<MembershipResult<RoleAssignment[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.role_assignments WHERE org_id = $1 AND subject_id = $2 AND revoked_at IS NULL`,
+          `SELECT * FROM membership_role_assignments WHERE org_id = $1 AND subject_id = $2 AND revoked_at IS NULL`,
           [orgId, subjectId],
         );
         return { ok: true, value: result.rows.map(mapRoleAssignment) };
@@ -659,7 +652,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
         // scalar IN list avoids array serialization entirely.
         const placeholders = subjectIds.map((_, i) => `$${i + 2}`).join(", ");
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM membership.role_assignments
+          `SELECT * FROM membership_role_assignments
            WHERE org_id = $1 AND subject_id IN (${placeholders}) AND revoked_at IS NULL`,
           [orgId, ...subjectIds],
         );
@@ -679,7 +672,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async revokeRoleAssignment(orgId: string, assignmentId: string, revokedAt: Date): Promise<MembershipResult<RoleAssignment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE membership.role_assignments
+          `UPDATE membership_role_assignments
            SET revoked_at = $3
            WHERE org_id = $1 AND id = $2 AND revoked_at IS NULL
            RETURNING *`,
@@ -697,7 +690,7 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
     async revokeAllRoleAssignments(orgId: string, subjectId: string, revokedAt: Date): Promise<MembershipResult<RoleAssignment[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE membership.role_assignments
+          `UPDATE membership_role_assignments
            SET revoked_at = $3
            WHERE org_id = $1 AND subject_id = $2 AND revoked_at IS NULL
            RETURNING *`,
@@ -713,8 +706,8 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT COUNT(*) AS cnt
-           FROM membership.role_assignments ra
-           INNER JOIN membership.organization_members m
+           FROM membership_role_assignments ra
+           INNER JOIN membership_organization_members m
              ON m.org_id = ra.org_id AND m.subject_id = ra.subject_id
            WHERE ra.org_id = $1
              AND ra.role = 'owner'
@@ -743,10 +736,10 @@ export function createMembershipRepository(executor: SqlExecutor): MembershipRep
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT
-             (SELECT COUNT(*) FROM membership.organization_members
+             (SELECT COUNT(*) FROM membership_organization_members
                 WHERE org_id = $1 AND status = 'active')
              +
-             (SELECT COUNT(*) FROM membership.organization_invitations
+             (SELECT COUNT(*) FROM membership_organization_invitations
                 WHERE org_id = $1
                   AND status = 'pending'
                   AND revoked_at IS NULL

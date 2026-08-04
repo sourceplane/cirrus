@@ -3,7 +3,7 @@ import { drainInboundDeliveries, processDelivery } from "@integrations-worker/dr
 import { createIntegrationsRepository, type InboundDelivery } from "@saas/db/integrations";
 import { createEventsRepository } from "@saas/db/events";
 import type { Env } from "@integrations-worker/env";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 const ORG_UUID = "11111111-1111-4111-8111-111111111111";
 const CONNECTION_UUID = "33333333-3333-4333-8333-333333333333";
@@ -176,7 +176,7 @@ describe("POST /ingress/github/webhook — verify, insert, ack", () => {
 
   it("accepts a correctly signed delivery and persists the inbox row", async () => {
     const { executor, queries } = fakeExecutor((text, params) => {
-      if (text.includes("INSERT INTO integrations.inbound_deliveries")) {
+      if (text.includes("INSERT INTO integrations_inbound_deliveries")) {
         return [deliveryRow({ delivery_key: params[2] as string })];
       }
       return [];
@@ -192,7 +192,7 @@ describe("POST /ingress/github/webhook — verify, insert, ack", () => {
       { executor },
     );
     expect(res.status).toBe(202);
-    const insert = queries.find((q) => q.text.includes("INSERT INTO integrations.inbound_deliveries"));
+    const insert = queries.find((q) => q.text.includes("INSERT INTO integrations_inbound_deliveries"));
     expect(insert).toBeDefined();
     expect(insert!.text).toContain("ON CONFLICT (provider, delivery_key) DO NOTHING");
     expect(insert!.params[2]).toBe("gh-uuid-1");
@@ -203,7 +203,7 @@ describe("POST /ingress/github/webhook — verify, insert, ack", () => {
   it("acks a redelivery as a no-op (idempotency ledger)", async () => {
     let call = 0;
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("INSERT INTO integrations.inbound_deliveries")) {
+      if (text.includes("INSERT INTO integrations_inbound_deliveries")) {
         call++;
         return []; // conflict → no row
       }
@@ -288,11 +288,11 @@ describe("POST /ingress/github/webhook — verify, insert, ack", () => {
 describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
   it("emits scm.push transactionally-with-mark for an attributed delivery", async () => {
     const { ctx, queries } = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-      if (text.includes("events.event_log")) return [EVENT_ROW];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("events_event_log")) return [EVENT_ROW];
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "emitted" })];
       return [];
     });
@@ -300,10 +300,10 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     const outcome = await processDelivery(ctx, mapDelivery(deliveryRow()));
     expect(outcome).toEqual({ kind: "emitted", eventType: "scm.push" });
 
-    const mark = queries.find((q) => q.text.includes("UPDATE integrations.inbound_deliveries"));
+    const mark = queries.find((q) => q.text.includes("UPDATE integrations_inbound_deliveries"));
     expect(mark).toBeDefined();
     expect(mark!.params).toContain("emitted");
-    const eventInsert = queries.find((q) => q.text.includes("events.event_log"));
+    const eventInsert = queries.find((q) => q.text.includes("events_event_log"));
     expect(eventInsert!.params[1]).toBe("scm.push");
     expect(eventInsert!.params[9]).toBe(ORG_UUID); // org attribution from the connection
   });
@@ -311,10 +311,10 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
   it("emits per-project events with the environment resolved from the branch map (IG3)", async () => {
     const PROJECT_UUID = "44444444-4444-4444-8444-444444444444";
     const { ctx, queries } = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-      if (text.includes("FROM integrations.repo_links"))
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("FROM integrations_repo_links"))
         return [
           {
             id: "ln1",
@@ -331,8 +331,8 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
             updated_at: NOW.toISOString(),
           },
         ];
-      if (text.includes("events.event_log")) return [EVENT_ROW];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("events_event_log")) return [EVENT_ROW];
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "emitted" })];
       return [];
     });
@@ -340,7 +340,7 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     const outcome = await processDelivery(ctx, mapDelivery(deliveryRow()));
     expect(outcome).toEqual({ kind: "emitted", eventType: "scm.push" });
 
-    const eventInsert = queries.find((q) => q.text.includes("events.event_log"));
+    const eventInsert = queries.find((q) => q.text.includes("events_event_log"));
     expect(eventInsert!.params[10]).toBe(PROJECT_UUID); // event row project_id
     const payload = JSON.parse(eventInsert!.params[19] as string) as Record<string, unknown>;
     expect(payload.projectId).toBe(`prj_${PROJECT_UUID.replace(/-/g, "")}`);
@@ -349,32 +349,32 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
 
   it("skips unattributed installations and records them as orphaned", async () => {
     const { ctx, queries } = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id")) return [];
-      if (text.includes("INSERT INTO integrations.github_installations"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id")) return [];
+      if (text.includes("INSERT INTO integrations_github_installations"))
         return [installationRow({ connection_id: null })];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "skipped" })];
       return [];
     });
     const outcome = await processDelivery(ctx, mapDelivery(deliveryRow()));
     expect(outcome).toEqual({ kind: "skipped", reason: "unattributed_installation" });
     const orphan = queries.find((q) =>
-      q.text.includes("INSERT INTO integrations.github_installations"),
+      q.text.includes("INSERT INTO integrations_github_installations"),
     );
     expect(orphan!.params[1]).toBeNull();
-    expect(queries.some((q) => q.text.includes("events.event_log"))).toBe(false);
+    expect(queries.some((q) => q.text.includes("events_event_log"))).toBe(false);
   });
 
   it("processes provider uninstall: connection revoked + integration.revoked", async () => {
     const { ctx, queries } = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
       if (text.includes("SET status = $3"))
         return [connectionRow({ status: "revoked", revoked_at: NOW.toISOString() })];
-      if (text.includes("events.event_log"))
+      if (text.includes("events_event_log"))
         return [{ ...EVENT_ROW, _event: { ...EVENT_ROW._event, type: "integration.revoked" } }];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "emitted" })];
       return [];
     });
@@ -391,7 +391,7 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     );
     expect(outcome).toEqual({ kind: "emitted", eventType: "integration.revoked" });
     expect(queries.some((q) => q.text.includes("SET status = $3") && q.params[2] === "revoked")).toBe(true);
-    expect(queries.some((q) => q.text.includes("DELETE FROM integrations.installation_tokens"))).toBe(true);
+    expect(queries.some((q) => q.text.includes("DELETE FROM integrations_installation_tokens"))).toBe(true);
   });
 
   it("suspend/unsuspend flip the connection and emit lifecycle events", async () => {
@@ -400,12 +400,12 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
       ["unsuspend", "active", "integration.reactivated"],
     ] as const) {
       const { ctx, queries } = drainCtx((text) => {
-        if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+        if (text.includes("FROM integrations_github_installations WHERE installation_id"))
           return [installationRow()];
-        if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
+        if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
         if (text.includes("SET status = $3")) return [connectionRow({ status })];
-        if (text.includes("events.event_log")) return [EVENT_ROW];
-        if (text.includes("UPDATE integrations.inbound_deliveries"))
+        if (text.includes("events_event_log")) return [EVENT_ROW];
+        if (text.includes("UPDATE integrations_inbound_deliveries"))
           return [deliveryRow({ status: "emitted" })];
         return [];
       });
@@ -426,11 +426,11 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
 
   it("skips deliveries for revoked connections and unsupported events", async () => {
     const revoked = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1"))
+      if (text.includes("FROM integrations_connections WHERE id = $1"))
         return [connectionRow({ status: "revoked" })];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "skipped" })];
       return [];
     });
@@ -440,10 +440,10 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     });
 
     const unsupported = drainCtx((text) => {
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "skipped" })];
       return [];
     });
@@ -466,11 +466,11 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
   it("retries with backoff on emit failure and goes terminal after 5 attempts", async () => {
     const failing = (attempts: number) =>
       drainCtx((text) => {
-        if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+        if (text.includes("FROM integrations_github_installations WHERE installation_id"))
           return [installationRow()];
-        if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-        if (text.includes("events.event_log")) return []; // append fails (conflict shape)
-        if (text.includes("UPDATE integrations.inbound_deliveries"))
+        if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+        if (text.includes("events_event_log")) return []; // append fails (conflict shape)
+        if (text.includes("UPDATE integrations_inbound_deliveries"))
           return [deliveryRow({ attempts })];
         return [];
       });
@@ -479,7 +479,7 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     const retried = await processDelivery(first.ctx, mapDelivery(deliveryRow({ attempts: 0 })));
     expect(retried).toEqual({ kind: "retried", attempts: 1 });
     const retryMark = first.queries.find((q) =>
-      q.text.includes("UPDATE integrations.inbound_deliveries"),
+      q.text.includes("UPDATE integrations_inbound_deliveries"),
     );
     expect(retryMark!.params).toContain(1); // attempts bumped
     expect(retryMark!.params[5]).toBeTruthy(); // next_attempt_at scheduled
@@ -488,7 +488,7 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     const failed = await processDelivery(last.ctx, mapDelivery(deliveryRow({ attempts: 4 })));
     expect(failed).toEqual({ kind: "failed", reason: "emit_failed" });
     const failMark = last.queries.find((q) =>
-      q.text.includes("UPDATE integrations.inbound_deliveries"),
+      q.text.includes("UPDATE integrations_inbound_deliveries"),
     );
     expect(failMark!.params).toContain("failed");
   });
@@ -497,11 +497,11 @@ describe("inbox drain — attribute, lifecycle, normalize, emit", () => {
     const { executor } = fakeExecutor((text) => {
       if (text.includes("status IN ('received', 'attributed')"))
         return [deliveryRow(), deliveryRow({ id: "77777777-7777-4777-8777-777777777777", event_type: "watch" })];
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow()];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-      if (text.includes("events.event_log")) return [EVENT_ROW];
-      if (text.includes("UPDATE integrations.inbound_deliveries")) return [deliveryRow()];
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("events_event_log")) return [EVENT_ROW];
+      if (text.includes("UPDATE integrations_inbound_deliveries")) return [deliveryRow()];
       return [];
     });
     const summary = await drainInboundDeliveries(executor, createEnv(), { now: () => NOW });

@@ -39,24 +39,25 @@ describe("Identity Migration Verification", () => {
       "utf-8",
     );
 
-    it("creates identity schema", () => {
-      expect(sql).toContain("CREATE SCHEMA IF NOT EXISTS identity");
+    it("namespaces its tables to the identity context", () => {
+      // SQLite has no schemas — the context boundary is the name prefix.
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS identity_");
     });
 
-    it("creates identity.users table", () => {
-      expect(sql).toContain("identity.users");
+    it("creates identity_users table", () => {
+      expect(sql).toContain("identity_users");
     });
 
-    it("creates identity.auth_identities table", () => {
-      expect(sql).toContain("identity.auth_identities");
+    it("creates identity_auth_identities table", () => {
+      expect(sql).toContain("identity_auth_identities");
     });
 
-    it("creates identity.login_challenges table", () => {
-      expect(sql).toContain("identity.login_challenges");
+    it("creates identity_login_challenges table", () => {
+      expect(sql).toContain("identity_login_challenges");
     });
 
-    it("creates identity.sessions table", () => {
-      expect(sql).toContain("identity.sessions");
+    it("creates identity_sessions table", () => {
+      expect(sql).toContain("identity_sessions");
     });
 
     it("stores only hashed codes, never raw values", () => {
@@ -113,8 +114,8 @@ describe("Identity Migration Verification", () => {
       "utf-8",
     );
 
-    it("creates identity.security_events table", () => {
-      expect(sql).toContain("identity.security_events");
+    it("creates identity_security_events table", () => {
+      expect(sql).toContain("identity_security_events");
     });
 
     it("has all expected columns", () => {
@@ -128,12 +129,12 @@ describe("Identity Migration Verification", () => {
       }
     });
 
-    it("stores JSONB metadata for flexible payloads", () => {
-      expect(sql).toMatch(/metadata\s+JSONB/);
+    it("stores JSON metadata for flexible payloads", () => {
+      expect(sql).toMatch(/metadata\s+TEXT/);
     });
 
-    it("stores JSONB redact_paths for compliance", () => {
-      expect(sql).toMatch(/redact_paths\s+JSONB/);
+    it("stores JSON redact_paths for compliance", () => {
+      expect(sql).toMatch(/redact_paths\s+TEXT/);
     });
 
     it("does not store raw secret columns", () => {
@@ -181,8 +182,8 @@ describe("Identity Migration Verification", () => {
       expect(sql).toContain("security_events_request_id_idx");
     });
 
-    it("uses UUID primary key", () => {
-      expect(sql).toMatch(/id\s+UUID\s+PRIMARY KEY/);
+    it("uses a text primary key holding a UUID", () => {
+      expect(sql).toMatch(/id\s+TEXT\s+PRIMARY KEY/);
     });
 
     it("foreign keys stay within identity context if any exist", () => {
@@ -199,22 +200,22 @@ describe("Identity Migration Verification", () => {
       "utf-8",
     );
 
-    it("creates identity.service_principals table", () => {
-      expect(sql).toContain("identity.service_principals");
+    it("creates identity_service_principals table", () => {
+      expect(sql).toContain("identity_service_principals");
     });
 
-    it("creates identity.api_keys table", () => {
-      expect(sql).toContain("identity.api_keys");
+    it("creates identity_api_keys table", () => {
+      expect(sql).toContain("identity_api_keys");
     });
 
     it("service principals have org_id NOT NULL for organization binding", () => {
-      expect(sql).toMatch(/org_id\s+UUID\s+NOT NULL/);
+      expect(sql).toMatch(/org_id\s+TEXT\s+NOT NULL/);
     });
 
     it("service principals have optional project_id scope", () => {
-      expect(sql).toMatch(/project_id\s+UUID/);
+      expect(sql).toMatch(/project_id\s+TEXT/);
       // project_id should NOT be NOT NULL
-      expect(sql).not.toMatch(/project_id\s+UUID\s+NOT NULL/);
+      expect(sql).not.toMatch(/project_id\s+TEXT\s+NOT NULL/);
     });
 
     it("enforces project scope requires org scope via CHECK constraint", () => {
@@ -240,7 +241,7 @@ describe("Identity Migration Verification", () => {
     });
 
     it("API keys belong to a service principal via FK", () => {
-      expect(sql).toMatch(/REFERENCES\s+identity\.service_principals/);
+      expect(sql).toMatch(/REFERENCES\s+identity_service_principals/);
     });
 
     it("has org-scoped index for API key listing", () => {
@@ -269,15 +270,15 @@ describe("Identity Migration Verification", () => {
     });
 
     it("foreign keys stay within identity context", () => {
-      const fkMatches = sql.match(/REFERENCES\s+(\w+\.\w+)/g) ?? [];
+      const fkMatches = sql.match(/REFERENCES\s+(\w+)/g) ?? [];
       expect(fkMatches.length).toBeGreaterThan(0);
       for (const fk of fkMatches) {
-        expect(fk).toContain("identity.");
+        expect(fk).toMatch(/REFERENCES\s+identity_/);
       }
     });
 
-    it("uses UUID primary keys", () => {
-      const pkMatches = sql.match(/id\s+UUID\s+PRIMARY KEY/g) ?? [];
+    it("uses text primary keys holding UUIDs", () => {
+      const pkMatches = sql.match(/id\s+TEXT\s+PRIMARY KEY/g) ?? [];
       expect(pkMatches.length).toBe(2); // service_principals + api_keys
     });
 

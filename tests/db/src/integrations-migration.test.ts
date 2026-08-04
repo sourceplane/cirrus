@@ -46,7 +46,9 @@ describe("Integrations Migration Verification", () => {
       resolve(MIGRATIONS_ROOT, "190_integrations_delivery_attribution/up.sql"),
       "utf-8",
     );
-    expect(sql).toContain("ADD COLUMN IF NOT EXISTS connection_id UUID");
+    // SQLite has no `ADD COLUMN IF NOT EXISTS`; re-run safety is the
+    // runner's applied-ledger, and the column is a UUID held as TEXT.
+    expect(sql).toContain("ADD COLUMN connection_id TEXT");
     expect(sql).toContain("idx_integrations_inbound_deliveries_connection");
     expect(sql).toContain("WHERE connection_id IS NOT NULL");
   });
@@ -57,16 +59,16 @@ describe("Integrations Migration Verification", () => {
       "utf-8",
     );
 
-    it("creates the integrations schema", () => {
-      expect(sql).toContain("CREATE SCHEMA IF NOT EXISTS integrations");
+    it("namespaces its tables to the integrations context", () => {
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS integrations_");
     });
 
     it("creates the five foundation tables", () => {
-      expect(sql).toContain("integrations.connections");
-      expect(sql).toContain("integrations.github_installations");
-      expect(sql).toContain("integrations.repo_links");
-      expect(sql).toContain("integrations.inbound_deliveries");
-      expect(sql).toContain("integrations.installation_tokens");
+      expect(sql).toContain("integrations_connections");
+      expect(sql).toContain("integrations_github_installations");
+      expect(sql).toContain("integrations_repo_links");
+      expect(sql).toContain("integrations_inbound_deliveries");
+      expect(sql).toContain("integrations_installation_tokens");
     });
 
     it("is idempotent (IF NOT EXISTS on every CREATE)", () => {
@@ -78,7 +80,7 @@ describe("Integrations Migration Verification", () => {
 
     it("enforces the delivery idempotency ledger (unique provider + delivery_key)", () => {
       expect(sql).toContain("uq_integrations_inbound_delivery_key");
-      expect(sql).toMatch(/ON integrations\.inbound_deliveries \(provider, delivery_key\)/);
+      expect(sql).toMatch(/ON integrations_inbound_deliveries \(provider, delivery_key\)/);
     });
 
     it("enforces one active connection per (org, provider, account)", () => {
@@ -95,9 +97,9 @@ describe("Integrations Migration Verification", () => {
     });
 
     it("has keyset pagination indexes on org-scoped tables", () => {
-      expect(sql).toMatch(/ON integrations\.connections \(org_id, created_at DESC, id DESC\)/);
-      expect(sql).toMatch(/ON integrations\.repo_links \(org_id, created_at DESC, id DESC\)/);
-      expect(sql).toMatch(/ON integrations\.inbound_deliveries \(org_id, received_at DESC, id DESC\)/);
+      expect(sql).toMatch(/ON integrations_connections \(org_id, created_at DESC, id DESC\)/);
+      expect(sql).toMatch(/ON integrations_repo_links \(org_id, created_at DESC, id DESC\)/);
+      expect(sql).toMatch(/ON integrations_inbound_deliveries \(org_id, received_at DESC, id DESC\)/);
     });
 
     it("never stores platform GitHub credentials as rows", () => {

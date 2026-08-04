@@ -39,24 +39,24 @@ describe("Membership Migration Verification", () => {
       "utf-8",
     );
 
-    it("creates membership schema", () => {
-      expect(sql).toContain("CREATE SCHEMA IF NOT EXISTS membership");
+    it("namespaces its tables to the membership context", () => {
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS membership_");
     });
 
-    it("creates membership.organizations table", () => {
-      expect(sql).toContain("membership.organizations");
+    it("creates membership_organizations table", () => {
+      expect(sql).toContain("membership_organizations");
     });
 
-    it("creates membership.organization_members table", () => {
-      expect(sql).toContain("membership.organization_members");
+    it("creates membership_organization_members table", () => {
+      expect(sql).toContain("membership_organization_members");
     });
 
-    it("creates membership.organization_invitations table", () => {
-      expect(sql).toContain("membership.organization_invitations");
+    it("creates membership_organization_invitations table", () => {
+      expect(sql).toContain("membership_organization_invitations");
     });
 
-    it("creates membership.role_assignments table", () => {
-      expect(sql).toContain("membership.role_assignments");
+    it("creates membership_role_assignments table", () => {
+      expect(sql).toContain("membership_role_assignments");
     });
 
     it("stores only hashed invitation tokens, never raw values", () => {
@@ -103,9 +103,9 @@ describe("Membership Migration Verification", () => {
       const tableBlocks = sql.split(/CREATE TABLE IF NOT EXISTS/);
       const orgScopedTables = tableBlocks.filter(
         (block) =>
-          block.includes("membership.organization_members") ||
-          block.includes("membership.organization_invitations") ||
-          block.includes("membership.role_assignments"),
+          block.includes("membership_organization_members") ||
+          block.includes("membership_organization_invitations") ||
+          block.includes("membership_role_assignments"),
       );
       for (const block of orgScopedTables) {
         expect(block).toContain("org_id");

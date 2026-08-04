@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   AppendEventInput,
   AppendEventWithAuditInput,
@@ -11,6 +11,7 @@ import type {
   StoredAuditEntry,
   StoredEvent,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
 
 // ---------------------------------------------------------------------------
 // Row mappers
@@ -88,14 +89,6 @@ function mapAuditEntry(row: Record<string, unknown>): StoredAuditEntry {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 function safeError(message: string): EventsResult<never> {
   return { ok: false, error: { kind: "internal", message } };
@@ -130,7 +123,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
     async appendEvent(input: AppendEventInput): Promise<EventsResult<StoredEvent>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO events.event_log (
+          `INSERT INTO events_event_log (
             id, type, version, source, occurred_at,
             actor_type, actor_id, actor_session_id, actor_ip,
             org_id, project_id, environment_id,
@@ -190,7 +183,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `WITH inserted_event AS (
-            INSERT INTO events.event_log (
+            INSERT INTO events_event_log (
               id, type, version, source, occurred_at,
               actor_type, actor_id, actor_session_id, actor_ip,
               org_id, project_id, environment_id,
@@ -208,7 +201,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
             ON CONFLICT (id) DO NOTHING
             RETURNING *
           ), inserted_audit AS (
-            INSERT INTO events.audit_entries (
+            INSERT INTO events_audit_entries (
               id, event_id, org_id, project_id, environment_id,
               actor_type, actor_id,
               event_type, event_version, source,
@@ -347,7 +340,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
         const allParams = [...baseParams, ...cursorParams];
 
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM events.audit_entries
+          `SELECT * FROM events_audit_entries
            WHERE org_id IN ($1, $2)${categoryClause}${filterClause}${clause}
            ORDER BY occurred_at DESC, id DESC
            LIMIT $${limitParam}`,
@@ -366,7 +359,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
       try {
         const { clause, params: cursorParams } = buildCursorCondition(params.cursor, 5);
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM events.audit_entries
+          `SELECT * FROM events_audit_entries
            WHERE org_id = $1 AND subject_kind = $2 AND subject_id = $3${clause}
            ORDER BY occurred_at DESC, id DESC
            LIMIT $4`,
@@ -386,13 +379,13 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
         let sql: string;
         let values: unknown[];
         if (afterOccurredAt && afterEventId) {
-          sql = `SELECT * FROM events.event_log
+          sql = `SELECT * FROM events_event_log
                  WHERE org_id = $1 AND (occurred_at, id) > ($2, $3)
                  ORDER BY occurred_at ASC, id ASC
                  LIMIT $4`;
           values = [orgId, afterOccurredAt, afterEventId, limit];
         } else {
-          sql = `SELECT * FROM events.event_log
+          sql = `SELECT * FROM events_event_log
                  WHERE org_id = $1
                  ORDER BY occurred_at ASC, id ASC
                  LIMIT $2`;
@@ -408,7 +401,7 @@ export function createEventsRepository(executor: SqlExecutor): EventsRepository 
     async getEventById(orgId: string, eventId: string): Promise<EventsResult<StoredEvent | null>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM events.event_log WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM events_event_log WHERE org_id = $1 AND id = $2`,
           [orgId, eventId],
         );
         if (result.rows.length === 0) {

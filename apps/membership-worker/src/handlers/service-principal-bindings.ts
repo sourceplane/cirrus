@@ -1,7 +1,7 @@
 import type { Env } from "../env.js";
 import type { MembershipRepository, CreateRoleAssignmentInput, RoleAssignment } from "@saas/db/membership";
 import { createMembershipRepository } from "@saas/db/membership";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { asUuid, isUuid } from "@saas/db/ids";
 import { isServicePrincipalSubjectId } from "@saas/contracts/service-principal";
 import { errorResponse, successResponse, validationError } from "../http.js";

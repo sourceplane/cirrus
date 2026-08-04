@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import type { CheckQuotaRequest, CheckQuotaResponse } from "@saas/contracts/metering";
 import type { PolicyResource } from "@saas/contracts/policy";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMeteringRepository } from "@saas/db/metering";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";

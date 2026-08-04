@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import type { IdentityRepository } from "@saas/db/identity";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createIdentityRepository } from "@saas/db/identity";
 import { createAuthService } from "../services/auth.js";
 import { errorResponse } from "../http.js";
@@ -19,7 +19,7 @@ import { ensurePersonalOrg } from "../solo-mode.js";
 const CALLBACK_RE = /^\/v1\/auth\/oauth\/([^/]+)\/callback$/;
 
 export interface HandleOAuthCallbackDeps {
-  /** Injectable repository for unit tests (production path builds from Hyperdrive). */
+  /** Injectable repository for unit tests (production path builds from the D1 binding). */
   repo?: IdentityRepository;
   /** Injectable provider override for unit tests (avoids real provider HTTP). */
   provider?: OAuthProvider;

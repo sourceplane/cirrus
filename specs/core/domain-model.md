@@ -77,7 +77,7 @@ The V1 relational model must have owned storage for:
 - config versions
 - secret metadata
 
-Domain tables may live in a single Supabase project/database during V1, but each bounded context owns its schema or table namespace and migration history.
+Domain tables live in a single D1 database per environment, but each bounded context owns its table namespace (`identity_*`, `membership_*`, …) and migration history.
 
 ## Mutation Rules
 

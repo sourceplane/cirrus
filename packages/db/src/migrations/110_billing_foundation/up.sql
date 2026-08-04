@@ -14,22 +14,17 @@
 --  * Billing consumes normalized metering outputs (rollups). It does not own
 --    raw usage facts and does not mutate metering-owned tables.
 --  * Idempotent: CREATE SCHEMA/TABLE/INDEX IF NOT EXISTS throughout for the
---    Supabase autocommit runner. No destructive rewrites of applied state.
+--    D1 runner. No destructive rewrites of applied state.
 
 -- ── Schema ─────────────────────────────────────────────────
-CREATE SCHEMA IF NOT EXISTS billing;
-
-COMMENT ON SCHEMA billing IS
-  'Billing bounded context — provider-neutral plans, billing customers, '
-  'subscriptions, invoices, and entitlements. Owns plan/subscription/entitlement '
-  'state. Consumes normalized metering rollups; never owns raw usage facts.';
+-- schema billing: Billing bounded context — provider-neutral plans, billing customers, subscriptions, invoices, and entitlements. Owns plan/subscription/entitlement state. Consumes normalized metering rollups; never owns raw usage facts.
 
 -- ── Plans ──────────────────────────────────────────────────
 -- Catalog of available plan definitions. Plans are global (not org-scoped) —
 -- they are the menu organizations subscribe to. Nominal display price fields
 -- are present for catalog UI; live provider pricing remains opaque per-plan.
 
-CREATE TABLE IF NOT EXISTS billing.plans (
+CREATE TABLE IF NOT EXISTS billing_plans (
   id                TEXT        NOT NULL,
   code              TEXT        NOT NULL,                  -- stable machine identifier (e.g. 'starter', 'pro')
   name              TEXT        NOT NULL,                  -- human-facing display name
@@ -38,9 +33,9 @@ CREATE TABLE IF NOT EXISTS billing.plans (
   billing_interval  TEXT        NOT NULL DEFAULT 'month',  -- 'month' | 'year' | 'none'
   price_amount_cents BIGINT,                               -- nominal display price; provider is source of truth
   price_currency    TEXT        NOT NULL DEFAULT 'usd',    -- ISO-4217 lowercase
-  metadata          JSONB,                                 -- bounded safe metadata (no secrets, tokens, credentials)
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata          TEXT,                                 -- bounded safe metadata (no secrets, tokens, credentials)
+  created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   PRIMARY KEY (id),
 
@@ -49,25 +44,19 @@ CREATE TABLE IF NOT EXISTS billing.plans (
   CONSTRAINT chk_plan_price    CHECK (price_amount_cents IS NULL OR price_amount_cents >= 0)
 );
 
-COMMENT ON TABLE billing.plans IS
-  'Provider-neutral plan catalog. Plans are global; organizations subscribe to '
-  'plans via billing.subscriptions. Plans drive entitlement defaults; payment '
-  'provider mappings live in provider-side state, not here.';
+-- table billing_plans: Provider-neutral plan catalog. Plans are global; organizations subscribe to plans via billing_subscriptions. Plans drive entitlement defaults; payment provider mappings live in provider-side state, not here.
 
-COMMENT ON COLUMN billing.plans.metadata IS
-  'Bounded safe metadata only — must never contain bearer tokens, API keys, '
-  'provider credentials, connection strings, webhook signing secrets, or '
-  'plaintext secret material.';
+-- column billing_plans.metadata: Bounded safe metadata only — must never contain bearer tokens, API keys, provider credentials, connection strings, webhook signing secrets, or plaintext secret material.
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_plan_code ON billing.plans (code);
-CREATE INDEX IF NOT EXISTS idx_plan_status    ON billing.plans (status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_plan_code ON billing_plans (code);
+CREATE INDEX IF NOT EXISTS idx_plan_status    ON billing_plans (status);
 
 -- ── Billing customers ──────────────────────────────────────
 -- One billing customer per organization for V1. The provider_customer_id is an
 -- opaque reference to an external payment-provider customer record; provider
 -- credentials and API keys are stored elsewhere (Secrets Store), never here.
 
-CREATE TABLE IF NOT EXISTS billing.billing_customers (
+CREATE TABLE IF NOT EXISTS billing_billing_customers (
   id                    TEXT        NOT NULL,
   org_id                TEXT        NOT NULL,
   display_name          TEXT,
@@ -75,53 +64,48 @@ CREATE TABLE IF NOT EXISTS billing.billing_customers (
   status                TEXT        NOT NULL DEFAULT 'active', -- 'active' | 'inactive'
   provider              TEXT,                                  -- e.g. 'stripe' (opaque adapter id)
   provider_customer_id  TEXT,                                  -- opaque external customer ref
-  metadata              JSONB,                                 -- bounded safe metadata
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata              TEXT,                                 -- bounded safe metadata
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   PRIMARY KEY (id),
 
   CONSTRAINT chk_billing_customer_status CHECK (status IN ('active', 'inactive'))
 );
 
-COMMENT ON TABLE billing.billing_customers IS
-  'One billing customer per organization (V1). provider_customer_id is an opaque '
-  'reference to the payment-provider record; provider credentials/secrets are '
-  'stored in Secrets Store and never persisted here.';
+-- table billing_billing_customers: One billing customer per organization (V1). provider_customer_id is an opaque reference to the payment-provider record; provider credentials/secrets are stored in Secrets Store and never persisted here.
 
-COMMENT ON COLUMN billing.billing_customers.metadata IS
-  'Bounded safe metadata only — must never contain bearer tokens, API keys, '
-  'provider credentials, raw provider payloads, or plaintext secret material.';
+-- column billing_billing_customers.metadata: Bounded safe metadata only — must never contain bearer tokens, API keys, provider credentials, raw provider payloads, or plaintext secret material.
 
 -- V1 invariant: one billing customer per org
 CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_customer_org
-  ON billing.billing_customers (org_id);
+  ON billing_billing_customers (org_id);
 
 -- Provider lookup (sparse)
 CREATE INDEX IF NOT EXISTS idx_billing_customer_provider
-  ON billing.billing_customers (provider, provider_customer_id)
+  ON billing_billing_customers (provider, provider_customer_id)
   WHERE provider IS NOT NULL;
 
 -- ── Subscriptions ──────────────────────────────────────────
 -- Subscriptions link an organization billing customer to a plan with lifecycle
 -- state. Provider-side ids are opaque; status drives entitlement gating.
 
-CREATE TABLE IF NOT EXISTS billing.subscriptions (
+CREATE TABLE IF NOT EXISTS billing_subscriptions (
   id                       TEXT        NOT NULL,
   org_id                   TEXT        NOT NULL,
-  billing_customer_id      TEXT        NOT NULL,  -- opaque ref to billing.billing_customers(id)
-  plan_id                  TEXT        NOT NULL,  -- opaque ref to billing.plans(id)
+  billing_customer_id      TEXT        NOT NULL,  -- opaque ref to billing_billing_customers(id)
+  plan_id                  TEXT        NOT NULL,  -- opaque ref to billing_plans(id)
   status                   TEXT        NOT NULL DEFAULT 'active',
-  current_period_start     TIMESTAMPTZ,
-  current_period_end       TIMESTAMPTZ,
-  trial_end                TIMESTAMPTZ,
-  cancel_at                TIMESTAMPTZ,
-  canceled_at              TIMESTAMPTZ,
+  current_period_start     TEXT,
+  current_period_end       TEXT,
+  trial_end                TEXT,
+  cancel_at                TEXT,
+  canceled_at              TEXT,
   provider                 TEXT,
   provider_subscription_id TEXT,
-  metadata                 JSONB,                  -- bounded safe metadata
-  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata                 TEXT,                  -- bounded safe metadata
+  created_at               TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at               TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   PRIMARY KEY (id),
 
@@ -130,25 +114,21 @@ CREATE TABLE IF NOT EXISTS billing.subscriptions (
   )
 );
 
-COMMENT ON TABLE billing.subscriptions IS
-  'Organization-scoped subscription state. Status drives entitlement gating; '
-  'provider ids are opaque references for adapter mapping only.';
+-- table billing_subscriptions: Organization-scoped subscription state. Status drives entitlement gating; provider ids are opaque references for adapter mapping only.
 
-COMMENT ON COLUMN billing.subscriptions.metadata IS
-  'Bounded safe metadata only — must never contain bearer tokens, API keys, '
-  'provider credentials, raw webhook payloads, or plaintext secret material.';
+-- column billing_subscriptions.metadata: Bounded safe metadata only — must never contain bearer tokens, API keys, provider credentials, raw webhook payloads, or plaintext secret material.
 
 CREATE INDEX IF NOT EXISTS idx_subscription_org_status
-  ON billing.subscriptions (org_id, status);
+  ON billing_subscriptions (org_id, status);
 
 CREATE INDEX IF NOT EXISTS idx_subscription_customer
-  ON billing.subscriptions (billing_customer_id);
+  ON billing_subscriptions (billing_customer_id);
 
 CREATE INDEX IF NOT EXISTS idx_subscription_plan
-  ON billing.subscriptions (plan_id);
+  ON billing_subscriptions (plan_id);
 
 CREATE INDEX IF NOT EXISTS idx_subscription_provider
-  ON billing.subscriptions (provider, provider_subscription_id)
+  ON billing_subscriptions (provider, provider_subscription_id)
   WHERE provider IS NOT NULL;
 
 -- ── Invoices ───────────────────────────────────────────────
@@ -156,7 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_provider
 -- to reflect provider invoice state into starter-owned state. We never store
 -- raw provider payloads, full card data, or signing secrets.
 
-CREATE TABLE IF NOT EXISTS billing.invoices (
+CREATE TABLE IF NOT EXISTS billing_invoices (
   id                    TEXT        NOT NULL,
   org_id                TEXT        NOT NULL,
   billing_customer_id   TEXT        NOT NULL,
@@ -166,17 +146,17 @@ CREATE TABLE IF NOT EXISTS billing.invoices (
   amount_due_cents      BIGINT      NOT NULL DEFAULT 0,
   amount_paid_cents     BIGINT      NOT NULL DEFAULT 0,
   currency              TEXT        NOT NULL DEFAULT 'usd',
-  issued_at             TIMESTAMPTZ,
-  due_at                TIMESTAMPTZ,
-  paid_at               TIMESTAMPTZ,
-  period_start          TIMESTAMPTZ,
-  period_end            TIMESTAMPTZ,
+  issued_at             TEXT,
+  due_at                TEXT,
+  paid_at               TEXT,
+  period_start          TEXT,
+  period_end            TEXT,
   provider              TEXT,
   provider_invoice_id   TEXT,
   hosted_url            TEXT,                                    -- safe display URL only; no embedded secret token query strings
-  metadata              JSONB,                                   -- bounded safe metadata
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata              TEXT,                                   -- bounded safe metadata
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   PRIMARY KEY (id),
 
@@ -188,32 +168,24 @@ CREATE TABLE IF NOT EXISTS billing.invoices (
   )
 );
 
-COMMENT ON TABLE billing.invoices IS
-  'Provider invoice mirror. Stores enough state to display invoice history and '
-  'reconcile webhooks. Raw provider payloads, full card numbers, CVCs, signing '
-  'secrets, and bearer tokens MUST NOT be persisted here.';
+-- table billing_invoices: Provider invoice mirror. Stores enough state to display invoice history and reconcile webhooks. Raw provider payloads, full card numbers, CVCs, signing secrets, and bearer tokens MUST NOT be persisted here.
 
-COMMENT ON COLUMN billing.invoices.hosted_url IS
-  'Safe display URL only. Callers must reject URLs that embed bearer tokens, '
-  'session secrets, or other credential material in query strings or fragments.';
+-- column billing_invoices.hosted_url: Safe display URL only. Callers must reject URLs that embed bearer tokens, session secrets, or other credential material in query strings or fragments.
 
-COMMENT ON COLUMN billing.invoices.metadata IS
-  'Bounded safe metadata only — must never contain bearer tokens, API keys, '
-  'provider credentials, raw provider payloads, full payment instrument data, '
-  'or plaintext secret material.';
+-- column billing_invoices.metadata: Bounded safe metadata only — must never contain bearer tokens, API keys, provider credentials, raw provider payloads, full payment instrument data, or plaintext secret material.
 
 CREATE INDEX IF NOT EXISTS idx_invoice_org_issued
-  ON billing.invoices (org_id, issued_at DESC NULLS LAST);
+  ON billing_invoices (org_id, issued_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_invoice_customer
-  ON billing.invoices (billing_customer_id, issued_at DESC NULLS LAST);
+  ON billing_invoices (billing_customer_id, issued_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_invoice_subscription
-  ON billing.invoices (subscription_id)
+  ON billing_invoices (subscription_id)
   WHERE subscription_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_provider
-  ON billing.invoices (provider, provider_invoice_id)
+  ON billing_invoices (provider, provider_invoice_id)
   WHERE provider IS NOT NULL AND provider_invoice_id IS NOT NULL;
 
 -- ── Entitlements ───────────────────────────────────────────
@@ -221,18 +193,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_provider
 -- defaults at subscription creation/change time; explicit per-org overrides
 -- are allowed. Future policy/product surfaces query by (org_id, key).
 
-CREATE TABLE IF NOT EXISTS billing.entitlements (
+CREATE TABLE IF NOT EXISTS billing_entitlements (
   id              TEXT        NOT NULL,
   org_id          TEXT        NOT NULL,
   subscription_id TEXT,                                  -- opaque ref; nullable for plan-independent grants
   entitlement_key TEXT        NOT NULL,                  -- stable machine key (e.g. 'feature.custom_domains', 'limit.projects')
   value_type      TEXT        NOT NULL,                  -- 'boolean' | 'quantity' | 'feature'
-  enabled         BOOLEAN     NOT NULL DEFAULT TRUE,
+  enabled         INTEGER     NOT NULL DEFAULT 1,
   limit_value     BIGINT,                                -- optional numeric limit; NULL = unlimited (when enabled)
   source          TEXT        NOT NULL DEFAULT 'plan',   -- 'plan' | 'override'
-  metadata        JSONB,                                 -- bounded safe metadata
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata        TEXT,                                 -- bounded safe metadata
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   PRIMARY KEY (id),
 
@@ -241,19 +213,14 @@ CREATE TABLE IF NOT EXISTS billing.entitlements (
   CONSTRAINT chk_entitlement_limit      CHECK (limit_value IS NULL OR limit_value >= 0)
 );
 
-COMMENT ON TABLE billing.entitlements IS
-  'Organization-scoped entitlement grants. Queryable by (org_id, entitlement_key) '
-  'for policy and product surfaces. Plan-derived entries use source=plan; '
-  'manual per-org grants use source=override.';
+-- table billing_entitlements: Organization-scoped entitlement grants. Queryable by (org_id, entitlement_key) for policy and product surfaces. Plan-derived entries use source=plan; manual per-org grants use source=override.
 
-COMMENT ON COLUMN billing.entitlements.metadata IS
-  'Bounded safe metadata only — must never contain bearer tokens, API keys, '
-  'provider credentials, or plaintext secret material.';
+-- column billing_entitlements.metadata: Bounded safe metadata only — must never contain bearer tokens, API keys, provider credentials, or plaintext secret material.
 
 -- Unique per (org_id, entitlement_key): callers replace via upsert
 CREATE UNIQUE INDEX IF NOT EXISTS uq_entitlement_org_key
-  ON billing.entitlements (org_id, entitlement_key);
+  ON billing_entitlements (org_id, entitlement_key);
 
 CREATE INDEX IF NOT EXISTS idx_entitlement_subscription
-  ON billing.entitlements (subscription_id)
+  ON billing_entitlements (subscription_id)
   WHERE subscription_id IS NOT NULL;

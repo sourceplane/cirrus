@@ -4,7 +4,7 @@ import * as path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { Lumen } from "@saas/sdk";
+import { Cirrus } from "@saas/sdk";
 
 import { runCli } from "../cli-runner.js";
 import { ContextStore } from "../context/store.js";
@@ -91,7 +91,7 @@ async function withHarness(
         tokenStore,
         contextStore,
         sdkFactory: (baseUrl, token) =>
-          new Lumen({
+          new Cirrus({
             baseUrl,
             auth: { kind: "bearer", token },
             fetch: fetchHarness.fetch,

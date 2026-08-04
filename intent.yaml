@@ -2,8 +2,8 @@ apiVersion: sourceplane.io/v1
 kind: Intent
 
 metadata:
-  name: lumen
-  description: Reusable Cloudflare and Supabase multi-tenant SaaS starter
+  name: cirrus
+  description: Reusable Cloudflare-only multi-tenant SaaS starter (Workers, D1, KV)
   namespace: sourceplane
 
 execution:
@@ -92,12 +92,12 @@ environments:
         namespace: sourceplane
         namespacePrefix: dev-
         owner: sourceplane
-        repo: lumen
+        repo: cirrus
         CONSOLE_CUSTOM_DOMAIN: ""
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app
 
   stage:
     activation:
@@ -110,12 +110,12 @@ environments:
         namespace: sourceplane
         namespacePrefix: stg-
         owner: sourceplane
-        repo: lumen
-        CONSOLE_CUSTOM_DOMAIN: stage.lumen.app
+        repo: cirrus
+        CONSOLE_CUSTOM_DOMAIN: stage.cirrus.app
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app
 
   prod:
     activation:
@@ -131,9 +131,19 @@ environments:
         namespace: sourceplane
         namespacePrefix: prod-
         owner: sourceplane
-        repo: lumen
-        CONSOLE_CUSTOM_DOMAIN: prod.lumen.app
+        repo: cirrus
+        CONSOLE_CUSTOM_DOMAIN: prod.cirrus.app
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app
+
+# Repo-level catalog entity: front page + role-tagged docs (rendered in
+# the workspace Docs library, pinned to the commit by `orun plan`).
+repo:
+  displayName: cirrus
+  docs:
+    overview: README.md
+    pages:
+      - { path: ai/context/operations.md, role: runbook, title: Operating contract }
+      - { path: ai/context/deployment.md, role: reference, title: Live deployment manifest }

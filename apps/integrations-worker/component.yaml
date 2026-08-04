@@ -21,15 +21,15 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://lumen/lumen/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://lumen/lumen/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   optionalSecretEnv:
-    SECRET_ENCRYPTION_KEY: "secret://lumen/lumen/{{ .environment }}/SECRET_ENCRYPTION_KEY"
-    INTEGRATIONS_STATE_SECRET: "secret://lumen/lumen/{{ .environment }}/INTEGRATIONS_STATE_SECRET"
-    GITHUB_APP_PRIVATE_KEY: "secret://lumen/lumen/{{ .environment }}/GITHUB_APP_PRIVATE_KEY"
-    GITHUB_APP_WEBHOOK_SECRET: "secret://lumen/lumen/{{ .environment }}/GITHUB_APP_WEBHOOK_SECRET"
-    GITHUB_APP_CLIENT_SECRET: "secret://lumen/lumen/{{ .environment }}/GITHUB_APP_CLIENT_SECRET"
+    SECRET_ENCRYPTION_KEY: "secret://lumen/cirrus/{{ .environment }}/SECRET_ENCRYPTION_KEY"
+    INTEGRATIONS_STATE_SECRET: "secret://lumen/cirrus/{{ .environment }}/INTEGRATIONS_STATE_SECRET"
+    GITHUB_APP_PRIVATE_KEY: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_PRIVATE_KEY"
+    GITHUB_APP_WEBHOOK_SECRET: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_WEBHOOK_SECRET"
+    GITHUB_APP_CLIENT_SECRET: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_CLIENT_SECRET"
 
   subscribe:
     environments:
@@ -57,7 +57,7 @@ spec:
     # resolve real IDs from the Secrets Manager wiring manifest (BF5).
     orgName: sourceplane
     owner: sourceplane
-    repo: lumen
+    repo: cirrus
 
     # Runtime worker secrets, pushed by the secrets-live step from the
     # values orun resolves for the optionalSecretEnv references below.
@@ -65,7 +65,7 @@ spec:
     turboFilter: "@saas/integrations-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-hyperdrive"
+    wiringComponents: "cloudflare-d1"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

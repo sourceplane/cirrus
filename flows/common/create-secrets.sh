@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create this product's five provider secrets from the workspace's
+# Create this product's three provider secrets from the workspace's
 # integrations — brokered/fact templates only, so NO credential value is ever
 # typed, seen, or stored here. Idempotent: keys that already exist are kept.
 # The argument is the workspace id (ws_…) or slug; the CLI flag it feeds is
@@ -11,13 +11,15 @@
 # happen (kept / recreated / created) against the current connections and
 # exit without creating, revoking, or rotating anything.
 #
-# | Key                         | Provider   | Template          | What resolves |
-# |-----------------------------|------------|-------------------|---------------|
-# | CLOUDFLARE_API_TOKEN        | cloudflare | workers-deploy    | fresh per-run worker-deploy token |
-# | CLOUDFLARE_HYPERDRIVE_TOKEN | cloudflare | hyperdrive-edit   | fresh per-run Hyperdrive token    |
-# | CLOUDFLARE_ACCOUNT_ID       | cloudflare | account-id        | connection fact (non-secret)      |
-# | SUPABASE_ACCESS_TOKEN       | supabase   | management-access | fresh per-run management token    |
-# | SUPABASE_ORG_ID             | supabase   | org-id            | connection fact (non-secret)      |
+# Cloudflare is the only provider this baseline needs — that is what makes it
+# the Cloudflare-only baseline, and it is why there is one consent to grant
+# rather than three.
+#
+# | Key                   | Provider   | Template       | What resolves |
+# |-----------------------|------------|----------------|---------------|
+# | CLOUDFLARE_API_TOKEN  | cloudflare | workers-deploy | fresh per-run Workers+KV deploy token |
+# | CLOUDFLARE_D1_TOKEN   | cloudflare | d1-edit        | fresh per-run D1 token (the deploy token deliberately cannot touch D1) |
+# | CLOUDFLARE_ACCOUNT_ID | cloudflare | account-id     | connection fact (non-secret) |
 set -euo pipefail
 
 org="${1:?usage: create-secrets.sh <workspace-id-or-slug> [--dry-run|true]}"
@@ -37,9 +39,7 @@ for r in rows:
 }
 
 cf="$(conn_for cloudflare)"
-sb="$(conn_for supabase)"
 [ -n "$cf" ] || { echo "no active cloudflare connection in $org" >&2; exit 1; }
-[ -n "$sb" ] || { echo "no active supabase connection in $org" >&2; exit 1; }
 
 existing="$(orun secrets list --org "$org" --project --json 2>/dev/null || echo '[]')"
 
@@ -76,15 +76,20 @@ create() { # key provider connection template
       fi
       ;;
   esac
-  orun integrations "$2" secret create "$1" --org "$org" --connection "$3" --template "$4" --project
+  if ! orun integrations "$2" secret create "$1" --org "$org" --connection "$3" --template "$4" --project; then
+    # Resource-hiding masks authorization as not_found: when READS work
+    # (this script already listed connections and secrets) but the WRITE
+    # 404s, the credential is almost always a read-only (viewer-role) API
+    # key. Say so — the raw error sends people chasing missing scopes.
+    echo "create-secrets: writing $1 failed. If the listings above worked, this ORUN_TOKEN's role is below ADMIN — brokered secret creation requires an admin-role API key (builder and viewer keys read fine but writes come back not_found; resource-hiding masks the denial). Re-mint the workspace API key with the ADMIN role in the console and re-run — this script is idempotent." >&2
+    exit 1
+  fi
   echo "✓ $1 created ($2/$4)"
 }
 
-create CLOUDFLARE_API_TOKEN        cloudflare "$cf" workers-deploy
-create CLOUDFLARE_HYPERDRIVE_TOKEN cloudflare "$cf" hyperdrive-edit
-create CLOUDFLARE_ACCOUNT_ID       cloudflare "$cf" account-id
-create SUPABASE_ACCESS_TOKEN       supabase   "$sb" management-access
-create SUPABASE_ORG_ID             supabase   "$sb" org-id
+create CLOUDFLARE_API_TOKEN   cloudflare "$cf" workers-deploy
+create CLOUDFLARE_D1_TOKEN    cloudflare "$cf" d1-edit
+create CLOUDFLARE_ACCOUNT_ID  cloudflare "$cf" account-id
 
 if [ "$dry_run" = "1" ]; then
   echo "DRY RUN: no secrets were created, revoked, or rotated."

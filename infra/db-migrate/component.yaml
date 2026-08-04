@@ -2,7 +2,7 @@ apiVersion: sourceplane.io/v1
 kind: Component
 metadata:
   name: db-migrate
-  description: Applies database migrations to stage and prod Supabase instances
+  description: Applies database migrations to the stage and prod Cloudflare D1 databases
   labels:
     domain: infra
     scope: database
@@ -17,9 +17,10 @@ spec:
 
   dependsOn:
     - component: db
-    # Migrations read the Supabase connection from the orun secrets the
-    # `supabase` component lease-publishes post-apply.
-    - component: supabase
+    # Migrations target the database the `cloudflare-d1` component creates, and
+    # find it through the wiring document that component lease-publishes
+    # post-apply.
+    - component: cloudflare-d1
 
   path: packages/db/src/migrations
 
@@ -27,18 +28,17 @@ spec:
     nodeVersion: "20"
     pnpmVersion: "10.12.1"
     owner: sourceplane
-    repo: lumen
+    repo: cirrus
 
-  # The migration runner's Management-API token (required in apply mode)
-  # resolves from orun secrets — minted fresh per run from the Supabase
-  # integration (management-access template). Replaces the ambient
-  # SUPABASE_ACCESS_TOKEN CI value.
+  # Everything the runner needs to reach D1 over the REST API, all resolved
+  # from orun secrets: the provider credential is minted fresh per run from the
+  # Cloudflare integration's d1-edit template, the account id is a non-secret
+  # connection fact, and the database id arrives in the wiring document the
+  # cloudflare-d1 component lease-publishes.
   secretEnv:
-    SUPABASE_ACCESS_TOKEN: "secret://lumen/lumen/{{ .environment }}/SUPABASE_ACCESS_TOKEN"
-    # The runner's DB identity (de-AWS — replaces the Secrets Manager read).
-    SUPABASE_PROJECT_REF: "secret://lumen/lumen/{{ .environment }}/SUPABASE_PROJECT_REF"
-    SUPABASE_DB_PASSWORD: "secret://lumen/lumen/{{ .environment }}/SUPABASE_DB_PASSWORD"
-    SUPABASE_DB_URL: "secret://lumen/lumen/{{ .environment }}/SUPABASE_DB_URL"
+    CLOUDFLARE_API_TOKEN: "secret://lumen/cirrus/{{ .environment }}/CLOUDFLARE_D1_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://lumen/cirrus/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    WIRING_CLOUDFLARE_D1: "secret://lumen/cirrus/{{ .environment }}/WIRING_CLOUDFLARE_D1"
 
   subscribe:
     environments:

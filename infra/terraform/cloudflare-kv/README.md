@@ -62,10 +62,10 @@ Standard Orun parameters (matching `cloudflare-hyperdrive`):
 |---|---|---|---|
 | `awsRegion` | string | `us-east-1` | AWS region for Terraform state backend |
 | `cloudflare_account_id` | string (sensitive) | `""` | From `CLOUDFLARE_ACCOUNT_ID` env var |
-| `orgName` | string | `lumen` | Org identifier |
-| `owner` | string | `lumen` | GitHub owner |
-| `repo` | string | `lumen` | GitHub repo |
-| `namespace` | string | `lumen` | Logical namespace |
+| `orgName` | string | `cirrus` | Org identifier |
+| `owner` | string | `cirrus` | GitHub owner |
+| `repo` | string | `cirrus` | GitHub repo |
+| `namespace` | string | `cirrus` | Logical namespace |
 | `namespacePrefix` | string | `""` | Stage/prod prefix (`stg-`, `prod-`) |
 | `lane` | string | `verify` | Orun lane |
 | `environment` | string | `stage` | Target environment |

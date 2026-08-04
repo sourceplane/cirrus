@@ -14,20 +14,19 @@ function createMockFetcher(handler?: (req: Request) => Promise<Response>): Fetch
   } as unknown as Fetcher;
 }
 
-function createMockHyperdrive(): Hyperdrive {
+function createMockDatabase(): D1Database {
+  // A binding-shaped stand-in: the routes under test take an injected
+  // repository, so nothing here is ever executed — it exists to satisfy Env.
   return {
-    connectionString: "postgresql://test:test@localhost:5432/test",
-    host: "localhost",
-    port: 5432,
-    user: "test",
-    password: "test",
-    database: "test",
-  } as unknown as Hyperdrive;
+    prepare: () => {
+      throw new Error("unexpected D1 query in a repository-injected test");
+    },
+  } as unknown as D1Database;
 }
 
 function createEnv(overrides?: Record<string, unknown>): Env {
   const base: Env = {
-    PLATFORM_DB: createMockHyperdrive(),
+    PLATFORM_DB: createMockDatabase(),
     MEMBERSHIP_WORKER: createMockFetcher(async () =>
       Response.json({ data: { memberships: [{ kind: "role_assignment", role: "owner", scope: { kind: "organization", orgId: TEST_ORG_UUID } }] } }),
     ),

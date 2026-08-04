@@ -1,5 +1,5 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-title: LumenResource
+title: CirrusResource
 type: object
 additionalProperties: false
 required:
@@ -176,7 +176,7 @@ example:
       tier: core
     annotations: {}
     componentRef:
-      name: supabase-postgres
+      name: cloudflare-d1
       version: 1.0.0
     generation: 2
     createdAt: "2026-04-22T12:00:00Z"
@@ -184,7 +184,7 @@ example:
     deletedAt: null
   spec:
     tier: starter
-    schemaName: app_main
+    tablePrefix: app_main
   status:
     phase: ready
     observedGeneration: 2
@@ -192,10 +192,10 @@ example:
       - type: Ready
         status: "true"
         reason: Provisioned
-        message: Supabase Postgres database connected through Hyperdrive.
+        message: Cloudflare D1 database connected through the D1 binding.
         updatedAt: "2026-04-22T12:05:00Z"
     outputs:
-      hyperdriveBindingName: MAIN_DB
+      d1BindingName: MAIN_DB
     lastDeploymentId: dep_123
     failure: null
   relationships: []

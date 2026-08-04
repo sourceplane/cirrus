@@ -17,8 +17,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for membership-owned relational state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for membership-owned relational state
 - Queues optional for invite email dispatch
 
 ## Intent

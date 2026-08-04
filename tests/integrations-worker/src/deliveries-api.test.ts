@@ -1,6 +1,6 @@
 import { handleListDeliveries, handleReplayDelivery } from "@integrations-worker/handlers/deliveries";
 import type { Env } from "@integrations-worker/env";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 import { asUuid } from "@saas/db";
 
 const ORG_UUID = "11111111-1111-4111-8111-111111111111";
@@ -98,8 +98,8 @@ function deliveryRow(overrides?: Record<string, unknown>): Record<string, unknow
 describe("GET .../integrations/{id}/deliveries", () => {
   it("lists the connection-scoped delivery log as a safe projection", async () => {
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("FROM integrations.inbound_deliveries")) return [deliveryRow()];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_inbound_deliveries")) return [deliveryRow()];
       return [];
     });
     const res = await handleListDeliveries(
@@ -122,13 +122,13 @@ describe("GET .../integrations/{id}/deliveries", () => {
     expect(delivery.payload).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("gh-uuid-1");
 
-    const list = queries.find((q) => q.text.includes("FROM integrations.inbound_deliveries"));
+    const list = queries.find((q) => q.text.includes("FROM integrations_inbound_deliveries"));
     expect(list!.text).toContain("AND connection_id = $2");
   });
 
   it("404s when the connection belongs to another org", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [];
       return [];
     });
     const res = await handleListDeliveries(
@@ -147,8 +147,8 @@ describe("GET .../integrations/{id}/deliveries", () => {
 describe("POST .../deliveries/{id}/replay", () => {
   it("404s for a delivery attributed to a different org", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("FROM integrations.inbound_deliveries WHERE id"))
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_inbound_deliveries WHERE id"))
         return [deliveryRow({ org_id: OTHER_ORG_UUID })];
       return [];
     });
@@ -178,8 +178,8 @@ describe("POST .../deliveries/{id}/replay", () => {
     };
     let reads = 0;
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("FROM integrations.inbound_deliveries WHERE id")) {
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_inbound_deliveries WHERE id")) {
         reads++;
         return [
           reads === 1
@@ -197,11 +197,11 @@ describe("POST .../deliveries/{id}/replay", () => {
             : deliveryRow({ status: "emitted" }),
         ];
       }
-      if (text.includes("FROM integrations.github_installations WHERE installation_id"))
+      if (text.includes("FROM integrations_github_installations WHERE installation_id"))
         return [installationRow];
-      if (text.includes("FROM integrations.connections WHERE id = $1")) return [connectionRow()];
-      if (text.includes("events.event_log")) return [EVENT_ROW];
-      if (text.includes("UPDATE integrations.inbound_deliveries"))
+      if (text.includes("FROM integrations_connections WHERE id = $1")) return [connectionRow()];
+      if (text.includes("events_event_log")) return [EVENT_ROW];
+      if (text.includes("UPDATE integrations_inbound_deliveries"))
         return [deliveryRow({ status: "emitted" })];
       return [];
     });
@@ -219,6 +219,6 @@ describe("POST .../deliveries/{id}/replay", () => {
     const body = (await res.json()) as { data: { delivery: { status: string } } };
     expect(body.data.delivery.status).toBe("emitted");
     // Replay emitted a fresh event from the PERSISTED payload.
-    expect(queries.some((q) => q.text.includes("events.event_log"))).toBe(true);
+    expect(queries.some((q) => q.text.includes("events_event_log"))).toBe(true);
   });
 });

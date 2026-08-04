@@ -6,7 +6,7 @@
 #
 # Requirements:
 #   - AWS credentials able to read the sourceplane state buckets (the old
-#     <env>-github-sourceplane-lumen-plan role's power, or an admin profile)
+#     <env>-github-sourceplane-cirrus-plan role's power, or an admin profile)
 #   - orun logged in (orun auth login) as a workspace member
 #   - terraform >= 1.15
 #
@@ -30,7 +30,7 @@ prj="${2:?project public id (prj_…)}"
 token="${3:?orun access token (backend password)}"
 backend="${ORUN_BACKEND_URL:-https://api-edge-prod.oruncloud.workers.dev}"
 
-COMPONENTS=(supabase cloudflare-kv cloudflare-hyperdrive cloudflare-domain)
+COMPONENTS=(cloudflare-d1 cloudflare-kv cloudflare-domain)
 ENVS=(stage prod)
 
 repo_root="$(git rev-parse --show-toplevel)"
@@ -56,7 +56,7 @@ open(p, "w").write(s)
 PYEOF
     terraform -chdir="$scratch" init -input=false -reconfigure \
       -backend-config="bucket=sourceplane-$env" \
-      -backend-config="key=lumen/$comp/terraform.tfstate" \
+      -backend-config="key=cirrus/$comp/terraform.tfstate" \
       -backend-config="region=${AWS_REGION:-us-east-1}" >/dev/null
     TF_WORKSPACE="$env" terraform -chdir="$scratch" state pull > "$state"
     [ -s "$state" ] || { echo "  no state for $comp/$env — skipping"; rm -rf "$work"; continue; }

@@ -796,7 +796,7 @@ describe("handleCheckEntitlement (with injected repo)", () => {
       ok: false,
       error: {
         kind: "internal",
-        message: "SELECT * FROM billing.entitlements failed at line 42",
+        message: "SELECT * FROM billing_entitlements failed at line 42",
       },
     });
     const res = await handleCheckEntitlement(
@@ -808,7 +808,7 @@ describe("handleCheckEntitlement (with injected repo)", () => {
     expect(res.status).toBe(503);
     const text = await res.text();
     expect(text).not.toContain("SELECT");
-    expect(text).not.toContain("billing.entitlements");
+    expect(text).not.toContain("billing_entitlements");
     expect(text).not.toContain("line 42");
   });
 });

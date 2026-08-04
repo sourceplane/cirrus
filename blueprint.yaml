@@ -1,0 +1,47 @@
+# The cirrus blueprint card: what the console's Blueprints page renders and
+# the platform's bootstrap door consumes (epic saas-blueprints-onboarding).
+apiVersion: orun.io/v1
+kind: Blueprint
+metadata:
+  name: cirrus
+  displayName: Cirrus — Cloudflare-only SaaS baseline
+  description: >
+    Multi-tenant SaaS on Cloudflare alone: 13 bounded-context Workers behind
+    one edge API, a Next.js console, D1 + KV data plane, migrations, and CI
+    that converges on merge. One provider, one consent, one token. Live on
+    stage+prod in ~50-65 minutes.
+  tags: [saas, cloudflare, d1, nextjs]
+spec:
+  source:
+    repo: sourceplane/cirrus
+    tag: baseline-v1           # bumped by the baseline release process
+  requires:
+    # Cloudflare is the only provider connection a bootstrap needs — that is
+    # the whole point of this baseline. GitHub arrives as the App
+    # installation plus the repo link, not as a connection row.
+    integrations: [github, cloudflare]
+    apiKeyRole: admin          # secret writes need the admin floor
+  inputs:                      # collected via cockpit intake (AG-UI)
+    - key: reponame
+      label: Repo name
+      pattern: "^[a-z][a-z0-9-]{1,38}$"
+      askedBy: console         # needed before repo creation
+    - key: productname
+      label: Product display name
+      askedBy: agent
+    - key: productdomain
+      label: Product domain
+      askedBy: agent
+    - key: subdomain
+      label: workers.dev subdomain
+      askedBy: agent
+  bootstrap:
+    umbrella: flows/phases/00-all/workflow.yaml
+    agentBrief: flows/agent/BASELINE-TASK.md
+    expectedMinutes: 60
+    tokenChannel: ORUN_TOKEN_FILE   # the flows read the runtime's refreshed token
+  verify:
+    urls:
+      - "https://{reponame}-api-edge-{env}.{subdomain}.workers.dev/health"
+      - "https://{reponame}-web-console-next-{env}.{subdomain}.workers.dev"
+    envs: [stage, prod]

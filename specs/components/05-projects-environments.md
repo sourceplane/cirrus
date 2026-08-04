@@ -16,12 +16,12 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for project and environment state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for project and environment state
 
 ## Intent
 
-Provide Supabase-console-like project separation under an organization. Projects are the primary operational workspaces in the starter; environments are optional sub-scopes for configuration, deployment, or lifecycle separation.
+Provide console-grade project separation under an organization. Projects are the primary operational workspaces in the starter; environments are optional sub-scopes for configuration, deployment, or lifecycle separation.
 
 ## Scope
 

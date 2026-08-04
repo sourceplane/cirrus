@@ -1,6 +1,6 @@
 import type { Uuid } from "../ids/index.js";
 
-export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../hyperdrive/executor.js";
+export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../d1/executor.js";
 
 export type MembershipRepositoryError =
   | { kind: "not_found" }
@@ -185,7 +185,7 @@ export interface MembershipRepository {
   /**
    * Counts billable members for an organization for the purposes of the
    * `limit.members` billing entitlement. The count includes:
-   *   - active organization members (membership.organization_members.status = 'active'); and
+   *   - active organization members (membership_organization_members.status = 'active'); and
    *   - pending invitations whose `expires_at > now` and that have neither
    *     been accepted nor revoked.
    *

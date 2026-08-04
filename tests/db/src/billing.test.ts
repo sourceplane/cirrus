@@ -6,7 +6,7 @@ import type {
   UpsertInvoiceInput,
   UpsertEntitlementInput,
 } from "@saas/db/billing";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 // ── Mock executor ──────────────────────────────────────────
 
@@ -361,7 +361,7 @@ describe("Billing Repository — Subscriptions", () => {
     });
     expect(result.ok).toBe(true);
     const call = executor.calls[0]!;
-    expect(call.sql).toContain("UPDATE billing.subscriptions");
+    expect(call.sql).toContain("UPDATE billing_subscriptions");
     expect(call.sql).toContain("WHERE org_id = $1 AND id = $2");
     expect(call.params[0]).toBe(ORG_ID);
     expect(call.params[1]).toBe(SUB_ID);
@@ -388,7 +388,7 @@ describe("Billing Repository — Invoices", () => {
     await repo.upsertInvoice(invoiceInput());
     const call = executor.calls[0]!;
     expect(call.sql).toContain("ON CONFLICT (id) DO UPDATE");
-    expect(call.sql).toContain("WHERE billing.invoices.org_id = EXCLUDED.org_id");
+    expect(call.sql).toContain("WHERE billing_invoices.org_id = EXCLUDED.org_id");
   });
 
   it("listInvoices requires orgId and applies optional filters", async () => {
@@ -541,7 +541,7 @@ describe("Billing Repository — getBillingSummary", () => {
     }
     // Every org-scoped call must pass ORG_ID; plan lookup is by plan_id.
     for (const call of executor.calls) {
-      if (call.sql.includes("billing.plans WHERE id")) continue;
+      if (call.sql.includes("billing_plans WHERE id")) continue;
       expect(call.params[0]).toBe(ORG_ID);
     }
   });

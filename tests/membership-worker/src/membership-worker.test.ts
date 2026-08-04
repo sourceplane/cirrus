@@ -794,7 +794,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns full member list with correct response shape on success", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -822,7 +822,7 @@ describe("handleListMembers handler integration", () => {
     } as unknown as Fetcher;
 
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: policyFetcher, PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: policyFetcher, PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
     expect(capturedBody!.action).toBe("organization.member.list");
@@ -831,7 +831,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns not_found when policy denies", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -844,7 +844,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns not_found when actor role-list fails (fail closed)", async () => {
     const repo = createFakeRepo({ actorRolesFail: true });
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -855,7 +855,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns internal_error when member role-list fails without partial data", async () => {
     const repo = createFakeRepo({ memberRolesFail: true });
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -868,7 +868,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns internal_error when listMembers fails", async () => {
     const repo = createFakeRepo({ membersFail: true });
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -880,7 +880,7 @@ describe("handleListMembers handler integration", () => {
   it("fails closed when policy binding throws", async () => {
     const repo = createFakeRepo();
     const policyFetcher = { fetch: async () => { throw new Error("network"); } } as unknown as Fetcher;
-    const env: Env = { POLICY_WORKER: policyFetcher, PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: policyFetcher, PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -891,7 +891,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns not_found for invalid orgId param", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, "invalid_id", undefined, { repo });
 
@@ -900,7 +900,7 @@ describe("handleListMembers handler integration", () => {
 
   it("does not expose raw UUIDs or project scopeRef in response", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
     const text = await response.text();
@@ -915,7 +915,7 @@ describe("handleListMembers handler integration", () => {
 
   it("returns 503 when POLICY_WORKER binding is missing", async () => {
     const repo = createFakeRepo();
-    const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -926,7 +926,7 @@ describe("handleListMembers handler integration", () => {
 
   it("PERF4: deny never leaks the members page even though the read runs in parallel", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -940,7 +940,7 @@ describe("handleListMembers handler integration", () => {
 
   it("PERF4: emits a Server-Timing header with authctx/db/policy/total phases", async () => {
     const repo = createFakeRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -995,7 +995,7 @@ describe("pagination", () => {
 
   it("defaults to limit 50 when no query params provided", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1030,7 +1030,7 @@ describe("pagination", () => {
         return { ok: true as const, value: m };
       },
     };
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
     expect(response.status).toBe(200);
     const json = (await response.json()) as { data: { members: { roles: unknown[] }[] } };
@@ -1044,7 +1044,7 @@ describe("pagination", () => {
 
   it("uses explicit limit when provided", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const url = new URL("http://localhost/v1/organizations/x/members?limit=10");
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, url, { repo });
@@ -1054,7 +1054,7 @@ describe("pagination", () => {
 
   it("returns validation_failed for invalid limit", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const url = new URL("http://localhost/v1/organizations/x/members?limit=999");
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, url, { repo });
@@ -1066,7 +1066,7 @@ describe("pagination", () => {
 
   it("returns validation_failed for non-integer limit", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const url = new URL("http://localhost/v1/organizations/x/members?limit=abc");
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, url, { repo });
@@ -1078,7 +1078,7 @@ describe("pagination", () => {
 
   it("returns validation_failed for invalid cursor", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const url = new URL("http://localhost/v1/organizations/x/members?cursor=not_valid_base64!!!");
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, url, { repo });
@@ -1090,7 +1090,7 @@ describe("pagination", () => {
 
   it("returns validation_failed for valid base64 cursor with invalid timestamp", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const badCursor = btoa(JSON.stringify({ v: 1, t: "not-a-timestamp", i: "aaaaaaaa-1111-2222-3333-444444444444" }));
     const url = new URL(`http://localhost/v1/organizations/x/members?cursor=${badCursor}`);
 
@@ -1103,7 +1103,7 @@ describe("pagination", () => {
 
   it("returns validation_failed for valid base64 cursor with invalid id", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const badCursor = btoa(JSON.stringify({ v: 1, t: "2026-01-15T10:00:00.000Z", i: "not-a-uuid" }));
     const url = new URL(`http://localhost/v1/organizations/x/members?cursor=${badCursor}`);
 
@@ -1123,7 +1123,7 @@ describe("pagination", () => {
         return { ok: true as const, value: { items: [], nextCursor: null } };
       },
     };
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const cursorPayload = btoa(JSON.stringify({ v: 1, t: "2026-01-15T10:00:00.000Z", i: "aaaaaaaa-1111-2222-3333-444444444444" }));
     const url = new URL(`http://localhost/v1/organizations/x/members?cursor=${cursorPayload}`);
 
@@ -1134,7 +1134,7 @@ describe("pagination", () => {
 
   it("sets meta.cursor when another page exists", async () => {
     const repo = createPagedRepo({ hasNext: true });
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1146,7 +1146,7 @@ describe("pagination", () => {
 
   it("sets meta.cursor to null when no more pages", async () => {
     const repo = createPagedRepo({ hasNext: false });
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1157,7 +1157,7 @@ describe("pagination", () => {
 
   it("still authorizes before page query", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1168,7 +1168,7 @@ describe("pagination", () => {
 
   it("does not leak cursor format details in validation error", async () => {
     const repo = createPagedRepo();
-    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+    const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
     const url = new URL("http://localhost/v1/organizations/x/members?cursor=broken");
 
     const response = await handleListMembers(env, "req_test", actor, orgPublicIdStr, url, { repo });
@@ -1186,18 +1186,18 @@ describe("wrangler config", () => {
   // Strip single-line comments for JSONC parsing
   const config = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, ""));
 
-  it("stage binds POLICY_WORKER to lumen-policy-worker-stage", () => {
+  it("stage binds POLICY_WORKER to cirrus-policy-worker-stage", () => {
     const stageServices = config.env.stage.services;
     const policyBinding = stageServices.find((s: { binding: string }) => s.binding === "POLICY_WORKER");
     expect(policyBinding).toBeDefined();
-    expect(policyBinding.service).toBe("lumen-policy-worker-stage");
+    expect(policyBinding.service).toBe("cirrus-policy-worker-stage");
   });
 
-  it("prod binds POLICY_WORKER to lumen-policy-worker-prod", () => {
+  it("prod binds POLICY_WORKER to cirrus-policy-worker-prod", () => {
     const prodServices = config.env.prod.services;
     const policyBinding = prodServices.find((s: { binding: string }) => s.binding === "POLICY_WORKER");
     expect(policyBinding).toBeDefined();
-    expect(policyBinding.service).toBe("lumen-policy-worker-prod");
+    expect(policyBinding.service).toBe("cirrus-policy-worker-prod");
   });
 
   it("stage and prod never cross environments", () => {
@@ -1293,7 +1293,7 @@ describe("invitation administration", () => {
     it("creates invitation with expected response shape", async () => {
       const repo = createRepo();
       const fakeToken = { raw: "deadbeef".repeat(8), hash: "cafebabe".repeat(8) };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "builder" }),
@@ -1314,7 +1314,7 @@ describe("invitation administration", () => {
     it("includes debug delivery token when DEBUG_DELIVERY is true", async () => {
       const repo = createRepo();
       const fakeToken = { raw: "secret_raw_token_hex", hash: "hash_hex" };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "true" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "true" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "viewer" }),
@@ -1330,7 +1330,7 @@ describe("invitation administration", () => {
     it("prod delivery never includes raw token", async () => {
       const repo = createRepo();
       const fakeToken = { raw: "secret_raw_token", hash: "hash" };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "prod", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "prod", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "admin" }),
@@ -1352,7 +1352,7 @@ describe("invitation administration", () => {
         },
       };
       const fakeToken = { raw: "raw_secret", hash: "hashed_value_only" };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleCreateInvitation(
         makeRequest({ email: "test@x.com", role: "viewer" }),
@@ -1366,7 +1366,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for bad JSON", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
       const badReq = new Request("https://test.local/v1/organizations/" + orgPublicIdStr + "/invitations", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -1385,7 +1385,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for invalid email", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "not-an-email", role: "viewer" }),
@@ -1401,7 +1401,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for missing role", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com" }),
@@ -1416,7 +1416,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for project-scoped role", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "project_admin" }),
@@ -1431,7 +1431,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for unknown role", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "superuser" }),
@@ -1445,7 +1445,7 @@ describe("invitation administration", () => {
     it("sends organization.invitation.create action to policy", async () => {
       const captured: { value: unknown } = { value: null };
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1466,7 +1466,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { ...input, status: "pending", acceptedAt: null, revokedAt: null } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1480,7 +1480,7 @@ describe("invitation administration", () => {
 
     it("policy denial returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1495,7 +1495,7 @@ describe("invitation administration", () => {
 
     it("actor role-list failure fails closed", async () => {
       const repo = createRepo({ actorRolesFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1508,7 +1508,7 @@ describe("invitation administration", () => {
 
     it("database failure returns safe internal_error", async () => {
       const repo = createRepo({ createFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1523,7 +1523,7 @@ describe("invitation administration", () => {
 
     it("invalid orgId returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "user@test.com", role: "viewer" }),
@@ -1543,7 +1543,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "builder" }),
@@ -1576,7 +1576,7 @@ describe("invitation administration", () => {
           return { ok: false as const, error: { kind: "internal" as const, message: "db error" } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "viewer" }),
@@ -1598,7 +1598,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "viewer" }),
@@ -1619,7 +1619,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "not-an-email", role: "viewer" }),
@@ -1640,7 +1640,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "viewer" }),
@@ -1661,7 +1661,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "viewer" }),
@@ -1686,7 +1686,7 @@ describe("invitation administration", () => {
       const eventsRepo = {
         appendEventWithAudit: async () => ({ ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } }),
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "true" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "true" };
 
       const response = await handleCreateInvitation(
         makeRequest({ email: "invite@test.com", role: "builder" }),
@@ -1725,7 +1725,7 @@ describe("invitation administration", () => {
       const baseEnv = (): Env => ({
         POLICY_WORKER: createPolicyFetcher(true),
         BILLING_WORKER: {} as Fetcher,
-        PLATFORM_DB: {} as Hyperdrive,
+        PLATFORM_DB: {} as D1Database,
         ENVIRONMENT: "test",
         DEBUG_DELIVERY: "false",
       });
@@ -1942,7 +1942,7 @@ describe("invitation administration", () => {
 
     it("lists invitations with expected response shape", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1958,7 +1958,7 @@ describe("invitation administration", () => {
 
     it("derives expired status from expiresAt without DB mutation", async () => {
       const repo = createRepo({ expired: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1969,7 +1969,7 @@ describe("invitation administration", () => {
     it("sends organization.invitation.list action to policy", async () => {
       const captured: { value: unknown } = { value: null };
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1987,7 +1987,7 @@ describe("invitation administration", () => {
           },
         }),
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -1998,7 +1998,7 @@ describe("invitation administration", () => {
 
     it("policy denial returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -2007,7 +2007,7 @@ describe("invitation administration", () => {
 
     it("actor role-list failure fails closed", async () => {
       const repo = createRepo({ actorRolesFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -2016,7 +2016,7 @@ describe("invitation administration", () => {
 
     it("database failure returns safe internal_error", async () => {
       const repo = createRepo({ listFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
 
@@ -2027,7 +2027,7 @@ describe("invitation administration", () => {
 
     it("does not expose raw invitation UUIDs", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleListInvitations(env, "req_test", actor, orgPublicIdStr, undefined, { repo });
       const text = await response.text();
@@ -2074,7 +2074,7 @@ describe("invitation administration", () => {
 
     it("revokes invitation and returns expected response shape", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2091,7 +2091,7 @@ describe("invitation administration", () => {
     it("sends organization.invitation.revoke action to policy", async () => {
       const captured: { value: unknown } = { value: null };
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, captured), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2103,7 +2103,7 @@ describe("invitation administration", () => {
 
     it("policy denial returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2115,7 +2115,7 @@ describe("invitation administration", () => {
 
     it("returns not_found for already revoked/accepted invitation", async () => {
       const repo = createRepo({ notFound: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2127,7 +2127,7 @@ describe("invitation administration", () => {
 
     it("invalid invitation ID returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, "bad_inv_id",
@@ -2139,7 +2139,7 @@ describe("invitation administration", () => {
 
     it("invalid org ID returns not_found", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, "bad_org", invPublicIdStr,
@@ -2151,7 +2151,7 @@ describe("invitation administration", () => {
 
     it("actor role-list failure fails closed", async () => {
       const repo = createRepo({ actorRolesFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2163,7 +2163,7 @@ describe("invitation administration", () => {
 
     it("database failure returns safe internal_error", async () => {
       const repo = createRepo({ revokeFail: true });
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2177,7 +2177,7 @@ describe("invitation administration", () => {
 
     it("does not expose raw invitation UUID in response", async () => {
       const repo = createRepo();
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2197,7 +2197,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2226,7 +2226,7 @@ describe("invitation administration", () => {
           return { ok: false as const, error: { kind: "internal" as const, message: "db error" } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2247,7 +2247,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2267,7 +2267,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       const response = await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2287,7 +2287,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test", DEBUG_DELIVERY: "false" };
 
       await handleRevokeInvitation(
         env, "req_test", actor, orgPublicIdStr, invPublicIdStr,
@@ -2353,7 +2353,7 @@ describe("invitation administration", () => {
 
     it("returns 200 with correct response shape on success", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2375,7 +2375,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for malformed JSON", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
       const request = new Request("https://test.local/v1/organizations/" + orgPublicIdStr + "/invitations/accept", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -2394,7 +2394,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for non-hex token", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: "not-a-valid-token" }),
@@ -2410,7 +2410,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for missing token field", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({}),
@@ -2425,7 +2425,7 @@ describe("invitation administration", () => {
 
     it("returns validation_failed for too-short token", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: "abc123" }),
@@ -2438,7 +2438,7 @@ describe("invitation administration", () => {
 
     it("returns not_found for invalid public org ID", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2451,7 +2451,7 @@ describe("invitation administration", () => {
 
     it("passes token hash to repository, not raw token", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
       let hashInput: string | null = null;
 
       await handleAcceptInvitation(
@@ -2467,7 +2467,7 @@ describe("invitation administration", () => {
 
     it("maps not_found repository error to 404", async () => {
       const repo = createAcceptRepo({ result: { ok: false, error: { kind: "not_found" } } });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2480,7 +2480,7 @@ describe("invitation administration", () => {
 
     it("maps expired repository error to 404", async () => {
       const repo = createAcceptRepo({ result: { ok: false, error: { kind: "expired" } } });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2493,7 +2493,7 @@ describe("invitation administration", () => {
 
     it("maps revoked repository error to 404", async () => {
       const repo = createAcceptRepo({ result: { ok: false, error: { kind: "revoked" } } });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2506,7 +2506,7 @@ describe("invitation administration", () => {
 
     it("maps already_accepted repository error to 404", async () => {
       const repo = createAcceptRepo({ result: { ok: false, error: { kind: "already_accepted" } } });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2519,7 +2519,7 @@ describe("invitation administration", () => {
 
     it("maps conflict repository error to 409", async () => {
       const repo = createAcceptRepo({ result: { ok: false, error: { kind: "conflict", entity: "organization_member" } } });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2534,7 +2534,7 @@ describe("invitation administration", () => {
 
     it("maps internal repository error to 500", async () => {
       const repo = createAcceptRepo({ fail: true });
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2547,7 +2547,7 @@ describe("invitation administration", () => {
 
     it("does not call policy-worker for acceptance", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2560,7 +2560,7 @@ describe("invitation administration", () => {
 
     it("does not expose raw token, token hash, or raw UUIDs in response", async () => {
       const repo = createAcceptRepo();
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2584,7 +2584,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2616,7 +2616,7 @@ describe("invitation administration", () => {
           return { ok: false as const, error: { kind: "internal" as const, message: "db error" } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2638,7 +2638,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2659,7 +2659,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2680,7 +2680,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2701,7 +2701,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2722,7 +2722,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2743,7 +2743,7 @@ describe("invitation administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2767,7 +2767,7 @@ describe("invitation administration", () => {
       const eventsRepo = {
         appendEventWithAudit: async () => ({ ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } }),
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleAcceptInvitation(
         makeAcceptRequest({ token: validToken }),
@@ -2916,7 +2916,7 @@ describe("member administration", () => {
         },
       };
       const policyCapture = { value: null as unknown };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, policyCapture), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, policyCapture), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -2959,7 +2959,7 @@ describe("member administration", () => {
           return { ok: false as const, error: { kind: "internal" as const, message: "db error" } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -2985,7 +2985,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3006,7 +3006,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3027,7 +3027,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3048,7 +3048,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "superadmin" }),
@@ -3069,7 +3069,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({}),
@@ -3090,7 +3090,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3111,7 +3111,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3145,7 +3145,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3168,7 +3168,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3198,7 +3198,7 @@ describe("member administration", () => {
       const eventsRepo = {
         appendEventWithAudit: async () => ({ ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } }),
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleUpdateMemberRole(
         makeRequest({ role: "builder" }),
@@ -3229,7 +3229,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       await handleUpdateMemberRole(
         makeRequest({ role: "viewer" }),
@@ -3260,7 +3260,7 @@ describe("member administration", () => {
         },
       };
       const policyCapture = { value: null as unknown };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, policyCapture), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true, policyCapture), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3302,7 +3302,7 @@ describe("member administration", () => {
           return { ok: false as const, error: { kind: "internal" as const, message: "db error" } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3327,7 +3327,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(false), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3347,7 +3347,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, "bad_org_id", memberPublicIdStr,
@@ -3367,7 +3367,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, "invalid_member",
@@ -3387,7 +3387,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3407,7 +3407,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3439,7 +3439,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3461,7 +3461,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3489,7 +3489,7 @@ describe("member administration", () => {
       const eventsRepo = {
         appendEventWithAudit: async () => ({ ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } }),
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       const response = await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,
@@ -3514,7 +3514,7 @@ describe("member administration", () => {
           return { ok: true as const, value: { event: {} as StoredEvent, audit: {} as StoredAuditEntry } };
         },
       };
-      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as Hyperdrive, ENVIRONMENT: "test" };
+      const env: Env = { POLICY_WORKER: createPolicyFetcher(true), PLATFORM_DB: {} as D1Database, ENVIRONMENT: "test" };
 
       await handleRemoveMember(
         env, "req_test", actor, orgPublicIdStr, memberPublicIdStr,

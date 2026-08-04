@@ -16,8 +16,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for policy overrides and versioned role maps if persistence is needed
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for policy overrides and versioned role maps if persistence is needed
 - optional KV for compiled policy cache
 
 ## Intent

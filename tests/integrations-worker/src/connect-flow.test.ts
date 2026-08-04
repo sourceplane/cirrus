@@ -5,7 +5,7 @@ import {
 import { handleGithubSetupCallback } from "@integrations-worker/handlers/setup";
 import { signConnectState, hashStateNonce, CONNECT_STATE_TTL_MS } from "@integrations-worker/state";
 import type { Env } from "@integrations-worker/env";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 import { asUuid } from "@saas/db";
 
 const ORG_UUID = "11111111-1111-4111-8111-111111111111";
@@ -185,7 +185,7 @@ describe("POST .../integrations/github/connect", () => {
     const env = createEnv();
     let insertedParams: unknown[] = [];
     const { executor } = fakeExecutor((text, params) => {
-      if (text.includes("INSERT INTO integrations.connections")) {
+      if (text.includes("INSERT INTO integrations_connections")) {
         insertedParams = params;
         return [pendingRow({ id: params[0] as string })];
       }
@@ -259,7 +259,7 @@ describe("GET /ingress/github/setup", () => {
   it("records an unsolicited install (no state) as orphaned and fails closed", async () => {
     const env = createEnv();
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("INSERT INTO integrations.github_installations")) {
+      if (text.includes("INSERT INTO integrations_github_installations")) {
         return [{ id: "x", connection_id: null, installation_id: "9912345", created_at: NOW.toISOString(), updated_at: NOW.toISOString() }];
       }
       return [];
@@ -273,7 +273,7 @@ describe("GET /ingress/github/setup", () => {
     );
     expect(res.status).toBe(400);
     const orphanInsert = queries.find((q) =>
-      q.text.includes("INSERT INTO integrations.github_installations"),
+      q.text.includes("INSERT INTO integrations_github_installations"),
     );
     expect(orphanInsert).toBeDefined();
     expect(orphanInsert!.params[1]).toBeNull(); // connection_id NULL = orphaned
@@ -286,7 +286,7 @@ describe("GET /ingress/github/setup", () => {
     const { state } = await mintState();
     const { executor, queries } = fakeExecutor((text) => {
       if (text.includes("SET state_nonce_hash = NULL")) return []; // already consumed
-      if (text.includes("INSERT INTO integrations.github_installations")) {
+      if (text.includes("INSERT INTO integrations_github_installations")) {
         return [{ id: "x", connection_id: null, installation_id: "9912345", created_at: NOW.toISOString(), updated_at: NOW.toISOString() }];
       }
       return [];
@@ -300,7 +300,7 @@ describe("GET /ingress/github/setup", () => {
     );
     expect(res.status).toBe(400);
     expect(
-      queries.some((q) => q.text.includes("INSERT INTO integrations.github_installations")),
+      queries.some((q) => q.text.includes("INSERT INTO integrations_github_installations")),
     ).toBe(true);
   });
 
@@ -310,7 +310,7 @@ describe("GET /ingress/github/setup", () => {
     const { state } = await mintState({ o: OTHER_ORG_UUID });
     const { executor, queries } = fakeExecutor((text) => {
       if (text.includes("SET state_nonce_hash = NULL")) return [pendingRow()];
-      if (text.includes("INSERT INTO integrations.github_installations")) {
+      if (text.includes("INSERT INTO integrations_github_installations")) {
         return [{ id: "x", connection_id: null, installation_id: "9912345", created_at: NOW.toISOString(), updated_at: NOW.toISOString() }];
       }
       return [];
@@ -336,7 +336,7 @@ describe("GET /ingress/github/setup", () => {
         expect(params[0]).toBe(expectedHash);
         return [pendingRow()];
       }
-      if (text.includes("INSERT INTO integrations.github_installations")) {
+      if (text.includes("INSERT INTO integrations_github_installations")) {
         return [
           {
             id: "inst-row",
@@ -386,7 +386,7 @@ describe("GET /ingress/github/setup", () => {
     // The installation row is bound to the connection from the state, never
     // from anything GitHub sent.
     const install = queries.find((q) =>
-      q.text.includes("INSERT INTO integrations.github_installations"),
+      q.text.includes("INSERT INTO integrations_github_installations"),
     );
     expect(install!.params[1]).toBe(CONNECTION_UUID);
   });
@@ -396,7 +396,7 @@ describe("GET /ingress/github/setup", () => {
     const { state } = await mintState();
     const { executor, queries } = fakeExecutor((text) => {
       if (text.includes("SET state_nonce_hash = NULL")) return [pendingRow()];
-      if (text.includes("INSERT INTO integrations.github_installations")) {
+      if (text.includes("INSERT INTO integrations_github_installations")) {
         // Upsert resolves to a row owned by a DIFFERENT connection.
         return [
           {
@@ -430,14 +430,14 @@ describe("DELETE .../integrations/{id}", () => {
     const env = createEnv();
     let status = "active";
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("SELECT * FROM integrations.connections")) {
+      if (text.includes("SELECT * FROM integrations_connections")) {
         return [pendingRow({ status, external_account_login: "acme" })];
       }
       if (text.includes("SET status = $3")) {
         status = "revoked";
         return [pendingRow({ status: "revoked", revoked_at: NOW.toISOString() })];
       }
-      if (text.includes("SELECT * FROM integrations.github_installations")) return [];
+      if (text.includes("SELECT * FROM integrations_github_installations")) return [];
       return [{ id: "x" }];
     });
 
@@ -445,7 +445,7 @@ describe("DELETE .../integrations/{id}", () => {
       executor,
     });
     expect(first.status).toBe(200);
-    expect(queries.some((q) => q.text.includes("DELETE FROM integrations.installation_tokens"))).toBe(true);
+    expect(queries.some((q) => q.text.includes("DELETE FROM integrations_installation_tokens"))).toBe(true);
 
     const second = await handleRevokeIntegration(env, "req_2", ACTOR, ORG_ID, asUuid(CONNECTION_UUID), {
       executor,

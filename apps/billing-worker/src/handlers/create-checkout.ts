@@ -1,7 +1,7 @@
 import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import type { CreateCheckoutResponse } from "@saas/contracts/billing";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createBillingRepository } from "@saas/db/billing";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { authorizeBillingManage } from "../policy.js";

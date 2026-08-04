@@ -13,12 +13,12 @@
 // the page only needs to tell the human what happened and close itself.
 
 import type { Env } from "../env.js";
-import type { SqlExecutor } from "@saas/db/hyperdrive";
+import type { SqlExecutor } from "@saas/db/d1";
 import type { FetchLike } from "../github-app.js";
 import { INTEGRATION_EVENT_TYPES } from "@saas/contracts/integrations";
 import { createIntegrationsRepository, type IntegrationsRepository } from "@saas/db/integrations";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { asUuid } from "@saas/db/ids";
 import { generateUuid } from "../ids.js";
 import { getConfiguredProvider } from "../providers/registry.js";

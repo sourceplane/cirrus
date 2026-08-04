@@ -8,7 +8,7 @@ export const manifest: MigrationManifest = {
       context: "control",
       path: "000_control/up.sql",
       checksum:
-        "2a5d7f30684c99e3ff441ca8a2c38038dedd1bab4db4a40e92cd36bb22be297f",
+        "c7f11499fa82d6fd2baa1af7fc75eeb73cd7be252af2e56841509c66001d638b",
       description:
         "Baseline control migration — creates the migration tracking schema",
     },
@@ -17,7 +17,7 @@ export const manifest: MigrationManifest = {
       context: "identity",
       path: "010_identity_core/up.sql",
       checksum:
-        "f8db63c83e2b1b29e6d0b9b133a7db490e2adcfdf26bfc6ce55c63c8a629075d",
+        "e8275904e2c60c42c6c977c208acd857086c6b93b35f552fd10e41ca16607872",
       description:
         "Identity persistence foundation — users, auth identities, login challenges, sessions",
     },
@@ -26,7 +26,7 @@ export const manifest: MigrationManifest = {
       context: "membership",
       path: "020_membership_core/up.sql",
       checksum:
-        "50da482998db74431866aa5285737026239a28618017019320ee7bb20e49381d",
+        "857bbac3e351b71a2549e6639127611e0918a16a6efe94fe0edb8d12dc7392d5",
       description:
         "Membership persistence foundation — organizations, members, invitations, role assignments",
     },
@@ -35,7 +35,7 @@ export const manifest: MigrationManifest = {
       context: "events",
       path: "030_events_audit_core/up.sql",
       checksum:
-        "388aa634380200595ff3a3d15c638e696bf9b93e46330327e84ef10cec8a3f58",
+        "13c451ca150371f301a85c3a00b36689a6108f31da05c8d1a3fa64b3b1b6bfb4",
       description:
         "Events/audit persistence foundation — canonical event log and audit entry projections",
     },
@@ -44,7 +44,7 @@ export const manifest: MigrationManifest = {
       context: "projects",
       path: "040_projects_core/up.sql",
       checksum:
-        "d7cb842130856986157629965fd9afba6b36e737e73b125884b64976d2f8b7f6",
+        "f40bd14d98f399f0a0cfb6f82a5ac7be31792c74950e597bc90ffe6a6ead3949",
       description:
         "Projects persistence foundation — projects and environments tables with tenant isolation",
     },
@@ -53,7 +53,7 @@ export const manifest: MigrationManifest = {
       context: "identity",
       path: "050_identity_security_events/up.sql",
       checksum:
-        "a1bb9f50075ea93e389feb7c7282bdbd5b5ebf6671f789b0f7a707110ae74ca2",
+        "e97f0dc7d4e7f3e246bbdd80f041a64a178949281e30c9e94ceb8a64d9472009",
       description:
         "Identity-owned security-event source facts — pre-organization user activity log",
     },
@@ -62,7 +62,7 @@ export const manifest: MigrationManifest = {
       context: "identity",
       path: "060_identity_api_keys/up.sql",
       checksum:
-        "834e71e40f729cdf1cd4db32a4071b62c09fd63c9ea4bbf0c035c15c94ff99a1",
+        "9adceb6281c2f88449415dceba7f387e16591ffbc115d6199a5efce4acf92aff",
       description:
         "Identity-owned service principals and API keys — org-bound automation actors and credential persistence",
     },
@@ -71,7 +71,7 @@ export const manifest: MigrationManifest = {
       context: "config",
       path: "070_config_settings_flags/up.sql",
       checksum:
-        "be2b60f0ddb6f342a8c9038db602e142a34d36ffa7f7a17f4d218231087d6562",
+        "0996c9c8e483b1aff84a2b17e4176eaa21316f3c9834070eaee78c23c0b18a48",
       description:
         "Config persistence foundation — scoped settings, feature flags, and secret metadata",
     },
@@ -80,7 +80,7 @@ export const manifest: MigrationManifest = {
       context: "webhooks",
       path: "080_webhooks_core/up.sql",
       checksum:
-        "bfffc592f82028dd06865833bfd5e8124dbfe51e2e02aecccea4b14b42e9f2a6",
+        "c9157f4836d229b73dd3918b0b090fc776e0ba73727a876e37a2b6c1b098a38a",
       description:
         "Webhook persistence foundation — endpoints, subscriptions, and delivery attempts",
     },
@@ -89,7 +89,7 @@ export const manifest: MigrationManifest = {
       context: "webhooks",
       path: "090_webhooks_delivery/up.sql",
       checksum:
-        "a881356b376afd2cccbf326a9bfb7e393e073cd88b3923a38d34907457c39021",
+        "79ea5500c1e5dff36f70ad6a3f63f4335c1423c4695ca0ac5b60942d6f20cce4",
       description:
         "Webhook delivery runtime — fixes event_id type, adds dispatch cursor and delivery indexes",
     },
@@ -98,7 +98,7 @@ export const manifest: MigrationManifest = {
       context: "metering",
       path: "100_metering_foundation/up.sql",
       checksum:
-        "d02693e6ec3d76193d58b9038a211c877adbf1c141e4f40d9ca8bb7a78c90930",
+        "f5448db51935ade1fab8670a27c1104d20b07d0003608550d1749a013f0ac6b9",
       description:
         "Metering persistence foundation — usage records, rollups, quota definitions, and quota violations",
     },
@@ -107,7 +107,7 @@ export const manifest: MigrationManifest = {
       context: "billing",
       path: "110_billing_foundation/up.sql",
       checksum:
-        "980564a806e89c0039f012f7c0ec49267920aea549b394c5af3712722e4b9f8f",
+        "446e002fada272b2488c745eb855f49685e7f9899297c8df7e39f25ad591e06f",
       description:
         "Billing persistence foundation — provider-neutral plans, billing customers, subscriptions, invoices, and entitlements",
     },
@@ -116,7 +116,7 @@ export const manifest: MigrationManifest = {
       context: "notifications",
       path: "120_notifications_core/up.sql",
       checksum:
-        "868cc1092b4b385b6ed3d203efe5302191865131bb98d0e9f5fe5ad6d16f01bb",
+        "ca99fc52528d2697885776096ee0d0b2b46cab6c18ca37cfc6e46ed4cf0b4d59",
       description:
         "Notifications persistence foundation — preferences, notifications, attempts, suppressions",
     },
@@ -125,7 +125,7 @@ export const manifest: MigrationManifest = {
       context: "webhooks",
       path: "130_webhook_secret_rotation_grace/up.sql",
       checksum:
-        "4c5474e7b5ca228adc18ca09b7cd2387938efab8f1e55b675fd4aee6e3ec4e5a",
+        "de5929da0705b34ae3ac94ce978705c857d232997f553ed4abd92996b9ba8134",
       description:
         "Dual-secret rotation window — adds previous_secret_{ciphertext,version,expires_at} for grace-period delivery signing",
     },
@@ -134,7 +134,7 @@ export const manifest: MigrationManifest = {
       context: "support",
       path: "140_support_action_records/up.sql",
       checksum:
-        "50262de186b5ec91797e25532b56cf69028f3975dcc58751c07de6ef1517f190",
+        "4379358a3692ebc734c1125c3d21c00c023185f42572351d7366f3292388b4b3",
       description:
         "Support persistence foundation — append-only audited support-action ledger owned by the admin-support worker",
     },
@@ -143,7 +143,7 @@ export const manifest: MigrationManifest = {
       context: "billing",
       path: "150_entitlement_decision_observations/up.sql",
       checksum:
-        "ba7a1a00ad723752e1bdedc8bcd47c210b24ae18bd3245cb71af84432aefa7f8",
+        "51950b97f41b5b03107cf1414a068e5d2a82901331f00687aa647139f40043d5",
       description:
         "Entitlement-decision observability — append-only, counts-only observation table (org × entitlement key × outcome) owned by the billing context",
     },
@@ -152,25 +152,25 @@ export const manifest: MigrationManifest = {
       context: "identity",
       path: "160_identity_user_last_org/up.sql",
       checksum:
-        "d102ce426114b032407f6e03ee2e02de65ccb25e4f42df25b340e5a641829dc6",
+        "ebfead333c9a5ccfdc782744eef2911ae9c63c70358a8fccecbd8b545a851806",
       description:
-        "Per-user last-viewed organization preference (nullable slug hint on identity.users) backing the console's cross-device default landing",
+        "Per-user last-viewed organization preference (nullable slug hint on identity_users) backing the console's cross-device default landing",
     },
     {
       id: "170_membership_org_parent",
       context: "membership",
       path: "170_membership_org_parent/up.sql",
       checksum:
-        "8af612994d6ad4f76e416ec034cdcfc9e2e416bed04c4fde405481627b4093b2",
+        "33e280e66b1752832a434fb122d41733e1c325faa443e819a8b402ca63995581",
       description:
-        "Optional parent-organization pointer (nullable parent_org_id on membership.organizations) — the dormant seam for the saas-multi-org-billing epic; NULL = standalone, no behavior change",
+        "Optional parent-organization pointer (nullable parent_org_id on membership_organizations) — the dormant seam for the saas-multi-org-billing epic; NULL = standalone, no behavior change",
     },
     {
       id: "180_integrations_foundation",
       context: "integrations",
       path: "180_integrations_foundation/up.sql",
       checksum:
-        "e86ac972013587fcd3b04be5c1daa1306a456990ebbb9d30e9b5d79770772497",
+        "f0a65edf90d7d63349628335ca80ddf825555b1686c4873aa4f75ab633b8f2bd",
       description:
         "Integrations persistence foundation (IG0, dormant) — provider-agnostic connections, GitHub installation facts, repo links with branch→environment maps, the durable inbound-delivery inbox, and the encrypted installation-token cache",
     },
@@ -179,7 +179,7 @@ export const manifest: MigrationManifest = {
       context: "integrations",
       path: "190_integrations_delivery_attribution/up.sql",
       checksum:
-        "535487194c9c4a129e013282a5f51a5c3e6e2afb3f15c5a0b5f1028e0c5af73f",
+        "b5ffe67f60e3486b9c733146c375341e757145b5d4381475256f1399328d81a0",
       description:
         "Connection pointer on the inbound-delivery inbox (nullable connection_id + partial index) — lets the per-connection delivery log scope precisely; attributed by the IG2 cron drain",
     },

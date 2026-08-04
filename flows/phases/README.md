@@ -1,11 +1,15 @@
 # Phased bootstrap — one workflow per phase
 
-Seven independent workflows that take a product from **nothing** to a
-**live baseline**, one slice at a time, at whatever pace you choose. Each
+Eight independent workflows that take a product from **nothing** to a
+**live, documented baseline** — run them one at a time at your own pace,
+or run [`00-all`](00-all/README.md), the umbrella that executes the whole
+sequence unattended (per-phase retry, built-in waits, independent final
+verification). Each
 phase is self-contained and follows the same contract:
 
-> **apply its blueprint slice → land it as a PR → watch the deployment
-> convergence (auto-resumed) → verify it is actually deployed.**
+> **apply its blueprint slice → land it as a PR (merged immediately —
+> the convergence is the gate) → watch the deployment convergence
+> (auto-resumed) → verify it is actually deployed.**
 
 Run every workflow **from the baseline checkout** (the blueprints live
 here); the product repo is wherever `out` points.
@@ -21,13 +25,15 @@ Each phase folder is fully self-contained: `README.md` + `workflow.yaml`
 
 | # | folder | lands | verified by |
 |---|--------|-------|-------------|
+| 00 | [`00-all`](00-all/README.md) | **everything below, unattended** (umbrella: retry per phase + early cred probe + independent final verify) | its own end-to-end re-assertion |
 | 01 | [`01-scaffold`](01-scaffold/README.md) | **GitHub repo created** + repo born: intent, CI, flows, tooling, identity | repo pushed + workspace-linked |
 | 02 | [`02-foundation`](02-foundation/README.md) | 13 shared packages | verify lanes green |
-| 03 | [`03-infrastructure`](03-infrastructure/README.md) | kv, supabase, db-migrate, hyperdrive | published `WIRING_*` / `SUPABASE_*` secrets |
+| 03 | [`03-infrastructure`](03-infrastructure/README.md) | d1, kv, db-migrate | published `WIRING_*` secrets |
 | 04 | [`04-workers`](04-workers/README.md) | the 12-worker fleet (two landings) | convergence green, bindings restored |
 | 05 | [`05-edge`](05-edge/README.md) | api-edge | `/health` 200 on stage+prod |
 | 06 | [`06-console`](06-console/README.md) | web console | console + edge live |
 | 07 | [`07-domain`](07-domain/README.md) | custom domain (OPTIONAL) | convergence green |
+| 08 | [`08-docs`](08-docs/README.md) | live-deployment docs (manifest + operating contract) | committed manifest matches probed reality |
 
 ## Inputs
 
@@ -53,7 +59,7 @@ container with two env tokens is the entire contract (see
 
 ```bash
 export ORUN_TOKEN=… GITHUB_TOKEN=…
-orun workflow run github:sourceplane/lumen@<ref>//flows/phases/03-infrastructure/workflow.yaml \
+orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/03-infrastructure/workflow.yaml \
   --set workspace=ws_… --set repo=sourceplane/acme
 ```
 
@@ -79,9 +85,9 @@ files.
 
 1. `orun auth login --device` (approve at app.orun.dev/cli/device).
 2. A workspace for the product; note its `ws_…` id.
-3. The three integrations connected in that workspace — GitHub,
-   Cloudflare, Supabase. Deploy phases (03+) POLL for these up to 10
-   minutes, so you can click the consents while preflight waits.
+3. The two integrations connected in that workspace — GitHub and
+   Cloudflare. Deploy phases (03+) POLL for these up to 10 minutes, so
+   you can click the consent while preflight waits.
 
 ## Shared machinery (`flows/common/`)
 
@@ -98,7 +104,7 @@ files.
 
 Each phase folder carries its own `blueprint.yaml` — the slice it applies.
 They are derived from the baseline's monolithic `repo-blueprint.yaml`
-(Lumen as a Blueprint of itself); regenerate them after editing it:
+(Cirrus as a Blueprint of itself); regenerate them after editing it:
 
 ```bash
 python3 tooling/blueprint/split-phases.py repo-blueprint.yaml flows/phases
@@ -108,11 +114,3 @@ The split prunes cross-phase `dependsOn` edges (ordering becomes the run
 sequence), keeps hooks on the scaffold phase only, and re-bases each
 blueprint's dir source relative to its own folder.
 
-## Relationship to the express flow
-
-The express path is `flows/common/instantiate-all.sh` (applies every phase
-blueprint into one tree) followed by `flows/bootstrap-flow.yaml`: full tree
-instantiated parked, whole fleet un-parked in a single push, one
-convergence run. The phased path builds the repo incrementally — each
-phase's merge deploys exactly its slice, no parking involved. Same shared
-scripts, same guarantees; pick per product, they end in the same place.

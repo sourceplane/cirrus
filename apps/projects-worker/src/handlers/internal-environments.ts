@@ -9,7 +9,7 @@
 
 import type { Env } from "../env.js";
 import { createProjectsRepository } from "@saas/db/projects";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { asUuid, isUuid } from "@saas/db/ids";
 import { errorResponse, successResponse } from "../http.js";
 

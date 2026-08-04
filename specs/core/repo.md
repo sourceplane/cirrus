@@ -81,8 +81,9 @@ kiox.lock                  Resolved Kiox provider lock
 
 /infra
   /terraform
-    /supabase              Supabase database/project and AWS Secrets Manager component
-    /cloudflare            Worker, Hyperdrive, queue, and binding infrastructure
+    /cloudflare-d1         D1 platform database per environment
+    /cloudflare-kv         api-edge idempotency namespace
+    /cloudflare-domain     Zone adoption and console custom domain
   /cloudflare              Wrangler configs, environments, bindings
   /ci                      CI templates and deployment notes
 
@@ -115,8 +116,8 @@ explicit version in `intent.yaml`.
 ### State ownership
 
 - Each bounded context owns its own persistence.
-- The primary relational store is Supabase Postgres, reached from Workers through Cloudflare Hyperdrive.
-- In V1, a single Supabase project/database may host multiple bounded contexts, but each context must own a logical schema or table namespace, service credentials, and migrations that can be extracted without rewriting clients.
+- The primary relational store is Cloudflare D1, bound directly into each Worker as `PLATFORM_DB`.
+- One D1 database per environment hosts every bounded context. SQLite has no schemas, so each context owns a table-name namespace (`identity_*`, `membership_*`, …) and its own migrations, extractable without rewriting clients.
 - No Worker may query another domain's tables or schemas directly.
 - Shared caches in KV must be derived, disposable copies of source-of-truth data.
 - Every project-scoped table, cache key, event, and query must carry `org_id + project_id`; never rely on `project_id` alone.
@@ -149,9 +150,7 @@ Use platform primitives deliberately:
 
 - Workers: HTTP ingress and internal domain services
 - Service bindings: internal synchronous calls
-- Supabase Postgres: source-of-truth relational state for bounded contexts
-- Hyperdrive: Worker-to-Postgres connectivity, pooling, and regional routing at the adapter layer
-- D1: optional edge-local cache, test adapter, or managed customer resource; not the source of truth for starter domain state
+- D1: source-of-truth relational state for bounded contexts, bound per Worker
 - KV: read-heavy cache and idempotency records
 - R2: artifacts, manifest bundles, export files, dead-letter archives
 - Queues: asynchronous delivery and fanout steps
@@ -162,39 +161,33 @@ Use platform primitives deliberately:
 
 ## Primary Database Operating Model
 
-Supabase Postgres is the primary operational database for product-owned relational state, including identity, membership, projects, config metadata, canonical events, audit indexes, usage rollups, billing state, notifications, webhooks, support actions, and optional resource/runtime metadata.
+Cloudflare D1 is the primary operational database for product-owned relational state, including identity, membership, projects, config metadata, canonical events, audit indexes, usage rollups, billing state, notifications, webhooks, support actions, and optional resource/runtime metadata.
 
-- Workers connect to Supabase Postgres through Hyperdrive bindings. Raw connection strings and Supabase service keys must stay in platform configuration and must not leak into domain logic.
-- Terraform must provision the target Supabase project/database for the approved
-  environments once the AWS-admin role and S3 backend path are in place. The
-  current approved Supabase live environments are `stage` and `prod`; `dev` is
-  intentionally deferred.
-- The approved Supabase organization is `lumen` with slug/id
-  `dwazxcrywsdbxpuouifa`. `stage` and `prod` must use separate Supabase
-  projects/databases, not one shared project/database.
-- Generated database credentials and connection details must be stored in AWS Secrets Manager under `<org>/<repo>/<component>/<env>`.
-- Workers that need the primary database must use the configured Hyperdrive binding/resource for their environment instead of inventing ad hoc connection strings.
+- Workers reach D1 through the `PLATFORM_DB` binding. There is no connection string to leak: the binding IS the credential, and it never appears in domain logic.
+- Terraform provisions the database per environment (`infra/terraform/cloudflare-d1`). The live environments are `stage` and `prod`; `dev` is database-less by design.
+- `stage` and `prod` each get their own database, never a shared one.
+- The database id reaches Workers only through the published wiring document (`WIRING_CLOUDFLARE_D1`), resolved at deploy time; ids are never committed.
 - Local database verification may use temporary credentials only when the task explicitly allows it. Temporary credentials must never be committed, logged in full, or copied into source files.
-- Repository adapters own SQL, pooling assumptions, transaction boundaries, and Hyperdrive-specific behavior. Domain services receive typed repositories or unit-of-work abstractions, not platform database clients.
+- Repository adapters own SQL and its dialect. Domain services receive typed repositories, not platform database clients. **D1 has no interactive transaction**: `executor.transaction(...)` runs statements in order without rollback, so an invariant that must hold atomically has to be expressible as one statement (`RETURNING`, `ON CONFLICT`) or carry a compensating path.
 - Each bounded context owns its schema or table namespace and migration history. Cross-context foreign keys are prohibited; use opaque IDs, service calls, and published events instead.
 - Every tenant-scoped table must include `org_id` directly or have an auditable path to `org_id` through a table owned by the same bounded context.
-- Domain mutations and outbox/event inserts that describe the same state change should commit atomically in the same Postgres transaction.
-- Supabase Auth, Realtime, Storage, and Edge Functions are not platform source-of-truth services unless a future spec explicitly adopts them. Lumen-owned identity remains in the identity component.
+- Domain mutations and outbox/event inserts that describe the same state change are written together, in order. They do NOT commit atomically — D1 cannot — so the event insert goes last and a partial write is a real, reviewable outcome rather than an impossible one.
+- Identity is Cirrus-owned and lives in the identity component. No managed auth service is a source of truth here.
 
 ## Operational Access And Resource Verification
 
 Agents may assume authenticated access to `gh`, to AWS through the
-`aws-admin`-managed repo roles, and to `wrangler` or Supabase tooling when a
+`aws-admin`-managed repo roles, and to `wrangler` when a
 task explicitly needs provider inspection.
 
 - AWS IAM roles and state buckets are owned by `aws-admin`.
-- This repo consumes the `sourceplane/lumen` GitHub OIDC roles and
+- This repo consumes the `sourceplane/cirrus` GitHub OIDC roles and
   must not create IAM roles directly.
 - Terraform state uses the shared `sourceplane-<env>` S3 buckets and native S3
   locking, following the `aws-admin` backend contract.
 - Secrets are stored in AWS Secrets Manager, not in committed files or
   task/report bodies.
-- Any task that creates or updates Cloudflare, Supabase, AWS IAM, S3, or
+- Any task that creates or updates Cloudflare, AWS IAM, S3, or
   Secrets Manager resources must verify the resource exists after creation and
   record non-secret observed state in the implementer or verifier report.
 - Verifiers must not rely only on successful command exit codes. They must
@@ -216,9 +209,9 @@ A component is considered extraction-ready when:
 When a component outgrows Cloudflare-native storage or queueing:
 
 - keep the public and internal contract stable,
-- move its owned Supabase schema/tables or replace the repository adapter,
+- move its owned tables or replace the repository adapter,
 - optionally front the external service with the same Worker contract,
-- keep Hyperdrive or standard outbound connectivity only at the adapter layer.
+- keep database connectivity only at the adapter layer.
 
 ## Composition and CI Model
 
@@ -256,7 +249,7 @@ The immediate operations tasks are to align the local Orun runtime and
 Stack Tectonic contracts with `aws-admin`, delete deprecated R2/core Terraform
 component source, add the missing AWS-admin IAM role component for this repo,
 establish S3 backend usage with the shared `sourceplane-<env>` buckets, and
-then add fresh Supabase infrastructure as a Terraform component.
+then add fresh database infrastructure as a Terraform component.
 
 The base commands stay portable between local execution and GitHub Actions:
 

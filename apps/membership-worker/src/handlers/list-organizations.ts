@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMembershipRepository } from "@saas/db/membership";
 import { successResponse, errorResponse, validationError } from "../http.js";
 import { orgPublicId } from "../ids.js";

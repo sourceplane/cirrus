@@ -5,7 +5,7 @@ import type { EventsRepository } from "@saas/db/events";
 import type { ConfigRepository } from "@saas/db/config";
 import { createConfigRepository } from "@saas/db/config";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
@@ -193,7 +193,7 @@ export async function handleCreateSecret(
   const genId = deps?.generateId ?? (() => randomHex(16));
   const now = deps?.now ? deps.now() : new Date();
 
-  // config.secret_metadata.created_by is a UUID column; the actor id arrives as
+  // config_secret_metadata.created_by is a UUID column; the actor id arrives as
   // the public `usr_<hex>` form. uuidFromPublicId returns a branded `Uuid`, which
   // is what CreateSecretMetadataInput.createdBy now requires (a raw string no
   // longer type-checks — a missing decode here is a compile error).

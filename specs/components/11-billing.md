@@ -16,8 +16,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for billing-owned relational state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for billing-owned relational state
 - Queues
 - Secrets Store for provider credentials
 

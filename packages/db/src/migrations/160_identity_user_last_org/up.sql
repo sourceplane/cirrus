@@ -11,5 +11,4 @@
 -- org no longer resolves). Updated on a best-effort, non-blocking path as the
 -- user navigates, so it must never add write contention to anything hot.
 
-ALTER TABLE identity.users
-  ADD COLUMN IF NOT EXISTS last_org_slug TEXT;
+ALTER TABLE identity_users ADD COLUMN last_org_slug TEXT;

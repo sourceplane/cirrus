@@ -1,64 +1,61 @@
 -- 040_projects_core
 -- Projects persistence foundation — projects and environments tables
 -- Bounded context: projects
-
-CREATE SCHEMA IF NOT EXISTS projects;
-
-COMMENT ON SCHEMA projects IS 'Projects bounded context — owns project and environment persistence.';
+-- schema projects: Projects bounded context — owns project and environment persistence.
 
 -- Projects table: one project belongs to exactly one organization.
-CREATE TABLE IF NOT EXISTS projects.projects (
-  id          UUID PRIMARY KEY,
-  org_id      UUID NOT NULL,
+CREATE TABLE IF NOT EXISTS projects_projects (
+  id          TEXT PRIMARY KEY,
+  org_id      TEXT NOT NULL,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL,
   slug_lower  TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  archived_at TIMESTAMPTZ
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  archived_at TEXT
 );
 
-COMMENT ON TABLE projects.projects IS 'Projects within an organization. Every query must scope by org_id.';
-COMMENT ON COLUMN projects.projects.org_id IS 'Owning organization — opaque reference, no cross-context FK.';
-COMMENT ON COLUMN projects.projects.slug_lower IS 'Lowercased slug for case-insensitive uniqueness within org.';
+-- table projects_projects: Projects within an organization. Every query must scope by org_id.
+-- column projects_projects.org_id: Owning organization — opaque reference, no cross-context FK.
+-- column projects_projects.slug_lower: Lowercased slug for case-insensitive uniqueness within org.
 
 -- Unique slug per organization (case-insensitive via slug_lower)
 CREATE UNIQUE INDEX IF NOT EXISTS projects_org_slug_lower_idx
-  ON projects.projects (org_id, slug_lower);
+  ON projects_projects (org_id, slug_lower);
 
 -- Composite unique for FK target from environments
 CREATE UNIQUE INDEX IF NOT EXISTS projects_org_id_id_idx
-  ON projects.projects (org_id, id);
+  ON projects_projects (org_id, id);
 
 -- List projects by org, newest first with id tie-breaker
 CREATE INDEX IF NOT EXISTS projects_org_created_idx
-  ON projects.projects (org_id, created_at DESC, id DESC);
+  ON projects_projects (org_id, created_at DESC, id DESC);
 
 -- Environments table: one environment belongs to exactly one project and organization.
-CREATE TABLE IF NOT EXISTS projects.environments (
-  id          UUID PRIMARY KEY,
-  org_id      UUID NOT NULL,
-  project_id  UUID NOT NULL,
+CREATE TABLE IF NOT EXISTS projects_environments (
+  id          TEXT PRIMARY KEY,
+  org_id      TEXT NOT NULL,
+  project_id  TEXT NOT NULL,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL,
   slug_lower  TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  archived_at TIMESTAMPTZ,
-  FOREIGN KEY (org_id, project_id) REFERENCES projects.projects (org_id, id)
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  archived_at TEXT,
+  FOREIGN KEY (org_id, project_id) REFERENCES projects_projects (org_id, id)
 );
 
-COMMENT ON TABLE projects.environments IS 'Environments within a project. Every query must scope by org_id + project_id.';
-COMMENT ON COLUMN projects.environments.org_id IS 'Owning organization — denormalized for tenant isolation.';
-COMMENT ON COLUMN projects.environments.project_id IS 'Owning project — same bounded context FK.';
-COMMENT ON COLUMN projects.environments.slug_lower IS 'Lowercased slug for case-insensitive uniqueness within org+project.';
+-- table projects_environments: Environments within a project. Every query must scope by org_id + project_id.
+-- column projects_environments.org_id: Owning organization — denormalized for tenant isolation.
+-- column projects_environments.project_id: Owning project — same bounded context FK.
+-- column projects_environments.slug_lower: Lowercased slug for case-insensitive uniqueness within org+project.
 
 -- Unique slug per org + project (case-insensitive via slug_lower)
 CREATE UNIQUE INDEX IF NOT EXISTS environments_org_project_slug_lower_idx
-  ON projects.environments (org_id, project_id, slug_lower);
+  ON projects_environments (org_id, project_id, slug_lower);
 
 -- List environments by org + project, newest first with id tie-breaker
 CREATE INDEX IF NOT EXISTS environments_org_project_created_idx
-  ON projects.environments (org_id, project_id, created_at DESC, id DESC);
+  ON projects_environments (org_id, project_id, created_at DESC, id DESC);

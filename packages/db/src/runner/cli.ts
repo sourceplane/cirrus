@@ -3,29 +3,29 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { manifest } from "../manifest.js";
 import { runMigrations } from "./runner.js";
-import { loadSecretFromEnv } from "./secrets.js";
-import { SupabaseApiAdapter } from "./supabase-api-adapter.js";
+import { loadD1CredentialsFromEnv } from "./secrets.js";
+import { D1ApiAdapter } from "./d1-api-adapter.js";
 import type { MigrationAdapter, RunMode } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = resolve(__dirname, "../migrations");
 
-const SUPABASE_ACCESS_TOKEN = process.env["SUPABASE_ACCESS_TOKEN"];
-
 function usage(): never {
   process.stderr.write(
-    `Usage: db-migrate <plan|apply> --env <stage|prod> [--connection-uri <uri>]\n` +
+    `Usage: db-migrate <plan|apply> --env <stage|prod>\n` +
     `\n` +
     `Modes:\n` +
     `  plan   — report pending migrations without mutating the database\n` +
-    `  apply  — apply pending migrations\n` +
+    `  apply  — apply pending migrations against the environment's D1 database\n` +
     `\n` +
     `Options:\n` +
     `  --env <stage|prod>       target environment (required)\n` +
     `\n` +
-    `Environment:\n` +
-    `  SUPABASE_ACCESS_TOKEN    Supabase management API token (required for apply)\n` +
-    `  SUPABASE_PROJECT_REF     Supabase project ref (required for apply; wired from orun secrets)\n`,
+    `Environment (apply mode; all wired from orun secrets):\n` +
+    `  CLOUDFLARE_ACCOUNT_ID    Cloudflare account owning the D1 database\n` +
+    `  CLOUDFLARE_API_TOKEN     account token with D1 edit permission\n` +
+    `  WIRING_CLOUDFLARE_D1     wiring document from the cloudflare-d1 component\n` +
+    `                           (or D1_DATABASE_ID to name the database directly)\n`,
   );
   process.exit(1);
 }
@@ -66,22 +66,18 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { mode, env };
 }
 
-async function resolveAdapter(
-  mode: RunMode,
-  env: string,
-): Promise<MigrationAdapter | null> {
+// The environment is not a parameter here: orun resolves each environment's
+// secrets into the job env, so the D1 database this run targets is whichever
+// one the lane was given. `--env` names the lane for the log and the output.
+async function resolveAdapter(mode: RunMode): Promise<MigrationAdapter | null> {
   if (mode === "plan") {
     return null;
   }
 
-  if (!SUPABASE_ACCESS_TOKEN) {
-    throw new Error("SUPABASE_ACCESS_TOKEN is required for apply mode");
-  }
-
   process.stderr.write(`Loading credentials from the wired environment (orun secrets)\n`);
-  const secret = loadSecretFromEnv();
+  const credentials = loadD1CredentialsFromEnv();
 
-  return new SupabaseApiAdapter(secret.project_ref, SUPABASE_ACCESS_TOKEN);
+  return new D1ApiAdapter(credentials.accountId, credentials.databaseId, credentials.apiToken);
 }
 
 async function main(): Promise<void> {
@@ -89,7 +85,7 @@ async function main(): Promise<void> {
 
   process.stderr.write(`db-migrate: mode=${mode} env=${env}\n`);
 
-  const adapter = await resolveAdapter(mode, env);
+  const adapter = await resolveAdapter(mode);
 
   const result = await runMigrations(manifest, {
     mode,

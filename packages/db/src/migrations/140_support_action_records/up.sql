@@ -11,7 +11,7 @@
 --
 -- Design rules:
 --   * Forward-only and idempotent: CREATE SCHEMA / TABLE / INDEX all guarded
---     with IF NOT EXISTS, safe against the Supabase autocommit runner
+--     with IF NOT EXISTS, safe when the runner re-applies the file
 --     re-running the migration.
 --   * No backfill, no destructive change to existing schemas.
 --   * Tenant-scoped: every row carries a target org_id. Support actors are
@@ -23,14 +23,11 @@
 --   * Impersonation is intentionally OUT of V1 scope (spec-16 Agent Freedom):
 --     no session/impersonation columns are introduced here. The clean seam is
 --     a future migration that adds its own table.
-
-CREATE SCHEMA IF NOT EXISTS support;
-
-COMMENT ON SCHEMA support IS 'Support/administration bounded context — owns audited internal support-action records. Reads tenant data only through narrow diagnostic projections, never as a privileged shortcut around policy/audit.';
+-- schema support: Support/administration bounded context — owns audited internal support-action records. Reads tenant data only through narrow diagnostic projections, never as a privileged shortcut around policy/audit.
 
 -- Append-only ledger of audited support actions.
-CREATE TABLE IF NOT EXISTS support.support_action_records (
-  id              UUID        PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS support_support_action_records (
+  id              TEXT        PRIMARY KEY,
 
   -- Support actor (opaque subject reference from the support authorization context).
   actor_id        TEXT        NOT NULL,
@@ -51,28 +48,28 @@ CREATE TABLE IF NOT EXISTS support.support_action_records (
   request_id      TEXT        NOT NULL,
 
   -- Narrow, non-sensitive diagnostic context. Never holds secrets/tokens.
-  metadata        JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  metadata        TEXT       NOT NULL DEFAULT '{}',
 
   -- When the support action occurred (worker-supplied) and when persisted.
-  occurred_at     TIMESTAMPTZ NOT NULL,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  occurred_at     TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   CONSTRAINT support_action_records_actor_type_check
     CHECK (actor_type IN ('user', 'service_principal', 'system')),
   CONSTRAINT support_action_records_reason_not_blank
-    CHECK (length(btrim(reason)) > 0)
+    CHECK (length(trim(reason)) > 0)
 );
 
 -- Primary read path: most-recent support actions against a target org.
 CREATE INDEX IF NOT EXISTS support_action_records_target_org_idx
-  ON support.support_action_records (target_org_id, occurred_at DESC, id DESC);
+  ON support_support_action_records (target_org_id, occurred_at DESC, id DESC);
 
 -- Secondary read path: audit a particular support actor's history.
 CREATE INDEX IF NOT EXISTS support_action_records_actor_idx
-  ON support.support_action_records (actor_id, occurred_at DESC, id DESC);
+  ON support_support_action_records (actor_id, occurred_at DESC, id DESC);
 
-COMMENT ON TABLE support.support_action_records IS 'Append-only audited support-action ledger. One row per support action (actor, target org, reason, request ID, timestamp). Mirrored into events/audit via the events-audit seam at write time.';
-COMMENT ON COLUMN support.support_action_records.actor_id IS 'Opaque support-actor subject ID. No FK into identity — the support context references actors by opaque ID like events/membership.';
-COMMENT ON COLUMN support.support_action_records.target_org_id IS 'The organization this support action targeted. Tenant scope for every support row.';
-COMMENT ON COLUMN support.support_action_records.reason IS 'Operator-supplied justification for the support action. Required, non-blank.';
-COMMENT ON COLUMN support.support_action_records.metadata IS 'Narrow non-sensitive diagnostic context. Never stores secrets, tokens, or connection strings.';
+-- table support_support_action_records: Append-only audited support-action ledger. One row per support action (actor, target org, reason, request ID, timestamp). Mirrored into events/audit via the events-audit seam at write time.
+-- column support_support_action_records.actor_id: Opaque support-actor subject ID. No FK into identity — the support context references actors by opaque ID like events/membership.
+-- column support_support_action_records.target_org_id: The organization this support action targeted. Tenant scope for every support row.
+-- column support_support_action_records.reason: Operator-supplied justification for the support action. Required, non-blank.
+-- column support_support_action_records.metadata: Narrow non-sensitive diagnostic context. Never stores secrets, tokens, or connection strings.

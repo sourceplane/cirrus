@@ -11,14 +11,10 @@
 -- drain attributes the delivery, exactly like org_id); partial index so
 -- unattributed rows add no index cost.
 
-ALTER TABLE integrations.inbound_deliveries
-  ADD COLUMN IF NOT EXISTS connection_id UUID;
+ALTER TABLE integrations_inbound_deliveries ADD COLUMN connection_id TEXT;
 
-COMMENT ON COLUMN integrations.inbound_deliveries.connection_id IS
-  'Owning connection once the drain attributes the delivery '
-  '(installation -> connection -> org); NULL until attributed. Opaque id, '
-  'no foreign key, consistent with the schema convention.';
+-- column integrations_inbound_deliveries.connection_id: Owning connection once the drain attributes the delivery (installation -> connection -> org); NULL until attributed. Opaque id, no foreign key, consistent with the schema convention.
 
 CREATE INDEX IF NOT EXISTS idx_integrations_inbound_deliveries_connection
-  ON integrations.inbound_deliveries (connection_id, received_at DESC, id DESC)
+  ON integrations_inbound_deliveries (connection_id, received_at DESC, id DESC)
   WHERE connection_id IS NOT NULL;

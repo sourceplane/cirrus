@@ -9,7 +9,7 @@
  * render they perform themselves, so they are hermetic on a fresh checkout.
  *
  * Task 0057 — introduced after main CI run 26568163207 failed because
- * config-worker stage used PLACEHOLDER_STAGE_HYPERDRIVE_ID.
+ * config-worker stage used a placeholder database id.
  */
 
 import { spawnSync } from "node:child_process";
@@ -66,14 +66,15 @@ function renderFromFixture(appDir: string): Record<string, unknown> {
   return parseJsonc(fs.readFileSync(outFile, "utf-8"));
 }
 
-// Valid Cloudflare Hyperdrive ID: 32 hex chars
-const HYPERDRIVE_ID_RE = /^[0-9a-f]{32}$/;
+// Valid Cloudflare D1 database ID: a UUID, or the 32-hex form the offline
+// wiring fixture uses.
+const D1_ID_RE = /^[0-9a-f]{32}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PLACEHOLDER_RE = /PLACEHOLDER/i;
-const WIRING_TOKEN_RE = /^@@wiring\(cloudflare-hyperdrive\/(stage|prod):hyperdrive_id\)@@$/;
+const WIRING_TOKEN_RE = /^@@wiring\(cloudflare-d1\/(stage|prod):d1_database_id\)@@$/;
 
-// ── Workers that use Hyperdrive ────────────────────────────────
+// ── Workers bound to the platform database ─────────────────────
 
-const HYPERDRIVE_WORKER_TEMPLATES = [
+const D1_WORKER_TEMPLATES = [
   "apps/api-edge/wrangler.template.jsonc",
   "apps/admin-worker/wrangler.template.jsonc",
   "apps/billing-worker/wrangler.template.jsonc",
@@ -88,55 +89,63 @@ const HYPERDRIVE_WORKER_TEMPLATES = [
   "apps/webhooks-worker/wrangler.template.jsonc",
 ];
 
-// ── config-worker Hyperdrive wiring ────────────────────────────
+// ── config-worker D1 wiring ────────────────────────────────────
 
-describe("config-worker Hyperdrive wiring", () => {
-  type WranglerEnvs = {
-    env: Record<string, { hyperdrive?: Array<{ binding: string; id: string }> }>;
-  };
+describe("config-worker D1 wiring", () => {
+  type D1Binding = { binding: string; database_name?: string; database_id: string };
+  type WranglerEnvs = { env: Record<string, { d1_databases?: D1Binding[] }> };
 
   const template = readJsonc("apps/config-worker/wrangler.template.jsonc") as WranglerEnvs;
   const rendered = renderFromFixture("apps/config-worker") as unknown as WranglerEnvs;
 
   test("committed template carries wiring tokens, not literal IDs", () => {
     for (const envName of ["stage", "prod"]) {
-      const hd = template.env[envName]?.hyperdrive ?? [];
-      const db = hd.find((h) => h.binding === "PLATFORM_DB");
+      const bindings = template.env[envName]?.d1_databases ?? [];
+      const db = bindings.find((b) => b.binding === "PLATFORM_DB");
       expect(db).toBeDefined();
-      expect(db!.id).toMatch(WIRING_TOKEN_RE);
-      expect(db!.id).not.toMatch(HYPERDRIVE_ID_RE);
+      expect(db!.database_id).toMatch(WIRING_TOKEN_RE);
+      expect(db!.database_id).not.toMatch(D1_ID_RE);
     }
   });
 
-  test("fixture render binds stage PLATFORM_DB to a valid Hyperdrive ID", () => {
-    const hd = rendered.env.stage?.hyperdrive ?? [];
-    const db = hd.find((h) => h.binding === "PLATFORM_DB");
+  test("fixture render binds stage PLATFORM_DB to a valid database ID", () => {
+    const bindings = rendered.env.stage?.d1_databases ?? [];
+    const db = bindings.find((b) => b.binding === "PLATFORM_DB");
     expect(db).toBeDefined();
-    expect(db!.id).toMatch(HYPERDRIVE_ID_RE);
+    expect(db!.database_id).toMatch(D1_ID_RE);
   });
 
   test("fixture render binds prod PLATFORM_DB to a valid ID distinct from stage", () => {
-    const stageDb = (rendered.env.stage?.hyperdrive ?? []).find((h) => h.binding === "PLATFORM_DB");
-    const prodDb = (rendered.env.prod?.hyperdrive ?? []).find((h) => h.binding === "PLATFORM_DB");
+    const stageDb = (rendered.env.stage?.d1_databases ?? []).find(
+      (b) => b.binding === "PLATFORM_DB",
+    );
+    const prodDb = (rendered.env.prod?.d1_databases ?? []).find((b) => b.binding === "PLATFORM_DB");
     expect(prodDb).toBeDefined();
-    expect(prodDb!.id).toMatch(HYPERDRIVE_ID_RE);
-    expect(prodDb!.id).not.toBe(stageDb!.id);
+    expect(prodDb!.database_id).toMatch(D1_ID_RE);
+    expect(prodDb!.database_id).not.toBe(stageDb!.database_id);
   });
 
-  test("no placeholder Hyperdrive IDs in any rendered environment", () => {
+  test("each environment binds its own database, never another environment's", () => {
+    for (const envName of ["stage", "prod"]) {
+      const db = (rendered.env[envName]?.d1_databases ?? []).find(
+        (b) => b.binding === "PLATFORM_DB",
+      );
+      expect(db!.database_name).toBe(`cirrus-${envName}`);
+    }
+  });
+
+  test("no placeholder database IDs in any rendered environment", () => {
     for (const envName of Object.keys(rendered.env)) {
-      const hd = rendered.env[envName]?.hyperdrive ?? [];
-      for (const entry of hd) {
-        expect(entry.id).not.toMatch(PLACEHOLDER_RE);
+      for (const entry of rendered.env[envName]?.d1_databases ?? []) {
+        expect(entry.database_id).not.toMatch(PLACEHOLDER_RE);
       }
     }
   });
 
-  test("all rendered Hyperdrive IDs are valid 32-hex-char format", () => {
+  test("all rendered database IDs are a valid ID format", () => {
     for (const envName of Object.keys(rendered.env)) {
-      const hd = rendered.env[envName]?.hyperdrive ?? [];
-      for (const entry of hd) {
-        expect(entry.id).toMatch(HYPERDRIVE_ID_RE);
+      for (const entry of rendered.env[envName]?.d1_databases ?? []) {
+        expect(entry.database_id).toMatch(D1_ID_RE);
       }
     }
   });
@@ -144,8 +153,8 @@ describe("config-worker Hyperdrive wiring", () => {
 
 // ── Cross-worker template scan ─────────────────────────────────
 
-describe("no placeholder or committed Hyperdrive IDs in any Worker template", () => {
-  for (const templatePath of HYPERDRIVE_WORKER_TEMPLATES) {
+describe("no placeholder or committed resource IDs in any Worker template", () => {
+  for (const templatePath of D1_WORKER_TEMPLATES) {
     const fullPath = path.join(ROOT, templatePath);
     // BF6b rolls out in batches; skip workers not yet templated.
     if (!fs.existsSync(fullPath)) continue;
@@ -153,12 +162,12 @@ describe("no placeholder or committed Hyperdrive IDs in any Worker template", ()
     test(`${templatePath} has no PLACEHOLDER or committed 32-hex IDs`, () => {
       // Scan config values only — strip `//` comments so benign prose (e.g. the
       // identity-worker OAuth setup notes that mention "placeholders") doesn't
-      // false-positive. The intent is to catch placeholder Hyperdrive *IDs*.
+      // false-positive. The intent is to catch placeholder resource *IDs*.
       const stripped = fs.readFileSync(fullPath, "utf-8").replace(/\/\/.*$/gm, "");
       expect(stripped).not.toMatch(PLACEHOLDER_RE);
       // BF6 guard (mirrors the composition's verify-worker-structure step):
       // templates must never carry committed resource IDs.
-      expect(stripped).not.toMatch(/"id":\s*"[0-9a-f]{32}"/);
+      expect(stripped).not.toMatch(/"(id|database_id)":\s*"[0-9a-f]{32}"/);
     });
   }
 });
@@ -177,18 +186,18 @@ const HAS_API_EDGE = fs.existsSync(path.join(ROOT, "apps", "api-edge", "componen
     env: Record<string, { services?: Array<{ binding: string; service: string }> }>;
   };
 
-  test("stage binds CONFIG_WORKER to lumen-config-worker-stage", () => {
+  test("stage binds CONFIG_WORKER to cirrus-config-worker-stage", () => {
     const svc = rendered.env.stage?.services ?? [];
     const cw = svc.find((s) => s.binding === "CONFIG_WORKER");
     expect(cw).toBeDefined();
-    expect(cw!.service).toBe("lumen-config-worker-stage");
+    expect(cw!.service).toBe("cirrus-config-worker-stage");
   });
 
-  test("prod binds CONFIG_WORKER to lumen-config-worker-prod", () => {
+  test("prod binds CONFIG_WORKER to cirrus-config-worker-prod", () => {
     const svc = rendered.env.prod?.services ?? [];
     const cw = svc.find((s) => s.binding === "CONFIG_WORKER");
     expect(cw).toBeDefined();
-    expect(cw!.service).toBe("lumen-config-worker-prod");
+    expect(cw!.service).toBe("cirrus-config-worker-prod");
   });
 });
 

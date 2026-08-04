@@ -4,7 +4,7 @@ Status: Normative
 
 ## Goal
 
-Build Lumen as a reusable multi-tenant SaaS starter bootstrap. The starter must let a team launch a product surface with organizations, projects, membership, billing, auditability, usage, API access, notifications, webhooks, and an admin/support back office without redesigning the platform foundation.
+Build Cirrus as a reusable multi-tenant SaaS starter bootstrap. The starter must let a team launch a product surface with organizations, projects, membership, billing, auditability, usage, API access, notifications, webhooks, and an admin/support back office without redesigning the platform foundation.
 
 ## Product Shape
 
@@ -69,13 +69,13 @@ V1 is not:
 - a user-authored policy DSL
 - a marketplace platform
 - a full customer data warehouse
-- a Supabase Auth wrapper unless a future spec explicitly changes identity ownership
+- a managed-auth wrapper unless a future spec explicitly changes identity ownership
 
 ## Platform Baseline
 
 - Cloudflare is the V1 compute, ingress, async, cache, and hosting platform.
-- Supabase Postgres is the primary relational database for product-owned state.
-- Workers reach Supabase Postgres through Hyperdrive at repository-adapter boundaries.
+- Cloudflare D1 is the primary relational database for product-owned state.
+- Workers reach D1 through the `PLATFORM_DB` binding at repository-adapter boundaries.
 - D1 may be used for tests, edge-local caches, or customer-managed resources, but not as the source of truth for starter domain state.
 - Queues, Workflows, Durable Objects, R2, KV, Secrets Store, and Analytics Engine are implementation adapters behind domain contracts.
 

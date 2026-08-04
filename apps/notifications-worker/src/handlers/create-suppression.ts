@@ -5,7 +5,7 @@ import type {
   SuppressRecipientResponse,
 } from "@saas/contracts/notifications";
 import { NOTIFICATION_EVENT_TYPES } from "@saas/contracts/notifications";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import {
   createNotificationsRepository,
   type NotificationsRepository,

@@ -201,7 +201,7 @@ describe("Migration Runner", () => {
 
   describe("migration failure rollback", () => {
     it("rolls back the failed migration and reports the error", async () => {
-      adapter.shouldFailOnSql = "CREATE SCHEMA";
+      adapter.shouldFailOnSql = "CREATE TABLE";
 
       const result = await runMigrations(manifest, {
         mode: "apply",
@@ -244,7 +244,7 @@ describe("Migration Runner", () => {
     });
 
     it("releases lock even when migration fails", async () => {
-      adapter.shouldFailOnSql = "CREATE SCHEMA";
+      adapter.shouldFailOnSql = "CREATE TABLE";
 
       await runMigrations(manifest, {
         mode: "apply",

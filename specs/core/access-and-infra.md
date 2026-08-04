@@ -28,8 +28,8 @@ Agents may assume authenticated access to:
 
 - `gh` for GitHub PRs, checks, logs, and repository inspection.
 - AWS through the repo-scoped IAM roles created by `aws-admin`.
-- `wrangler` and Supabase tooling only when a task explicitly needs to inspect
-  or verify Cloudflare/Supabase resources.
+- `wrangler` only when a task explicitly needs to inspect or verify
+  Cloudflare resources.
 
 When access is unclear, task agents must pause or record the blocker instead of
 inventing account IDs, role ARNs, project refs, or secret names.
@@ -40,7 +40,7 @@ inventing account IDs, role ARNs, project refs, or secret names.
 not hand-create IAM users, roles, policies, or S3 state buckets.
 
 The required `aws-admin` component for this repo creates environment-scoped
-GitHub OIDC roles for `sourceplane/lumen`. Those roles must allow:
+GitHub OIDC roles for `sourceplane/cirrus`. Those roles must allow:
 
 - Terraform state read/write against the shared S3 state buckets named
   `sourceplane-<env>`.
@@ -66,12 +66,12 @@ The baseline CI environment needs:
 - AWS role configuration supplied through the Orun Terraform composition or an
   explicit pre-run credential step that is itself encoded in the Orun-planned
   job behavior.
-- `SUPABASE_API_KEY` as a GitHub Actions secret with management access to the
-  Supabase `lumen` organization. Terraform jobs must map this secret to
-  the selected Supabase provider's access-token input without printing it.
+- No provider credential of any kind. Cloudflare tokens are brokered per run
+  from the workspace's integration connection; CI holds only `GITHUB_TOKEN`.
 
-Provider-specific credentials, Supabase database passwords, API keys, and
-connection strings must live in AWS Secrets Manager under:
+Provider-specific credentials and connection facts are resolved from orun
+secrets at run time. The historical AWS Secrets Manager path below is
+superseded and retained only to explain older reports:
 
 ```text
 <org>/<repo>/<component>/<env>
@@ -80,7 +80,7 @@ connection strings must live in AWS Secrets Manager under:
 Example:
 
 ```text
-sourceplane/lumen/supabase/stage
+sourceplane/cirrus/cloudflare-d1/stage
 ```
 
 Secret values must never be committed, echoed in logs, or copied into task
@@ -146,8 +146,8 @@ env/<environment>/<repo>/<component>/terraform.tfstate
 
 The old R2 bootstrap component is deprecated and must be removed from active
 repo source by Task 0003.1. That task is source deletion only; it must not
-clean up, import, destroy, or otherwise mutate live Cloudflare, R2, Hyperdrive,
-Supabase, AWS, or Terraform state resources.
+clean up, import, destroy, or otherwise mutate live Cloudflare, R2, or
+Terraform state resources.
 
 ## Terraform Components
 
@@ -156,10 +156,11 @@ components under `infra/terraform/**`.
 
 Minimum target components:
 
-- a Supabase infrastructure component that creates the environment database or
-  project resources and stores generated secrets in AWS Secrets Manager;
-- Cloudflare infrastructure components that wire Workers, Hyperdrive, queues,
-  bindings, or other runtime resources when they become task scope.
+- `cloudflare-d1` — the environment's D1 database, publishing its id as a
+  wiring document;
+- `cloudflare-kv` — the api-edge idempotency namespace;
+- further Cloudflare infrastructure components that wire Workers, queues, or
+  other runtime resources when they become task scope.
 
 Terraform components must follow the `aws-admin` component style:
 
@@ -168,55 +169,59 @@ Terraform components must follow the `aws-admin` component style:
 - typed values under `spec.parameters`
 - `terraformDir: terraform`
 - pinned `terraformVersion`
-- explicit `dependsOn` edges for state, IAM, Supabase, or Cloudflare ordering
+- explicit `dependsOn` edges for provider-resource ordering
 - `plan-only` by default, with `apply` selected by profile rules on the merge
   trigger
 - a colocated `README.md` with metadata, purpose, resources, parameters,
   outputs, usage, dependencies, and operational notes
 
-## Supabase Ownership
+## Database Ownership
 
-Supabase Postgres is the primary relational database for product-owned state.
-New environment databases or Supabase projects must be created by Terraform
-through Orun jobs after AWS access and S3 state are in place.
+**Cloudflare D1 is the primary relational database for product-owned state**,
+and it is the only database this baseline has. There is no second provider to
+provision, consent to, or hold a credential for — that is what makes Cirrus
+the Cloudflare-only baseline.
 
-The current Supabase target decision is:
+The current target decision is:
 
-- Organization/account name: `lumen`
-- Supabase organization slug/id: `dwazxcrywsdbxpuouifa`
-- Task 0006 provisions only `stage` and `prod`.
-- `dev` is intentionally not provisioned for now and must not be added to the
-  Supabase Terraform component without a later task.
-- `stage` and `prod` each get a separate Supabase project and therefore a
-  separate primary Postgres database. Do not use branches or a shared
-  project/database for these environments.
-- Project names should follow `<repo>-<env>`:
-  `lumen-stage` and `lumen-prod`.
-- Project refs are assigned by Supabase during creation and must be recorded as
-  non-secret outputs/report values after apply.
+- One D1 database per environment, created by Terraform
+  (`infra/terraform/cloudflare-d1`) through Orun jobs.
+- Only `stage` and `prod` are provisioned. `dev` is intentionally
+  database-less and must not be added without a decision entry in
+  `ai/context/decisions.md`.
+- Database names follow `<namespacePrefix><repo>-<env>`, e.g. `cirrus-stage`
+  and `cirrus-prod`. Names are unique per Cloudflare account, so the repo slug
+  keeps a fork from colliding with the baseline in a shared account.
+- Database ids are assigned by Cloudflare at creation and published as a
+  non-secret wiring output (`WIRING_CLOUDFLARE_D1`) after apply.
 
-The Supabase infrastructure component must:
+The database infrastructure component must:
 
-- generate database credentials through Terraform;
-- authenticate through the Supabase provider using the GitHub
-  `SUPABASE_API_KEY` secret in CI and a local equivalent only when running
-  approved local verification;
-- avoid logging generated passwords or API keys;
-- write connection details and generated credentials to AWS Secrets Manager
-  under `<org>/<repo>/<component>/<env>`;
-- expose only non-secret outputs in Terraform outputs and reports;
-- leave Worker/Hyperdrive wiring either in the same clearly scoped Terraform
-  component or in a dependent Cloudflare infra component.
+- authenticate with the brokered `d1-edit` token (`CLOUDFLARE_D1_TOKEN`), NOT
+  the `workers-deploy` token — the deploy credential deliberately cannot reach
+  the database;
+- publish `d1_database_id` / `d1_database_name` as its wiring document, so
+  Worker deploys resolve the binding by id and `db-migrate` finds the database
+  it migrates;
+- carry `adopt.tf`, importing an existing database at plan time rather than
+  colliding with it;
+- expose only non-secret outputs in Terraform outputs and reports.
 
-Existing human-provided Cloudflare/Supabase resources may be inspected for
-migration context, but the target path is Terraform-owned infrastructure with
-S3 state and AWS Secrets Manager as the secret system of record.
+Schema changes are the `db-migrate` component's job: ordered, checksummed
+migrations under `packages/db/src/migrations`, planned on pull requests and
+applied on merge. Nothing else may mutate the schema — including a human with
+`wrangler d1 execute`.
+
+D1 constraints that shape every design decision downstream (see
+`ai/context/decisions.md` for the full list): no interactive transactions, no
+schemas (bounded contexts are table-name prefixes), and SQLite types
+(ISO-8601 text timestamps, JSON as text, booleans as 0/1).
 
 ## Orun Execution
 
-All infrastructure plan/apply behavior must run through Orun. Direct Terraform,
-Supabase, Wrangler, or AWS apply commands in GitHub Actions are prohibited
-unless they are emitted by an Orun composition job.
+All infrastructure plan/apply behavior must run through Orun. Direct
+Terraform or Wrangler apply commands in GitHub Actions are prohibited unless
+they are emitted by an Orun composition job.
 
 Required validation for infrastructure changes:
 
@@ -232,7 +237,7 @@ environment promotion or cross-component dependency behavior.
 
 ## Acceptance Criteria
 
-- `lumen` uses the Orun runtime pinned in `kiox.yaml`
+- `cirrus` uses the Orun runtime pinned in `kiox.yaml`
   (authoritative; `kiox.lock` records the resolved digest) while continuing to
   follow `aws-admin` for Terraform component and backend structure.
 - `intent.yaml` uses the `dev`, `stage`, `prod` environment shape and
@@ -241,9 +246,8 @@ environment promotion or cross-component dependency behavior.
   key pattern.
 - AWS-admin-created roles allow the multi-tenant SaaS CI path to read/write its
   Secrets Manager namespace and Terraform state.
-- Supabase `stage` and `prod` projects are separate, Terraform-created projects
-  under organization `lumen` (`dwazxcrywsdbxpuouifa`), and their generated
-  database credentials are stored in AWS Secrets Manager.
+- `stage` and `prod` each have their own Terraform-created D1 database, and
+  their ids reach Workers only through the published wiring document.
 - CI and local `kiox -- orun ...` behavior are verified from rendered plans,
   not inferred from file names.
 - Resource creation or permission changes are verified against live provider

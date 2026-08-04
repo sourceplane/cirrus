@@ -27,16 +27,18 @@ describe("030_events_audit_core migration", () => {
     expect(idx030).toBeGreaterThan(idx020);
   });
 
-  it("creates events schema", () => {
-    expect(sql).toContain("CREATE SCHEMA IF NOT EXISTS events");
+  it("namespaces its tables to the events context", () => {
+    // SQLite has no schemas, so the bounded-context boundary lives in the
+    // table name prefix instead of a CREATE SCHEMA.
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS events_");
   });
 
   it("creates event_log table", () => {
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS events.event_log");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS events_event_log");
   });
 
   it("creates audit_entries table", () => {
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS events.audit_entries");
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS events_audit_entries");
   });
 
   it("event_log includes org_id column", () => {
@@ -55,7 +57,7 @@ describe("030_events_audit_core migration", () => {
   });
 
   it("audit_entries references event_log (same-context FK allowed)", () => {
-    expect(sql).toContain("REFERENCES events.event_log(id)");
+    expect(sql).toContain("REFERENCES events_event_log(id)");
   });
 
   it("does not contain cross-context foreign keys", () => {
@@ -68,14 +70,14 @@ describe("030_events_audit_core migration", () => {
   });
 
   it("DDL is idempotent (IF NOT EXISTS throughout)", () => {
-    const createStatements = sql.match(/CREATE\s+(TABLE|INDEX|SCHEMA)/g) ?? [];
+    const createStatements = sql.match(/CREATE\s+(TABLE|INDEX)/g) ?? [];
     const ifNotExists = sql.match(/IF NOT EXISTS/g) ?? [];
     expect(ifNotExists.length).toBeGreaterThanOrEqual(createStatements.length);
   });
 
-  it("includes JSON payload storage (JSONB)", () => {
-    expect(sql).toContain("JSONB");
-    expect(sql).toContain("payload");
+  it("includes JSON payload storage", () => {
+    // JSON documents are TEXT on SQLite; @saas/db/json owns the encode/decode.
+    expect(sql).toMatch(/payload\s+TEXT/);
   });
 
   it("includes redaction path storage", () => {

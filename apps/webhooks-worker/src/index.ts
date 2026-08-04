@@ -4,7 +4,7 @@ import { dispatchNewEvents, retryFailedDeliveries } from "./delivery.js";
 import { createEncryptionAdapter } from "./encryption.js";
 import { createWebhookRepository } from "@saas/db/webhooks";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

@@ -1,9 +1,9 @@
 // Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
 // Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
-// resolved from AWS Secrets Manager at deploy time (wire-live) or from the
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
 // committed wiring.fixture.json for offline dry-runs (wire-fixture).
 {
-  "name": "lumen-notifications-worker",
+  "name": "cirrus-notifications-worker",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.ts",
@@ -32,24 +32,25 @@
         "ENVIRONMENT": "stage",
         "NOTIFICATIONS_PROVIDER": "cloudflare-email",
         "DEBUG_DELIVERY": "true",
-        "EMAIL_FROM_ADDRESS": "no-reply@mail.lumen.app",
-        "EMAIL_FROM_NAME": "Lumen"
+        "EMAIL_FROM_ADDRESS": "no-reply@mail.cirrus.app",
+        "EMAIL_FROM_NAME": "Cirrus"
       },
       "send_email": [
         {
           "name": "EMAIL"
         }
       ],
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/stage:hyperdrive_id)@@"
+          "database_name": "cirrus-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "EVENTS_WORKER",
-          "service": "lumen-events-worker-stage"
+          "service": "cirrus-events-worker-stage"
         }
       ]
     },
@@ -59,24 +60,25 @@
         "ENVIRONMENT": "prod",
         "NOTIFICATIONS_PROVIDER": "cloudflare-email",
         "DEBUG_DELIVERY": "false",
-        "EMAIL_FROM_ADDRESS": "no-reply@mail.lumen.app",
-        "EMAIL_FROM_NAME": "Lumen"
+        "EMAIL_FROM_ADDRESS": "no-reply@mail.cirrus.app",
+        "EMAIL_FROM_NAME": "Cirrus"
       },
       "send_email": [
         {
           "name": "EMAIL"
         }
       ],
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/prod:hyperdrive_id)@@"
+          "database_name": "cirrus-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "EVENTS_WORKER",
-          "service": "lumen-events-worker-prod"
+          "service": "cirrus-events-worker-prod"
         }
       ]
     }

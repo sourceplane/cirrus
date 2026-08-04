@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   CreateEnvironmentInput,
   CreateProjectInput,
@@ -10,6 +10,7 @@ import type {
   ProjectsRepository,
   ProjectsResult,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
 
 function mapProject(row: Record<string, unknown>): Project {
   return {
@@ -44,21 +45,13 @@ function safeError(message: string): ProjectsResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 export function createProjectsRepository(executor: SqlExecutor): ProjectsRepository {
   return {
     async createProject(input: CreateProjectInput): Promise<ProjectsResult<Project>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO projects.projects (id, org_id, name, slug, slug_lower, created_at, updated_at)
+          `INSERT INTO projects_projects (id, org_id, name, slug, slug_lower, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $6)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -79,7 +72,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async getProjectById(orgId: string, projectId: string): Promise<ProjectsResult<Project>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM projects.projects WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM projects_projects WHERE org_id = $1 AND id = $2`,
           [orgId, projectId],
         );
         if (result.rowCount === 0) {
@@ -94,7 +87,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async getProjectBySlug(orgId: string, slugLower: string): Promise<ProjectsResult<Project>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM projects.projects WHERE org_id = $1 AND slug_lower = $2`,
+          `SELECT * FROM projects_projects WHERE org_id = $1 AND slug_lower = $2`,
           [orgId, slugLower],
         );
         if (result.rowCount === 0) {
@@ -112,14 +105,14 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
         let sql: string;
         let values: unknown[];
         if (params.cursor) {
-          sql = `SELECT * FROM projects.projects
+          sql = `SELECT * FROM projects_projects
            WHERE org_id = $1 AND status = 'active'
              AND (created_at, id) < ($3, $4)
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
           values = [orgId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
-          sql = `SELECT * FROM projects.projects
+          sql = `SELECT * FROM projects_projects
            WHERE org_id = $1 AND status = 'active'
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
@@ -142,7 +135,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async archiveProject(orgId: string, projectId: string, archivedAt: Date): Promise<ProjectsResult<Project>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE projects.projects
+          `UPDATE projects_projects
            SET status = 'archived', archived_at = $3, updated_at = $3
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING *`,
@@ -160,7 +153,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async countActiveProjects(orgId: string): Promise<ProjectsResult<number>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT COUNT(*)::bigint AS count FROM projects.projects
+          `SELECT COUNT(*) AS count FROM projects_projects
            WHERE org_id = $1 AND status = 'active'`,
           [orgId],
         );
@@ -188,7 +181,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async createEnvironment(input: CreateEnvironmentInput): Promise<ProjectsResult<Environment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO projects.environments (id, org_id, project_id, name, slug, slug_lower, created_at, updated_at)
+          `INSERT INTO projects_environments (id, org_id, project_id, name, slug, slug_lower, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -209,7 +202,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async countActiveEnvironments(orgId: string, projectId: string): Promise<ProjectsResult<number>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT COUNT(*)::bigint AS count FROM projects.environments
+          `SELECT COUNT(*) AS count FROM projects_environments
            WHERE org_id = $1 AND project_id = $2 AND status = 'active'`,
           [orgId, projectId],
         );
@@ -238,7 +231,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async getEnvironmentById(orgId: string, projectId: string, environmentId: string): Promise<ProjectsResult<Environment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM projects.environments WHERE org_id = $1 AND project_id = $2 AND id = $3`,
+          `SELECT * FROM projects_environments WHERE org_id = $1 AND project_id = $2 AND id = $3`,
           [orgId, projectId, environmentId],
         );
         if (result.rowCount === 0) {
@@ -253,7 +246,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async getEnvironmentBySlug(orgId: string, projectId: string, slugLower: string): Promise<ProjectsResult<Environment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM projects.environments WHERE org_id = $1 AND project_id = $2 AND slug_lower = $3`,
+          `SELECT * FROM projects_environments WHERE org_id = $1 AND project_id = $2 AND slug_lower = $3`,
           [orgId, projectId, slugLower],
         );
         if (result.rowCount === 0) {
@@ -271,14 +264,14 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
         let sql: string;
         let values: unknown[];
         if (params.cursor) {
-          sql = `SELECT * FROM projects.environments
+          sql = `SELECT * FROM projects_environments
            WHERE org_id = $1 AND project_id = $2 AND status = 'active'
              AND (created_at, id) < ($4, $5)
            ORDER BY created_at DESC, id DESC
            LIMIT $3`;
           values = [orgId, projectId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
-          sql = `SELECT * FROM projects.environments
+          sql = `SELECT * FROM projects_environments
            WHERE org_id = $1 AND project_id = $2 AND status = 'active'
            ORDER BY created_at DESC, id DESC
            LIMIT $3`;
@@ -301,7 +294,7 @@ export function createProjectsRepository(executor: SqlExecutor): ProjectsReposit
     async archiveEnvironment(orgId: string, projectId: string, environmentId: string, archivedAt: Date): Promise<ProjectsResult<Environment>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE projects.environments
+          `UPDATE projects_environments
            SET status = 'archived', archived_at = $4, updated_at = $4
            WHERE org_id = $1 AND project_id = $2 AND id = $3 AND status = 'active'
            RETURNING *`,

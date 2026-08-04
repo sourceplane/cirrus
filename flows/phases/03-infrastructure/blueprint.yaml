@@ -1,16 +1,16 @@
 apiVersion: orun.dev/v1
 kind: Blueprint
 metadata:
-  name: lumen-baseline-infrastructure
-  description: Phase 2/7 (infrastructure) of lumen-baseline. Cross-phase dependsOn edges are pruned; ordering
-    is enforced by running the phases in sequence into the same --out.
+  name: cirrus-baseline-infrastructure
+  description: Phase 2/7 (infrastructure) of cirrus-baseline. Cross-phase dependsOn edges are pruned;
+    ordering is enforced by running the phases in sequence into the same --out.
 inputs:
   repoName:
     type: string
     pattern: ^[a-z][a-z0-9-]*$
     required: true
-    description: "Repo slug (e.g. acme-cloud) \u2014 intent metadata.name, Supabase/Hyperdrive project\
-      \ names, OIDC roles."
+    description: "Repo slug (e.g. acme-cloud) \u2014 intent metadata.name, D1 database names, worker resource\
+      \ prefixes."
   productName:
     type: string
     required: true
@@ -75,13 +75,11 @@ ignore:
 - apps/webhooks-worker/wrangler.jsonc
 - '*.tsbuildinfo'
 modules:
-- name: cloudflare-hyperdrive
+- name: cloudflare-d1
   mode: copy
   source: baseline
-  from: infra/terraform/cloudflare-hyperdrive
-  to: infra/terraform/cloudflare-hyperdrive
-  dependsOn:
-  - supabase
+  from: infra/terraform/cloudflare-d1
+  to: infra/terraform/cloudflare-d1
 - name: cloudflare-kv
   mode: copy
   source: baseline
@@ -93,16 +91,10 @@ modules:
   from: infra/db-migrate
   to: infra/db-migrate
   dependsOn:
-  - supabase
-- name: supabase
-  mode: copy
-  source: baseline
-  from: infra/terraform/supabase
-  to: infra/terraform/supabase
+  - cloudflare-d1
 phases:
 - name: infrastructure
   modules:
-  - cloudflare-hyperdrive
+  - cloudflare-d1
   - cloudflare-kv
   - db-migrate
-  - supabase

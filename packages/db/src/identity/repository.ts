@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   ApiKey,
   ApiKeyPagedResult,
@@ -22,6 +22,8 @@ import type {
   UpdateUserProfileInput,
   User,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseJsonColumn } from "../json.js";
 
 function mapUser(row: Record<string, unknown>): User {
   return {
@@ -42,7 +44,7 @@ function mapAuthIdentity(row: Record<string, unknown>): AuthIdentity {
     userId: row.user_id as string,
     provider: row.provider as string,
     subject: row.subject as string,
-    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    metadata: parseJsonColumn<Record<string, unknown>>(row.metadata, {}),
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -125,21 +127,13 @@ function safeError(message: string): IdentityResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 export function createIdentityRepository(executor: SqlExecutor): IdentityRepository {
   return {
     async createUser(input: CreateUserInput): Promise<IdentityResult<User>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.users (id, email, email_lower, display_name, created_at, updated_at)
+          `INSERT INTO identity_users (id, email, email_lower, display_name, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $5)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -160,7 +154,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getUserById(id: string): Promise<IdentityResult<User>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM identity.users WHERE id = $1`,
+          `SELECT * FROM identity_users WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) {
@@ -175,7 +169,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getUserByEmail(emailLower: string): Promise<IdentityResult<User>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM identity.users WHERE email_lower = $1`,
+          `SELECT * FROM identity_users WHERE email_lower = $1`,
           [emailLower],
         );
         if (result.rowCount === 0) {
@@ -202,7 +196,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
           sets.push(`last_org_slug = $${params.length}`);
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE identity.users SET ${sets.join(", ")} WHERE id = $1 RETURNING *`,
+          `UPDATE identity_users SET ${sets.join(", ")} WHERE id = $1 RETURNING *`,
           params,
         );
         if (result.rowCount === 0) {
@@ -217,7 +211,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async createAuthIdentity(input: CreateAuthIdentityInput): Promise<IdentityResult<AuthIdentity>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.auth_identities (id, user_id, provider, subject, metadata, created_at, updated_at)
+          `INSERT INTO identity_auth_identities (id, user_id, provider, subject, metadata, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $6)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -238,7 +232,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getAuthIdentityByProviderSubject(provider: string, subject: string): Promise<IdentityResult<AuthIdentity>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM identity.auth_identities WHERE provider = $1 AND subject = $2`,
+          `SELECT * FROM identity_auth_identities WHERE provider = $1 AND subject = $2`,
           [provider, subject],
         );
         if (result.rowCount === 0) {
@@ -253,7 +247,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async createLoginChallenge(input: CreateLoginChallengeInput): Promise<IdentityResult<LoginChallenge>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.login_challenges (id, user_id, method, code_hash, expires_at, created_at)
+          `INSERT INTO identity_login_challenges (id, user_id, method, code_hash, expires_at, created_at)
            VALUES ($1, $2, $3, $4, $5, $6)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -274,7 +268,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getLoginChallengeById(id: string): Promise<IdentityResult<LoginChallenge>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT id, user_id, method, expires_at, consumed_at, created_at FROM identity.login_challenges WHERE id = $1`,
+          `SELECT id, user_id, method, expires_at, consumed_at, created_at FROM identity_login_challenges WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) {
@@ -296,7 +290,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async consumeLoginChallenge(id: string, codeHash: string, consumedAt: Date): Promise<IdentityResult<LoginChallenge>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE identity.login_challenges
+          `UPDATE identity_login_challenges
            SET consumed_at = $3
            WHERE id = $1 AND code_hash = $2 AND consumed_at IS NULL
            RETURNING *`,
@@ -314,7 +308,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async createSession(input: CreateSessionInput): Promise<IdentityResult<Session>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at)
+          `INSERT INTO identity_sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at)
            VALUES ($1, $2, $3, $4, $5, $5)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -335,7 +329,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getSessionByTokenHash(tokenHash: string): Promise<IdentityResult<Session>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT id, user_id, expires_at, revoked_at, created_at, last_seen_at FROM identity.sessions WHERE token_hash = $1 AND revoked_at IS NULL`,
+          `SELECT id, user_id, expires_at, revoked_at, created_at, last_seen_at FROM identity_sessions WHERE token_hash = $1 AND revoked_at IS NULL`,
           [tokenHash],
         );
         if (result.rowCount === 0) {
@@ -369,8 +363,8 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
              s.created_at AS session_created_at,
              s.last_seen_at AS session_last_seen_at,
              u.*
-           FROM identity.sessions s
-           JOIN identity.users u ON u.id = s.user_id
+           FROM identity_sessions s
+           JOIN identity_users u ON u.id = s.user_id
            WHERE s.token_hash = $1 AND s.revoked_at IS NULL`,
           [tokenHash],
         );
@@ -398,7 +392,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async revokeSession(id: string, revokedAt: Date): Promise<IdentityResult<Session>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE identity.sessions
+          `UPDATE identity_sessions
            SET revoked_at = $2
            WHERE id = $1 AND revoked_at IS NULL
            RETURNING *`,
@@ -417,7 +411,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
       try {
         const occurredAt = input.occurredAt ?? new Date();
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.security_events (id, event_type, outcome, user_id, session_id, challenge_id, request_id, correlation_id, ip, user_agent, occurred_at, metadata, redact_paths)
+          `INSERT INTO identity_security_events (id, event_type, outcome, user_id, session_id, challenge_id, request_id, correlation_id, ip, user_agent, occurred_at, metadata, redact_paths)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING *`,
           [
@@ -455,14 +449,14 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
         let values: unknown[];
 
         if (params.cursor) {
-          sql = `SELECT * FROM identity.security_events
+          sql = `SELECT * FROM identity_security_events
            WHERE user_id = $1
              AND (occurred_at, id) < ($3, $4)
            ORDER BY occurred_at DESC, id DESC
            LIMIT $2`;
           values = [params.userId, fetchLimit, params.cursor.occurredAt, params.cursor.id];
         } else {
-          sql = `SELECT * FROM identity.security_events
+          sql = `SELECT * FROM identity_security_events
            WHERE user_id = $1
            ORDER BY occurred_at DESC, id DESC
            LIMIT $2`;
@@ -490,7 +484,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async createServicePrincipal(input: CreateServicePrincipalInput): Promise<IdentityResult<ServicePrincipal>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.service_principals (id, org_id, project_id, display_name, description, created_by, created_at, updated_at)
+          `INSERT INTO identity_service_principals (id, org_id, project_id, display_name, description, created_by, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
@@ -511,7 +505,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async getServicePrincipalById(id: string): Promise<IdentityResult<ServicePrincipal>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM identity.service_principals WHERE id = $1 AND status != 'deleted'`,
+          `SELECT * FROM identity_service_principals WHERE id = $1 AND status != 'deleted'`,
           [id],
         );
         if (result.rowCount === 0) {
@@ -526,7 +520,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async listServicePrincipalsByOrg(orgId: string): Promise<IdentityResult<ServicePrincipal[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM identity.service_principals WHERE org_id = $1 AND status != 'deleted' ORDER BY created_at DESC`,
+          `SELECT * FROM identity_service_principals WHERE org_id = $1 AND status != 'deleted' ORDER BY created_at DESC`,
           [orgId],
         );
         return { ok: true, value: result.rows.map(mapServicePrincipal) };
@@ -540,7 +534,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async createApiKey(input: CreateApiKeyInput): Promise<IdentityResult<ApiKey>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO identity.api_keys (id, service_principal_id, org_id, key_prefix, key_hash, label, expires_at, created_by, created_at, updated_at)
+          `INSERT INTO identity_api_keys (id, service_principal_id, org_id, key_prefix, key_hash, label, expires_at, created_by, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
            ON CONFLICT (id) DO NOTHING
            RETURNING id, service_principal_id, org_id, key_prefix, label, status, expires_at, last_used_at, revoked_at, revoked_by, created_by, created_at, updated_at`,
@@ -562,7 +556,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, service_principal_id, org_id, key_prefix, label, status, expires_at, last_used_at, revoked_at, revoked_by, created_by, created_at, updated_at
-           FROM identity.api_keys WHERE key_hash = $1 AND status = 'active'`,
+           FROM identity_api_keys WHERE key_hash = $1 AND status = 'active'`,
           [keyHash],
         );
         if (result.rowCount === 0) {
@@ -582,7 +576,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
 
         if (params.cursor) {
           sql = `SELECT id, service_principal_id, org_id, key_prefix, label, status, expires_at, last_used_at, revoked_at, revoked_by, created_by, created_at, updated_at
-           FROM identity.api_keys
+           FROM identity_api_keys
            WHERE org_id = $1
              AND (created_at, id) < ($3, $4)
            ORDER BY created_at DESC, id DESC
@@ -590,7 +584,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
           values = [params.orgId, fetchLimit, params.cursor.createdAt, params.cursor.id];
         } else {
           sql = `SELECT id, service_principal_id, org_id, key_prefix, label, status, expires_at, last_used_at, revoked_at, revoked_by, created_by, created_at, updated_at
-           FROM identity.api_keys
+           FROM identity_api_keys
            WHERE org_id = $1
            ORDER BY created_at DESC, id DESC
            LIMIT $2`;
@@ -616,7 +610,7 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
     async revokeApiKey(id: string, revokedBy: string, revokedAt: Date): Promise<IdentityResult<ApiKey>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE identity.api_keys
+          `UPDATE identity_api_keys
            SET status = 'revoked', revoked_at = $2, revoked_by = $3, updated_at = $2
            WHERE id = $1 AND status = 'active'
            RETURNING id, service_principal_id, org_id, key_prefix, label, status, expires_at, last_used_at, revoked_at, revoked_by, created_by, created_at, updated_at`,

@@ -1,16 +1,16 @@
 apiVersion: orun.dev/v1
 kind: Blueprint
 metadata:
-  name: lumen-baseline-edge
-  description: Phase 4/7 (edge) of lumen-baseline. Cross-phase dependsOn edges are pruned; ordering is
+  name: cirrus-baseline-edge
+  description: Phase 4/7 (edge) of cirrus-baseline. Cross-phase dependsOn edges are pruned; ordering is
     enforced by running the phases in sequence into the same --out.
 inputs:
   repoName:
     type: string
     pattern: ^[a-z][a-z0-9-]*$
     required: true
-    description: "Repo slug (e.g. acme-cloud) \u2014 intent metadata.name, Supabase/Hyperdrive project\
-      \ names, OIDC roles."
+    description: "Repo slug (e.g. acme-cloud) \u2014 intent metadata.name, D1 database names, worker resource\
+      \ prefixes."
   productName:
     type: string
     required: true

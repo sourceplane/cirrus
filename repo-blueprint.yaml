@@ -1,14 +1,14 @@
 apiVersion: orun.dev/v1
 kind: Blueprint
 metadata:
-  name: lumen-baseline
+  name: cirrus-baseline
   description: >-
-    Lumen as a Blueprint of itself — instantiate a new Cloudflare + Supabase
-    multi-tenant SaaS repo from the Lumen baseline. This is the unified
+    Cirrus as a Blueprint of itself — instantiate a new Cloudflare-only
+    multi-tenant SaaS repo from the Cirrus baseline. This is the unified
     replacement for tooling/fork/components.mjs (its prerequisite graph + copy
     ordering now live in orun's own DAG over the declared dependsOn edges below)
     and tooling/rebrand/rebrand.mjs (its instance-identity rename map is declared
-    as the `rebrand` hook + the templated rebrand-values file). See FORKING.md
+    as the `rebrand` hook + the templated rebrand-values file). See BOOTSTRAP.md
     for the operator checklist no script can perform (cloud accounts, secrets,
     OAuth/GitHub apps).
 
@@ -23,7 +23,7 @@ inputs:
     type: string
     pattern: "^[a-z][a-z0-9-]*$"
     required: true
-    description: Repo slug (e.g. acme-cloud) — intent metadata.name, Supabase/Hyperdrive project names, OIDC roles.
+    description: Repo slug (e.g. acme-cloud) — intent metadata.name, D1 database names, worker resource prefixes.
   productName:
     type: string
     required: true
@@ -67,7 +67,7 @@ inputs:
       that fails loudly rather than silently cross-tenanting.
 
 # ── SOURCES ───────────────────────────────────────────────────────────────
-# The baseline is this repo itself. Run `orun new` from the Lumen repo root so
+# The baseline is this repo itself. Run `orun new` from the Cirrus repo root so
 # `path: .` resolves to the baseline; orun pins it by digest into the object
 # store before any module reads it, so a fork is reproducible + provenanced.
 sources:
@@ -130,7 +130,7 @@ modules:
     source: baseline
     from: apps/admin-worker
     to: apps/admin-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db]
+    dependsOn: [cloudflare-d1, contracts, db]
   - name: admin-worker-tests
     mode: copy
     source: baseline
@@ -142,7 +142,7 @@ modules:
     source: baseline
     from: apps/api-edge
     to: apps/api-edge
-    dependsOn: [billing-worker, cloudflare-hyperdrive, cloudflare-kv, config-worker, contracts, db, events-worker, identity-worker, integrations-worker, membership-worker, metering-worker, notifications-worker, projects-worker, webhooks-worker]
+    dependsOn: [billing-worker, cloudflare-d1, cloudflare-kv, config-worker, contracts, db, events-worker, identity-worker, integrations-worker, membership-worker, metering-worker, notifications-worker, projects-worker, webhooks-worker]
   - name: api-edge-tests
     mode: copy
     source: baseline
@@ -154,7 +154,7 @@ modules:
     source: baseline
     from: apps/billing-worker
     to: apps/billing-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, policy-worker]
   - name: billing-worker-tests
     mode: copy
     source: baseline
@@ -173,12 +173,11 @@ modules:
     from: infra/terraform/cloudflare-domain
     to: infra/terraform/cloudflare-domain
     dependsOn: [web-console-next]
-  - name: cloudflare-hyperdrive
+  - name: cloudflare-d1
     mode: copy
     source: baseline
-    from: infra/terraform/cloudflare-hyperdrive
-    to: infra/terraform/cloudflare-hyperdrive
-    dependsOn: [supabase]
+    from: infra/terraform/cloudflare-d1
+    to: infra/terraform/cloudflare-d1
   - name: cloudflare-kv
     mode: copy
     source: baseline
@@ -189,7 +188,7 @@ modules:
     source: baseline
     from: apps/config-worker
     to: apps/config-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, membership-worker, policy-worker]
   - name: config-worker-tests
     mode: copy
     source: baseline
@@ -217,7 +216,7 @@ modules:
     source: baseline
     from: infra/db-migrate
     to: infra/db-migrate
-    dependsOn: [db, supabase]
+    dependsOn: [cloudflare-d1, db]
   - name: db-tests
     mode: copy
     source: baseline
@@ -229,13 +228,13 @@ modules:
     source: baseline
     from: apps/events-worker
     to: apps/events-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, membership-worker, policy-worker]
   - name: identity-worker
     mode: copy
     source: baseline
     from: apps/identity-worker
     to: apps/identity-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, membership-worker, notifications-client, notifications-worker, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, membership-worker, notifications-client, notifications-worker, policy-worker]
   - name: identity-worker-tests
     mode: copy
     source: baseline
@@ -247,7 +246,7 @@ modules:
     source: baseline
     from: apps/integrations-worker
     to: apps/integrations-worker
-    dependsOn: [billing-worker, cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker, projects-worker]
+    dependsOn: [billing-worker, cloudflare-d1, contracts, db, membership-worker, policy-worker, projects-worker]
   - name: integrations-worker-tests
     mode: copy
     source: baseline
@@ -259,7 +258,7 @@ modules:
     source: baseline
     from: apps/membership-worker
     to: apps/membership-worker
-    dependsOn: [billing-worker, cloudflare-hyperdrive, contracts, db, notifications-client, policy-worker]
+    dependsOn: [billing-worker, cloudflare-d1, contracts, db, notifications-client, policy-worker]
   - name: membership-worker-tests
     mode: copy
     source: baseline
@@ -271,7 +270,7 @@ modules:
     source: baseline
     from: apps/metering-worker
     to: apps/metering-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, membership-worker, policy-worker]
   - name: metering-worker-tests
     mode: copy
     source: baseline
@@ -295,7 +294,7 @@ modules:
     source: baseline
     from: apps/notifications-worker
     to: apps/notifications-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, db-migrate, events-worker]
+    dependsOn: [cloudflare-d1, contracts, db, db-migrate, events-worker]
   - name: notifications-worker-tests
     mode: copy
     source: baseline
@@ -331,7 +330,7 @@ modules:
     source: baseline
     from: apps/projects-worker
     to: apps/projects-worker
-    dependsOn: [billing-worker, cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker]
+    dependsOn: [billing-worker, cloudflare-d1, contracts, db, membership-worker, policy-worker]
   - name: projects-worker-tests
     mode: copy
     source: baseline
@@ -344,21 +343,11 @@ modules:
     from: packages/sdk
     to: packages/sdk
     dependsOn: [contracts]
-  - name: flows
-    mode: copy
-    source: baseline
-    from: flows
-    to: flows
   - name: shared
     mode: copy
     source: baseline
     from: packages/shared
     to: packages/shared
-  - name: supabase
-    mode: copy
-    source: baseline
-    from: infra/terraform/supabase
-    to: infra/terraform/supabase
     dependsOn: [bootstrap]
   - name: testing
     mode: copy
@@ -388,7 +377,7 @@ modules:
     source: baseline
     from: apps/webhooks-worker
     to: apps/webhooks-worker
-    dependsOn: [cloudflare-hyperdrive, contracts, db, membership-worker, policy-worker]
+    dependsOn: [cloudflare-d1, contracts, db, membership-worker, policy-worker]
 
   # ── Component-less workspace test packages (no component.yaml; ride their
   #    subject per the tests-follow-subject rule in components.mjs). ──────────
@@ -414,21 +403,32 @@ modules:
   # does, pinned to the same version, with nothing to drift. Composition changes
   # are made in sourceplane/stack-tectonic, released there, and adopted by
   # bumping the pinned tag — in the fork exactly as in the baseline.
-  - name: tooling
+  # Only the tooling a PRODUCT runs: shared TS/ESLint config and the
+  # deploy-time wrangler renderer. The baseline's own machinery (rebrand,
+  # blueprint split, bootstrap helpers, migration tools) stays in the
+  # baseline — a product is a product, not a copy of the factory.
+  - name: tooling-eslint
     mode: copy
     source: baseline
-    from: tooling
-    to: tooling
+    from: tooling/eslint
+    to: tooling/eslint
+  - name: tooling-tsconfig
+    mode: copy
+    source: baseline
+    from: tooling/tsconfig
+    to: tooling/tsconfig
+  - name: tooling-wire
+    mode: copy
+    source: baseline
+    from: tooling/wire
+    to: tooling/wire
+  # The product's own context pack (operating contract + live-deployment
+  # manifest), not the baseline's planning state.
   - name: ai-context
     mode: copy
     source: baseline
-    from: ai
-    to: ai
-  - name: agents
-    mode: copy
-    source: baseline
-    from: agents
-    to: agents
+    from: ai/context
+    to: ai/context
   - name: github-workflows
     mode: copy
     source: baseline
@@ -488,11 +488,6 @@ modules:
     source: baseline
     from: README.md
     to: README.md
-  - name: root-forking
-    mode: copy
-    source: baseline
-    from: FORKING.md
-    to: FORKING.md
 
   # ── Instance-identity values file (template) — consumed by the rebrand hook.
   #    This is the only place blueprint inputs touch the tree at scaffold time;
@@ -529,7 +524,7 @@ phases:
   - name: foundation
     modules: [cli, contracts, contracts-tests, db, db-tests, notifications-client, notifications-client-tests, policy-engine, policy-engine-tests, sdk, shared, testing, webhook-verifier]
   - name: infrastructure
-    modules: [cloudflare-hyperdrive, cloudflare-kv, db-migrate, supabase]
+    modules: [cloudflare-d1, cloudflare-kv, db-migrate]
   - name: workers
     modules: [admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
   - name: edge
@@ -540,7 +535,7 @@ phases:
     modules: [cloudflare-domain]
   - name: workspace
     description: Root manifests, tooling, compositions, and the rebrand values file.
-    modules: [agents, ai-context, flows, github-workflows, rebrand-values, root-forking, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling, vscode]
+    modules: [ai-context, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
 
 # ── HOOKS ─────────────────────────────────────────────────────────────────
 # Declared, ecosystem-specific, run OUTSIDE the template sandbox and opt-in
@@ -551,7 +546,7 @@ phases:
 #
 # The Cloudflare service-binding two-pass (tooling/bootstrap/cycle-break.mjs
 # --strip / --restore for the {billing,membership,events,notifications} cluster)
-# is a DEPLOY-time hook, not a scaffold step — see FORKING.md §5 — so it is not
+# is a DEPLOY-time hook, not a scaffold step — see tooling/bootstrap/cycle-break.mjs — so it is not
 # listed here.
 hooks:
   postInstantiate:

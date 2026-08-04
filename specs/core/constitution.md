@@ -1,4 +1,4 @@
-# Lumen Constitution
+# Cirrus Constitution
 
 Status: Normative
 
@@ -6,15 +6,15 @@ Applies to: every package, app, migration, API, event, UI surface, CLI command, 
 
 ## Purpose
 
-Lumen is a reusable multi-tenant SaaS starter bootstrap. It must provide the durable foundation for products with organization-scoped tenancy, project separation, membership, billing, audit, metering, API access, notifications, webhooks, and support workflows. Product-specific resource orchestration may be layered on top, but it must not obscure the starter baseline or force every SaaS consumer into a runtime-orchestration product model.
+Cirrus is a reusable multi-tenant SaaS starter bootstrap. It must provide the durable foundation for products with organization-scoped tenancy, project separation, membership, billing, audit, metering, API access, notifications, webhooks, and support workflows. Product-specific resource orchestration may be layered on top, but it must not obscure the starter baseline or force every SaaS consumer into a runtime-orchestration product model.
 
 ## Constitutional Rules
 
 ### 1. Cloudflare-first runtime, extraction-safe data plane
 
 - V1 must run compute, routing, async work, caches, and public ingress on Cloudflare-managed primitives wherever practical.
-- Supabase Postgres is the primary relational data plane for product-owned state and must be reached from Workers through Hyperdrive.
-- Cloudflare, Supabase, AWS secret, and Terraform backend resources must be provisioned through Orun-controlled CI, with Terraform ownership where specified.
+- Cloudflare D1 is the primary relational data plane for product-owned state and is reached from Workers through the `PLATFORM_DB` binding. Cloudflare is the only provider: adding a second one is a constitutional change, not an implementation detail.
+- Cloudflare and Terraform backend resources must be provisioned through Orun-controlled CI, with Terraform ownership where specified.
 - Internal boundaries must still assume that any component may later move behind an external service or its own repo.
 - No domain may depend on a hosting-specific detail outside its adapter layer.
 
@@ -54,7 +54,7 @@ Lumen is a reusable multi-tenant SaaS starter bootstrap. It must provide the dur
 ### 7. Business logic stays pure
 
 - Domain logic belongs in domain modules, not transport handlers and not platform adapters.
-- Workers, service bindings, Hyperdrive, Supabase Postgres, D1, KV, Queues, R2, AWS Secrets Manager, Workers Secrets Store, Workflows, and Durable Objects are implementation adapters, not business policy.
+- Workers, service bindings, D1, KV, Queues, R2, Workers Secrets Store, Workflows, and Durable Objects are implementation adapters, not business policy.
 - Business rules must be testable without deploying to Cloudflare.
 
 ### 8. Secure by default
@@ -98,7 +98,7 @@ Work is not complete unless all of the following are true:
 - It emits the required domain events and audit records for mutations.
 - It preserves extraction seams.
 - It documents any new operational dependency.
-- It does not require manual Cloudflare, Supabase, AWS IAM, S3 backend, or secret-manager setup outside the accepted Orun/Terraform path.
+- It does not require manual Cloudflare or backend setup outside the accepted Orun/Terraform path.
 - It lands as one reviewable PR for one accepted task.
 
 ## Change Control

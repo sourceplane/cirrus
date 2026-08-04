@@ -5,7 +5,7 @@
 // Do not add behavior — values and trivial derivations only.
 
 /** Product/brand name shown across the console. */
-export const PRODUCT_NAME = "Lumen";
+export const PRODUCT_NAME = "Cirrus";
 
 /** Browser/document title of the console. */
 export const CONSOLE_TITLE = `${PRODUCT_NAME} Console`;
@@ -19,11 +19,11 @@ export const WORKERS_DEV_SUBDOMAIN = "rahulvarghesepullely";
 
 /** api-edge workers.dev URL for a given environment name. */
 export function apiEdgeWorkersDevUrl(environment: string): string {
-  return `https://lumen-api-edge-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
+  return `https://cirrus-api-edge-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
 }
 
 /** Sales contact surfaced by the billing upgrade UX. */
 export const SALES_EMAIL = "sales@sourceplane.ai";
 
 /** Namespace prefix for console localStorage keys. */
-export const STORAGE_PREFIX = "lumen.next";
+export const STORAGE_PREFIX = "cirrus.next";

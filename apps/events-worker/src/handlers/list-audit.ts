@@ -3,7 +3,7 @@ import type { ActorContext } from "../router.js";
 import type { PublicAuditEntry } from "@saas/contracts/events";
 import type { StoredAuditEntry, EventsRepository } from "@saas/db/events";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";
 import { errorResponse, validationError, withTimings } from "../http.js";

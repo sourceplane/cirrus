@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import type { InternalActor } from "../router.js";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createNotificationsRepository } from "@saas/db/notifications";
 import { successResponse, errorResponse, validationError } from "../http.js";
 import { resolveProvider } from "../providers/index.js";

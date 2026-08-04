@@ -8,7 +8,6 @@
     "./manifest": "./src/manifest.ts",
     "./types": "./src/types.ts",
     "./ids": "./src/ids/index.ts",
-    "./hyperdrive": "./src/hyperdrive/index.ts",
     "./identity": "./src/identity/index.ts",
     "./membership": "./src/membership/index.ts",
     "./events": "./src/events/index.ts",
@@ -20,7 +19,9 @@
     "./notifications": "./src/notifications/index.ts",
     "./support": "./src/support/index.ts",
     "./integrations": "./src/integrations/index.ts",
-    "./runner": "./src/runner/index.ts"
+    "./runner": "./src/runner/index.ts",
+    "./d1": "./src/d1/index.ts",
+    "./json": "./src/json.ts"
   },
   "bin": {
     "db-migrate": "./dist/runner/cli.js"
@@ -29,17 +30,14 @@
     "build": "tsc --project tsconfig.build.json && cp -r src/migrations dist/",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "migrate:plan": "node --loader ts-node/esm src/runner/cli.ts plan",
-    "migrate:apply": "node --loader ts-node/esm src/runner/cli.ts apply"
+    "migrate:plan": "pnpm run build && node dist/runner/cli.js plan",
+    "migrate:apply": "pnpm run build && node dist/runner/cli.js apply"
   },
-  "dependencies": {
-    "pg": "^8.13.0",
-    "postgres": "^3.4.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@saas/eslint-config": "workspace:*",
     "@saas/tsconfig": "workspace:*",
-    "@types/pg": "^8.11.0",
+    "@types/node": "^20.17.0",
     "typescript": "^5.8.3"
   }
 }

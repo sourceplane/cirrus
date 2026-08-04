@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { SupportActor } from "../support-auth.js";
 import type { SupportRepository, StoredSupportActionRecord } from "@saas/db/support";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createSupportRepository } from "@saas/db/support";
 import { authorizeSupportAction } from "../support-auth.js";
 import { successResponse, errorResponse, validationError } from "../http.js";

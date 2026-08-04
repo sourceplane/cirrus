@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.49.0
+          version: v2.52.6
       - env:
           # Surface the best-effort catalog auto-sync (execution.state.autopushCatalog).
           # A successful push prints "✓ pushed catalog …"; ORUN_VERBOSE also makes
@@ -83,7 +83,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.49.0
+          version: v2.52.6
       # exec-id is the RUN id alone (no attempt suffix): a `gh run rerun
       # --failed` then RESUMES the same orun execution — jobs that succeeded in
       # a prior attempt stay completed, so re-run lanes' cross-job dependencies
@@ -107,8 +107,9 @@ jobs:
             $retry_flag
         env:
           # GITHUB_TOKEN is the only credential CI holds — GitHub-issued and
-          # ephemeral. Every provider credential (Cloudflare token + account
-          # id, Supabase management token + org id) is an orun-managed secret:
+          # ephemeral. Every provider credential (the Cloudflare token and
+          # account id — this baseline has no second provider) is an
+          # orun-managed secret:
           # brokered fresh per run from the workspace's integrations, resolved
           # lease-bound by the jobs that declare it (profile secretBindings or
           # component secretEnv), and log-redacted. Nothing provider-shaped is

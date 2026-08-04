@@ -1,7 +1,7 @@
 import {
   createEventsRepository,
 } from "@saas/db/events";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 type QueryRecord = { text: string; params: unknown[] };
 
@@ -128,7 +128,7 @@ describe("events repository: appendEvent", () => {
       expect(result.value.payload).toEqual({ name: "Acme Corp" });
     }
     expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("INSERT INTO events.event_log");
+    expect(queries[0]!.text).toContain("INSERT INTO events_event_log");
     expect(queries[0]!.text).toContain("ON CONFLICT (id) DO NOTHING");
   });
 
@@ -182,8 +182,8 @@ describe("events repository: appendEvent", () => {
     }
   });
 
-  it("returns conflict on unique violation error code 23505", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+  it("returns conflict on a SQLite unique-constraint failure", async () => {
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createEventsRepository(executor);
 
     const result = await repo.appendEvent({
@@ -605,7 +605,7 @@ describe("events repository: getEventById", () => {
     }
     // Parameterized, org-scoped lookup by id.
     expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("FROM events.event_log");
+    expect(queries[0]!.text).toContain("FROM events_event_log");
     expect(queries[0]!.params).toEqual(["org-001", "evt-001"]);
   });
 

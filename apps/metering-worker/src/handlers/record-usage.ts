@@ -3,7 +3,7 @@ import type { ActorContext } from "../router.js";
 import type { RecordUsageRequest, RecordUsageResponse, PublicUsageRecord } from "@saas/contracts/metering";
 import type { PolicyResource } from "@saas/contracts/policy";
 import type { UsageRecord } from "@saas/db/metering";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMeteringRepository } from "@saas/db/metering";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";

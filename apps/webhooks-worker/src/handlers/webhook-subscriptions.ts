@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import { createWebhookRepository } from "@saas/db/webhooks";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";
 import { errorResponse, successResponse, listResponse, validationError } from "../http.js";

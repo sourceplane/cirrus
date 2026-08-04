@@ -16,8 +16,8 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://lumen/lumen/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://lumen/lumen/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   subscribe:
     environments:
@@ -45,12 +45,12 @@ spec:
     # resolve real IDs from the Secrets Manager wiring manifest (BF5).
     orgName: sourceplane
     owner: sourceplane
-    repo: lumen
+    repo: cirrus
 
     turboFilter: "@saas/membership-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-hyperdrive"
+    wiringComponents: "cloudflare-d1"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

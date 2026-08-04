@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type { Uuid } from "../ids/index.js";
 import type {
   ActivateConnectionInput,
@@ -24,6 +24,8 @@ import type {
   UpsertGithubInstallationInput,
   UpsertInstallationTokenInput,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseBooleanColumn } from "../json.js";
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -31,14 +33,6 @@ function safeError(message: string): IntegrationsResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 function toDate(v: unknown): Date {
   return v instanceof Date ? v : new Date(v as string);
@@ -134,7 +128,7 @@ function mapInboundDelivery(row: Record<string, unknown>): InboundDelivery {
     eventType: row.event_type as string,
     action: (row.action as string) ?? null,
     payload: parseJson<Record<string, unknown>>(row.payload) ?? {},
-    signatureOk: row.signature_ok as boolean,
+    signatureOk: parseBooleanColumn(row.signature_ok),
     status: row.status as InboundDelivery["status"],
     attempts: Number(row.attempts),
     nextAttemptAt: dateOrNull(row.next_attempt_at),
@@ -211,10 +205,10 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<IntegrationConnection>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO integrations.connections
+          `INSERT INTO integrations_connections
              (id, org_id, provider, status, display_name, created_by,
               state_nonce_hash, state_expires_at, created_at, updated_at)
-           VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, now(), now())
+           VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING *`,
           [
             input.id,
@@ -241,7 +235,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<IntegrationConnection>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.connections WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM integrations_connections WHERE org_id = $1 AND id = $2`,
           [orgId, id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -254,7 +248,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async getConnectionById(id: Uuid): Promise<IntegrationsResult<IntegrationConnection>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.connections WHERE id = $1`,
+          `SELECT * FROM integrations_connections WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -270,7 +264,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
       query?: ListConnectionsQuery,
     ): Promise<IntegrationsResult<PagedResult<IntegrationConnection>>> {
       const values: unknown[] = [orgId];
-      let sql = `SELECT * FROM integrations.connections WHERE org_id = $1`;
+      let sql = `SELECT * FROM integrations_connections WHERE org_id = $1`;
       if (query?.provider) {
         values.push(query.provider);
         sql += ` AND provider = $${values.length}`;
@@ -289,12 +283,12 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
         // Single-use: the nonce is cleared in the same statement that
         // resolves it, and expired state never matches. Fail closed.
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.connections
-              SET state_nonce_hash = NULL, updated_at = now()
+          `UPDATE integrations_connections
+              SET state_nonce_hash = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE state_nonce_hash = $1
               AND status = 'pending'
               AND state_expires_at IS NOT NULL
-              AND state_expires_at > now()
+              AND state_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')
             RETURNING *`,
           [stateNonceHash],
         );
@@ -312,7 +306,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<IntegrationConnection>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.connections
+          `UPDATE integrations_connections
               SET status = 'active',
                   display_name = COALESCE($3, display_name),
                   external_account_login = $4,
@@ -320,8 +314,8 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
                   external_account_type = $6,
                   state_nonce_hash = NULL,
                   state_expires_at = NULL,
-                  connected_at = now(),
-                  updated_at = now()
+                  connected_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE org_id = $1 AND id = $2 AND status = 'pending'
             RETURNING *`,
           [
@@ -350,11 +344,11 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<IntegrationConnection>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.connections
+          `UPDATE integrations_connections
               SET status = $3,
-                  suspended_at = CASE WHEN $3 = 'suspended' THEN now() ELSE suspended_at END,
-                  revoked_at   = CASE WHEN $3 = 'revoked' THEN now() ELSE revoked_at END,
-                  updated_at = now()
+                  suspended_at = CASE WHEN $3 = 'suspended' THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE suspended_at END,
+                  revoked_at   = CASE WHEN $3 = 'revoked' THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE revoked_at END,
+                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE org_id = $1 AND id = $2
             RETURNING *`,
           [orgId, id, status],
@@ -373,13 +367,13 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<GithubInstallation>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO integrations.github_installations
+          `INSERT INTO integrations_github_installations
              (id, connection_id, installation_id, account_login, account_id,
               account_type, repository_selection, permissions, events,
               suspended_at, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (installation_id) DO UPDATE SET
-             connection_id = COALESCE(EXCLUDED.connection_id, integrations.github_installations.connection_id),
+             connection_id = COALESCE(EXCLUDED.connection_id, integrations_github_installations.connection_id),
              account_login = EXCLUDED.account_login,
              account_id = EXCLUDED.account_id,
              account_type = EXCLUDED.account_type,
@@ -387,7 +381,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
              permissions = EXCLUDED.permissions,
              events = EXCLUDED.events,
              suspended_at = EXCLUDED.suspended_at,
-             updated_at = now()
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            RETURNING *`,
           [
             input.id,
@@ -416,7 +410,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<GithubInstallation>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.github_installations WHERE installation_id = $1`,
+          `SELECT * FROM integrations_github_installations WHERE installation_id = $1`,
           [installationId],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -431,7 +425,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<GithubInstallation>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.github_installations WHERE connection_id = $1`,
+          `SELECT * FROM integrations_github_installations WHERE connection_id = $1`,
           [connectionId],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -446,11 +440,11 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async createRepoLink(input: CreateRepoLinkInput): Promise<IntegrationsResult<RepoLink>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO integrations.repo_links
+          `INSERT INTO integrations_repo_links
              (id, org_id, project_id, connection_id, repo_external_id,
               repo_full_name, default_branch, branch_env_map, status,
               created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING *`,
           [
             input.id,
@@ -476,7 +470,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async getRepoLink(orgId: Uuid, id: Uuid): Promise<IntegrationsResult<RepoLink>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.repo_links WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM integrations_repo_links WHERE org_id = $1 AND id = $2`,
           [orgId, id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -492,7 +486,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
       query?: ListRepoLinksQuery,
     ): Promise<IntegrationsResult<PagedResult<RepoLink>>> {
       const values: unknown[] = [orgId];
-      let sql = `SELECT * FROM integrations.repo_links WHERE org_id = $1`;
+      let sql = `SELECT * FROM integrations_repo_links WHERE org_id = $1`;
       if (query?.projectId) {
         values.push(query.projectId);
         sql += ` AND project_id = $${values.length}`;
@@ -511,10 +505,10 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<RepoLink>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.repo_links
+          `UPDATE integrations_repo_links
               SET default_branch = COALESCE($3, default_branch),
                   branch_env_map = COALESCE($4, branch_env_map),
-                  updated_at = now()
+                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE org_id = $1 AND id = $2 AND status = 'active'
             RETURNING *`,
           [
@@ -534,8 +528,8 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async unlinkRepoLink(orgId: Uuid, id: Uuid): Promise<IntegrationsResult<RepoLink>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.repo_links
-              SET status = 'unlinked', updated_at = now()
+          `UPDATE integrations_repo_links
+              SET status = 'unlinked', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE org_id = $1 AND id = $2 AND status = 'active'
             RETURNING *`,
           [orgId, id],
@@ -553,7 +547,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<RepoLink[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.repo_links
+          `SELECT * FROM integrations_repo_links
             WHERE org_id = $1 AND repo_external_id = $2 AND status = 'active'
             ORDER BY created_at ASC, id ASC`,
           [orgId, repoExternalId],
@@ -567,7 +561,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async countActiveRepoLinks(orgId: Uuid): Promise<IntegrationsResult<number>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT COUNT(*)::int AS count FROM integrations.repo_links
+          `SELECT COUNT(*) AS count FROM integrations_repo_links
             WHERE org_id = $1 AND status = 'active'`,
           [orgId],
         );
@@ -586,10 +580,10 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
         // Idempotent inbox insert: a redelivery (same provider delivery key)
         // is a no-op that returns the existing row with created=false.
         const inserted = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO integrations.inbound_deliveries
+          `INSERT INTO integrations_inbound_deliveries
              (id, provider, delivery_key, event_type, action, payload,
               signature_ok, status, received_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'received', now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'received', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (provider, delivery_key) DO NOTHING
            RETURNING *`,
           [
@@ -609,7 +603,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
           };
         }
         const existing = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.inbound_deliveries
+          `SELECT * FROM integrations_inbound_deliveries
             WHERE provider = $1 AND delivery_key = $2`,
           [input.provider, input.deliveryKey],
         );
@@ -626,7 +620,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     async getInboundDelivery(id: Uuid): Promise<IntegrationsResult<InboundDelivery>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.inbound_deliveries WHERE id = $1`,
+          `SELECT * FROM integrations_inbound_deliveries WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -642,7 +636,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
       query?: { connectionId?: Uuid },
     ): Promise<IntegrationsResult<PagedResult<InboundDelivery>>> {
       const values: unknown[] = [orgId];
-      let sql = `SELECT * FROM integrations.inbound_deliveries WHERE org_id = $1`;
+      let sql = `SELECT * FROM integrations_inbound_deliveries WHERE org_id = $1`;
       if (query?.connectionId) {
         values.push(query.connectionId);
         sql += ` AND connection_id = $${values.length}`;
@@ -663,9 +657,9 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<InboundDelivery[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.inbound_deliveries
+          `SELECT * FROM integrations_inbound_deliveries
             WHERE status IN ('received', 'attributed')
-              AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+              AND (next_attempt_at IS NULL OR next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
             ORDER BY received_at ASC, id ASC
             LIMIT $1`,
           [limit],
@@ -682,7 +676,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<InboundDelivery>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE integrations.inbound_deliveries
+          `UPDATE integrations_inbound_deliveries
               SET org_id = COALESCE($2, org_id),
                   connection_id = COALESCE($3, connection_id),
                   status = COALESCE($4, status),
@@ -690,7 +684,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
                   next_attempt_at = $6,
                   failure_reason = COALESCE($7, failure_reason),
                   emitted_event_id = COALESCE($8, emitted_event_id),
-                  updated_at = now()
+                  updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
             WHERE id = $1
             RETURNING *`,
           [
@@ -718,16 +712,16 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<InstallationTokenCacheEntry>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO integrations.installation_tokens
+          `INSERT INTO integrations_installation_tokens
              (id, connection_id, token_ciphertext, permissions, repository_ids,
               expires_at, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (connection_id) DO UPDATE SET
              token_ciphertext = EXCLUDED.token_ciphertext,
              permissions = EXCLUDED.permissions,
              repository_ids = EXCLUDED.repository_ids,
              expires_at = EXCLUDED.expires_at,
-             updated_at = now()
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            RETURNING *`,
           [
             input.id,
@@ -749,8 +743,8 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<InstallationTokenCacheEntry>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM integrations.installation_tokens
-            WHERE connection_id = $1 AND expires_at > now()`,
+          `SELECT * FROM integrations_installation_tokens
+            WHERE connection_id = $1 AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
           [connectionId],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -765,7 +759,7 @@ export function createIntegrationsRepository(executor: SqlExecutor): Integration
     ): Promise<IntegrationsResult<{ deleted: true }>> {
       try {
         await executor.execute(
-          `DELETE FROM integrations.installation_tokens WHERE connection_id = $1`,
+          `DELETE FROM integrations_installation_tokens WHERE connection_id = $1`,
           [connectionId],
         );
         return { ok: true, value: { deleted: true } };

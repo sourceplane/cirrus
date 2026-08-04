@@ -6,7 +6,7 @@ import type { EventsRepository } from "@saas/db/events";
 import type { Uuid } from "@saas/db/ids";
 import { createProjectsRepository } from "@saas/db/projects";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";
 import {

@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   MeteringRepository,
   MeteringResult,
@@ -19,6 +19,8 @@ import type {
   QuotaEnforcement,
   BucketType,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseNullableJsonColumn } from "../json.js";
 
 // ── Row mappers ────────────────────────────────────────────
 
@@ -33,7 +35,7 @@ function mapUsageRecord(row: Record<string, unknown>): UsageRecord {
     quantity: Number(row.quantity),
     idempotencyKey: row.idempotency_key as string,
     recordedAt: new Date(row.recorded_at as string),
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: new Date(row.created_at as string),
   };
 }
@@ -69,7 +71,7 @@ function mapQuotaViolation(row: Record<string, unknown>): QuotaViolation {
     enforcement: row.enforcement as QuotaEnforcement,
     violatedAt: new Date(row.violated_at as string),
     resolvedAt: row.resolved_at ? new Date(row.resolved_at as string) : null,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: new Date(row.created_at as string),
   };
 }
@@ -80,14 +82,6 @@ function safeError(message: string): MeteringResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 // ── Paged list helper ──────────────────────────────────────
 
@@ -138,9 +132,9 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
     async recordUsage(input: RecordUsageInput): Promise<MeteringResult<UsageRecord>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO metering.usage_records
+          `INSERT INTO metering_usage_records
              (id, org_id, project_id, environment_id, resource_id, metric, quantity, idempotency_key, recorded_at, metadata, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id, idempotency_key) DO NOTHING
            RETURNING *`,
           [
@@ -212,7 +206,7 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
         }
 
         const whereClause = conditions.join(" AND ");
-        const sql = `SELECT * FROM metering.usage_rollups WHERE ${whereClause} ORDER BY bucket_start DESC`;
+        const sql = `SELECT * FROM metering_usage_rollups WHERE ${whereClause} ORDER BY bucket_start DESC`;
         const result = await executor.execute<Record<string, unknown>>(sql, values);
         const rollups = result.rows.map(mapUsageRollup);
 
@@ -243,7 +237,7 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
     ): Promise<MeteringResult<PagedResult<UsageRollup>>> {
       return pagedList(
         executor,
-        "SELECT * FROM metering.usage_rollups WHERE org_id = $1",
+        "SELECT * FROM metering_usage_rollups WHERE org_id = $1",
         [orgId],
         params.limit,
         params.cursor,
@@ -265,13 +259,24 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
       }
 
       // Aggregate raw usage records into the target bucket and upsert into
-      // metering.usage_rollups. The unique index is on
+      // metering_usage_rollups. The unique index is on
       // (org_id, COALESCE(project_id, ''), COALESCE(environment_id, ''), metric, bucket_type, bucket_start)
       // — the ON CONFLICT target must mirror those expressions exactly.
       //
-      // The synthesized id is a deterministic md5 of the aggregation key so
-      // repeated materializations of the same bucket produce stable ids; on
-      // conflict we keep the existing row id and overwrite quantity/record_count.
+      // Truncation is a strftime format, not a `date_trunc` argument: SQLite
+      // has no date_trunc, and timestamps are stored as ISO-8601 text. The
+      // format is chosen from the bucket type validated at the top of this
+      // method (it is an enum of two literals, never caller text), because a
+      // bound parameter cannot appear inside a strftime format string.
+      const bucketFormat =
+        window.bucketType === "hour" ? "%Y-%m-%dT%H:00:00.000Z" : "%Y-%m-%dT00:00:00.000Z";
+
+      // The synthesized id is the aggregation key itself, so repeated
+      // materializations of the same bucket produce the same id. (Postgres
+      // hashed it with md5; SQLite has no md5 and D1 exposes no hash function,
+      // and the key is already unique — hashing only shortened it.) On
+      // conflict the existing row id is kept and quantity/record_count are
+      // overwritten.
       //
       // All values are passed via $-parameters; no user input is interpolated.
       const sql = `
@@ -281,46 +286,46 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
             project_id,
             environment_id,
             metric,
-            date_trunc($1, recorded_at) AS bucket_start,
-            SUM(quantity)::BIGINT       AS quantity,
-            COUNT(*)::BIGINT            AS record_count
-          FROM metering.usage_records
+            strftime('${bucketFormat}', recorded_at) AS bucket_start,
+            SUM(quantity)                            AS quantity,
+            COUNT(*)                                 AS record_count
+          FROM metering_usage_records
           WHERE recorded_at >= $2
             AND recorded_at <  $3
-          GROUP BY org_id, project_id, environment_id, metric, date_trunc($1, recorded_at)
+          GROUP BY org_id, project_id, environment_id, metric,
+                   strftime('${bucketFormat}', recorded_at)
         )
-        INSERT INTO metering.usage_rollups (
+        INSERT INTO metering_usage_rollups (
           id, org_id, project_id, environment_id, metric,
           bucket_type, bucket_start, quantity, record_count,
           created_at, updated_at
         )
         SELECT
-          md5(
-            org_id || '|' ||
+          org_id || '|' ||
             COALESCE(project_id, '') || '|' ||
             COALESCE(environment_id, '') || '|' ||
             metric || '|' ||
-            $1::text || '|' ||
-            bucket_start::text
-          ) AS id,
+            $1 || '|' ||
+            bucket_start AS id,
           org_id, project_id, environment_id, metric,
-          $1::text       AS bucket_type,
+          $1             AS bucket_type,
           bucket_start,
           quantity,
           record_count,
-          now(), now()
+          strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')
         FROM agg
+        WHERE true
         ON CONFLICT (
           org_id,
-          (COALESCE(project_id, '')),
-          (COALESCE(environment_id, '')),
+          COALESCE(project_id, ''),
+          COALESCE(environment_id, ''),
           metric,
           bucket_type,
           bucket_start
         ) DO UPDATE SET
           quantity     = EXCLUDED.quantity,
           record_count = EXCLUDED.record_count,
-          updated_at   = now()
+          updated_at   = strftime('%Y-%m-%dT%H:%M:%fZ','now')
       `;
 
       try {
@@ -390,7 +395,7 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
         const whereClause = conditions.join(" AND ");
 
         // Get the quota definition (most specific first)
-        const quotaSql = `SELECT * FROM metering.quota_definitions WHERE ${whereClause} ORDER BY
+        const quotaSql = `SELECT * FROM metering_quota_definitions WHERE ${whereClause} ORDER BY
           CASE WHEN resource_id IS NOT NULL THEN 0 ELSE 1 END,
           CASE WHEN environment_id IS NOT NULL THEN 0 ELSE 1 END,
           CASE WHEN project_id IS NOT NULL THEN 0 ELSE 1 END
@@ -456,7 +461,7 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
           usageIdx++;
         }
 
-        const usageSql = `SELECT COALESCE(SUM(quantity), 0) as total FROM metering.usage_records WHERE ${usageConditions.join(" AND ")}`;
+        const usageSql = `SELECT COALESCE(SUM(quantity), 0) as total FROM metering_usage_records WHERE ${usageConditions.join(" AND ")}`;
         const usageResult = await executor.execute<Record<string, unknown>>(usageSql, usageValues);
         const used = Number(usageResult.rows[0]?.total ?? 0);
         const remaining = Math.max(0, limitValue - used);
@@ -512,7 +517,7 @@ export function createMeteringRepository(executor: SqlExecutor): MeteringReposit
       const whereClause = conditions.join(" AND ");
       return pagedList(
         executor,
-        `SELECT * FROM metering.quota_violations WHERE ${whereClause}`,
+        `SELECT * FROM metering_quota_violations WHERE ${whereClause}`,
         values,
         params.limit,
         params.cursor,

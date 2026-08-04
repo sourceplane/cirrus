@@ -1,9 +1,9 @@
 // Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
 // Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
-// resolved from AWS Secrets Manager at deploy time (wire-live) or from the
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
 // committed wiring.fixture.json for offline dry-runs (wire-fixture).
 {
-  "name": "lumen-events-worker",
+  "name": "cirrus-events-worker",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.ts",
@@ -22,20 +22,21 @@
       "vars": {
         "ENVIRONMENT": "stage"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/stage:hyperdrive_id)@@"
+          "database_name": "cirrus-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-stage"
+          "service": "cirrus-membership-worker-stage"
         },
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-stage"
+          "service": "cirrus-policy-worker-stage"
         }
       ]
     },
@@ -44,20 +45,21 @@
       "vars": {
         "ENVIRONMENT": "prod"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/prod:hyperdrive_id)@@"
+          "database_name": "cirrus-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-prod"
+          "service": "cirrus-membership-worker-prod"
         },
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-prod"
+          "service": "cirrus-policy-worker-prod"
         }
       ]
     }

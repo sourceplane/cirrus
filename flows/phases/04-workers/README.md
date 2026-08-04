@@ -40,7 +40,7 @@ Both are idempotent; `--check` reports the current state.
 3. **land** — PR `phase(04-workers): worker fleet (feedback edges
    stripped)`; the PR's verify lanes are plan/build-only.
 4. **converge** — the merge deploys the fleet (longest phase; budget 90m,
-   auto-resumed). Lanes resolve their `WIRING_*`/`SUPABASE_*` secrets at
+   auto-resumed). Lanes resolve their `WIRING_*` secrets at
    claim time — missing keys here mean phase 03 did not finish.
 5. **restore** — `cycle-break --restore`, second PR, second convergence.
 
@@ -62,6 +62,34 @@ first-deploy workers.dev propagation — stack-tectonic ≥ 0.18.1).
 - **Convergence trips on runner starvation / resolve throttling**: that is
   what the auto-resume is for; a genuinely red lane stays red across
   resumes — read that lane's log.
+
+## Example commands
+
+From the baseline checkout (local mode):
+
+```bash
+orun workflow run flows/phases/04-workers/workflow.yaml \
+  --set out=$HOME/sourceplane/acme --set workspace=ws_ABCD1234
+```
+
+Headless (fresh container / no checkout — see BOOTSTRAP.md §3c): same
+command by remote reference, with `ORUN_TOKEN` + `GITHUB_TOKEN` exported
+and `--set repo=<owner/name>` instead of `out`:
+
+```bash
+export ORUN_TOKEN="$(orun auth token | tail -1)" GITHUB_TOKEN=…
+orun workflow run github:sourceplane/cirrus@main//flows/phases/04-workers/workflow.yaml \
+  --set workspace=ws_ABCD1234 --set repo=sourceplane/acme
+```
+
+Preview with zero side effects (either mode): append `--set dryrun=true` —
+the blueprint is applied, shown, and reverted; nothing is pushed or
+deployed. Re-running a completed phase is always safe (idempotent): the
+apply is a no-op, the landing finds nothing, and verify re-asserts.
+
+This is the longest phase (two landings, two convergences — ~25m). A
+convergence that trips resumes itself up to 3×; a failed phase run resumes
+by re-running the same command.
 
 ## Next
 

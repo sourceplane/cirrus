@@ -1,6 +1,6 @@
 import type { Uuid } from "../ids/index.js";
 
-export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../hyperdrive/executor.js";
+export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../d1/executor.js";
 
 // ── Result type ─────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ export interface DisableWebhookEndpointInput {
 /**
  * Input for rotateEndpointSecret. The repository copies the current secret
  * into the previous-secret slot, sets the previous-secret expiry to
- * `now() + gracePeriodSeconds`, and writes the new secret atomically.
+ * `strftime('%Y-%m-%dT%H:%M:%fZ','now') + gracePeriodSeconds`, and writes the new secret atomically.
  */
 export interface RotateEndpointSecretInput {
   /** New encrypted signing-secret envelope. Required for live rotations. */

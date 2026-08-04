@@ -2,7 +2,7 @@ import {
   createIdentityRepository,
 } from "@saas/db/identity";
 import { asUuid } from "@saas/db";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 const ORG_UUID = asUuid("00000000-0000-4000-8000-000000000001");
 const USER_UUID = asUuid("00000000-0000-4000-8000-000000000002");
@@ -159,7 +159,7 @@ describe("IdentityRepository", () => {
 
     it("returns conflict on unique violation error code", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createIdentityRepository(executor);
 
@@ -262,7 +262,7 @@ describe("IdentityRepository", () => {
 
     it("returns conflict on duplicate provider+subject", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createIdentityRepository(executor);
 
@@ -426,7 +426,7 @@ describe("IdentityRepository", () => {
 
     it("returns conflict on duplicate token hash", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createIdentityRepository(executor);
 
@@ -509,7 +509,7 @@ describe("IdentityRepository", () => {
       await repo.getSessionWithUserByTokenHash("sha256-hashed-token");
 
       expect(queries[0]!.params).toEqual(["sha256-hashed-token"]);
-      expect(queries[0]!.text).toContain("JOIN identity.users");
+      expect(queries[0]!.text).toContain("JOIN identity_users");
       expect(queries[0]!.text).toContain("revoked_at IS NULL");
     });
 
@@ -580,7 +580,7 @@ describe("IdentityRepository", () => {
   describe("safe error handling", () => {
     it("never exposes raw SQL errors in repository outputs", async () => {
       const pgError = new Error(
-        'relation "identity.users" does not exist at character 15',
+        'relation "identity_users" does not exist at character 15',
       );
       const { executor } = createFakeExecutor({ error: pgError });
       const repo = createIdentityRepository(executor);
@@ -645,9 +645,8 @@ describe("IdentityRepository", () => {
 
       expect(exportKeys).toContain("createIdentityRepository");
       expect(exportKeys).not.toContain("runMigrations");
-      expect(exportKeys).not.toContain("PgAdapter");
-      expect(exportKeys).not.toContain("loadSecret");
-      expect(exportKeys).not.toContain("SupabaseApiAdapter");
+      expect(exportKeys).not.toContain("D1ApiAdapter");
+      expect(exportKeys).not.toContain("loadD1CredentialsFromEnv");
     });
   });
 
@@ -675,7 +674,7 @@ describe("IdentityRepository", () => {
       expect(queries).toHaveLength(1);
       expect(queries[0]!.text).toContain("$1");
       expect(queries[0]!.text).toContain("$13");
-      expect(queries[0]!.text).toContain("identity.security_events");
+      expect(queries[0]!.text).toContain("identity_security_events");
       expect(queries[0]!.params[0]).toBe("se-001");
       expect(queries[0]!.params[1]).toBe("login.completed");
       expect(queries[0]!.params[2]).toBe("success");
@@ -792,7 +791,7 @@ describe("IdentityRepository", () => {
 
     it("returns conflict on unique violation", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createIdentityRepository(executor);
 
@@ -1028,7 +1027,7 @@ describe("IdentityRepository", () => {
   };
 
   describe("createServicePrincipal", () => {
-    it("inserts into identity.service_principals with correct params", async () => {
+    it("inserts into identity_service_principals with correct params", async () => {
       const { executor, queries } = createFakeExecutor({ rows: [SAMPLE_SERVICE_PRINCIPAL_ROW] });
       const repo = createIdentityRepository(executor);
 
@@ -1049,7 +1048,7 @@ describe("IdentityRepository", () => {
         expect(result.value.displayName).toBe("CI Pipeline");
       }
       expect(queries.length).toBe(1);
-      expect(queries[0]!.text).toContain("identity.service_principals");
+      expect(queries[0]!.text).toContain("identity_service_principals");
       expect(queries[0]!.text).toContain("INSERT INTO");
     });
 
@@ -1092,7 +1091,7 @@ describe("IdentityRepository", () => {
     });
 
     it("handles unique violation", async () => {
-      const { executor } = createFakeExecutor({ error: { code: "23505" } });
+      const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
       const repo = createIdentityRepository(executor);
 
       const result = await repo.createServicePrincipal({
@@ -1174,7 +1173,7 @@ describe("IdentityRepository", () => {
   };
 
   describe("createApiKey", () => {
-    it("inserts into identity.api_keys with correct params", async () => {
+    it("inserts into identity_api_keys with correct params", async () => {
       const { executor, queries } = createFakeExecutor({ rows: [SAMPLE_API_KEY_ROW] });
       const repo = createIdentityRepository(executor);
 
@@ -1200,7 +1199,7 @@ describe("IdentityRepository", () => {
         expect(result.value.status).toBe("active");
       }
       expect(queries.length).toBe(1);
-      expect(queries[0]!.text).toContain("identity.api_keys");
+      expect(queries[0]!.text).toContain("identity_api_keys");
       expect(queries[0]!.text).toContain("key_hash");
       // CRITICAL: key_hash must NOT appear in RETURNING clause
       expect(queries[0]!.text.split("RETURNING")[1]).not.toContain("key_hash");

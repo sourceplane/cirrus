@@ -1,9 +1,9 @@
 // Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
 // Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
-// resolved from AWS Secrets Manager at deploy time (wire-live) or from the
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
 // committed wiring.fixture.json for offline dry-runs (wire-fixture).
 {
-  "name": "lumen-billing-worker",
+  "name": "cirrus-billing-worker",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.ts",
@@ -39,22 +39,23 @@
         "BILLING_PROVIDER": "polar",
         "POLAR_SERVER": "sandbox",
         "POLAR_PRODUCT_MAP": "{\"pro\":\"c3e33c12-1ec6-4843-aed1-10b21c6fcb4f\",\"business\":\"aefd7468-6f9f-4ebc-b373-31c852b9842a\"}",
-        "POLAR_SUCCESS_URL": "https://stage.lumen.app/"
+        "POLAR_SUCCESS_URL": "https://stage.cirrus.app/"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/stage:hyperdrive_id)@@"
+          "database_name": "cirrus-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-stage"
+          "service": "cirrus-membership-worker-stage"
         },
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-stage"
+          "service": "cirrus-policy-worker-stage"
         }
       ]
     },
@@ -65,22 +66,23 @@
         "BILLING_PROVIDER": "polar",
         "POLAR_SERVER": "production",
         "POLAR_PRODUCT_MAP": "{\"pro\":\"c711fc4c-74e2-47f5-991e-b940df833899\",\"business\":\"e2ba3e96-b97a-4348-82ef-87bcebad1d17\"}",
-        "POLAR_SUCCESS_URL": "https://prod.lumen.app/"
+        "POLAR_SUCCESS_URL": "https://prod.cirrus.app/"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/prod:hyperdrive_id)@@"
+          "database_name": "cirrus-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
         }
       ],
       "services": [
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-prod"
+          "service": "cirrus-membership-worker-prod"
         },
         {
           "binding": "POLICY_WORKER",
-          "service": "lumen-policy-worker-prod"
+          "service": "cirrus-policy-worker-prod"
         }
       ]
     }

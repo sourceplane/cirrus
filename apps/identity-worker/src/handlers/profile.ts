@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import type { IdentityRepository } from "@saas/db/identity";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createIdentityRepository } from "@saas/db/identity";
 import { createAuthService } from "../services/auth.js";
 import { successResponse, errorResponse, extractBearerToken, validationError, withTimings } from "../http.js";

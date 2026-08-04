@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { Lumen } from "../index.js";
+import { Cirrus } from "../index.js";
 import {
   ConflictError,
   ForbiddenError,
@@ -62,8 +62,8 @@ function errorResponse(code: string, status: number): Response {
 
 type FetchImpl = typeof fetch;
 
-function client(fetchImpl: FetchImpl): Lumen {
-  return new Lumen({ baseUrl: "https://api.test", fetch: fetchImpl });
+function client(fetchImpl: FetchImpl): Cirrus {
+  return new Cirrus({ baseUrl: "https://api.test", fetch: fetchImpl });
 }
 
 // ---------------------------------------------------------------------------

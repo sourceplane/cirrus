@@ -110,7 +110,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
   it("enqueues invitation.accepted with category invitation and lower-cased recipient", async () => {
     const recorder = makeRecorder();
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -151,7 +151,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
     const sequence: string[] = [];
     const recorder = makeRecorder(sequence);
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -180,7 +180,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
   it("never includes the raw invitation token in the enqueue payload", async () => {
     const recorder = makeRecorder();
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -208,7 +208,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
   it("templateData contains expected redaction-safe keys only", async () => {
     const recorder = makeRecorder();
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -245,7 +245,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
 
   it("returns 200 unchanged when enqueue fails (non_2xx) — best-effort contract", async () => {
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -277,7 +277,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
     // that intentionally — the regression we're guarding against is a
     // future change that adds a non-best-effort enqueue call.
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -306,7 +306,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
 
   it("returns 200 unchanged when NOTIFICATIONS_WORKER binding absent (no_binding short-circuit)", async () => {
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       // NOTIFICATIONS_WORKER intentionally absent.
     };
@@ -338,7 +338,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
   it("does NOT enqueue on validation failure (invalid token)", async () => {
     const recorder = makeRecorder();
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -364,7 +364,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
   it("does NOT enqueue on repo failure (e.g. expired/not_found)", async () => {
     const recorder = makeRecorder();
     const env: Env = {
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       NOTIFICATIONS_WORKER: {} as Fetcher,
     };
@@ -400,7 +400,7 @@ describe("accept-invitation → notifications-worker wire (Task 0089)", () => {
       return handleAcceptInvitation(
         makeRequest({ token: RAW_TOKEN }),
         {
-          PLATFORM_DB: {} as Hyperdrive,
+          PLATFORM_DB: {} as D1Database,
           ENVIRONMENT: "test",
           NOTIFICATIONS_WORKER: {} as Fetcher,
         } satisfies Env,

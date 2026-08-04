@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   BillingRepository,
   BillingResult,
@@ -28,6 +28,8 @@ import type {
   ListEntitlementsQuery,
   BillingSummary,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseBooleanColumn, parseNullableJsonColumn } from "../json.js";
 
 // ── Row mappers ────────────────────────────────────────────
 
@@ -49,7 +51,7 @@ function mapPlan(row: Record<string, unknown>): Plan {
     billingInterval: row.billing_interval as BillingInterval,
     priceAmountCents: row.price_amount_cents == null ? null : Number(row.price_amount_cents),
     priceCurrency: row.price_currency as string,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: toDate(row.created_at),
     updatedAt: toDate(row.updated_at),
   };
@@ -64,7 +66,7 @@ function mapBillingCustomer(row: Record<string, unknown>): BillingCustomer {
     status: row.status as BillingCustomerStatus,
     provider: (row.provider as string) ?? null,
     providerCustomerId: (row.provider_customer_id as string) ?? null,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: toDate(row.created_at),
     updatedAt: toDate(row.updated_at),
   };
@@ -84,7 +86,7 @@ function mapSubscription(row: Record<string, unknown>): Subscription {
     canceledAt: toDateOrNull(row.canceled_at),
     provider: (row.provider as string) ?? null,
     providerSubscriptionId: (row.provider_subscription_id as string) ?? null,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: toDate(row.created_at),
     updatedAt: toDate(row.updated_at),
   };
@@ -109,7 +111,7 @@ function mapInvoice(row: Record<string, unknown>): Invoice {
     provider: (row.provider as string) ?? null,
     providerInvoiceId: (row.provider_invoice_id as string) ?? null,
     hostedUrl: (row.hosted_url as string) ?? null,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: toDate(row.created_at),
     updatedAt: toDate(row.updated_at),
   };
@@ -122,10 +124,10 @@ function mapEntitlement(row: Record<string, unknown>): Entitlement {
     subscriptionId: (row.subscription_id as string) ?? null,
     entitlementKey: row.entitlement_key as string,
     valueType: row.value_type as EntitlementValueType,
-    enabled: row.enabled === true || row.enabled === "t" || row.enabled === "true",
+    enabled: parseBooleanColumn(row.enabled),
     limitValue: row.limit_value == null ? null : Number(row.limit_value),
     source: row.source as EntitlementSource,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: parseNullableJsonColumn<Record<string, unknown>>(row.metadata),
     createdAt: toDate(row.created_at),
     updatedAt: toDate(row.updated_at),
   };
@@ -137,14 +139,6 @@ function safeError(message: string): BillingResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 async function pagedList<T>(
   executor: SqlExecutor,
@@ -202,9 +196,9 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async createPlan(input: CreatePlanInput): Promise<BillingResult<Plan>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO billing.plans
+          `INSERT INTO billing_plans
              (id, code, name, description, status, billing_interval, price_amount_cents, price_currency, metadata, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (code) DO NOTHING
            RETURNING *`,
           [
@@ -234,7 +228,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async getPlan(id: string): Promise<BillingResult<Plan>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.plans WHERE id = $1`,
+          `SELECT * FROM billing_plans WHERE id = $1`,
           [id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -247,7 +241,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async getPlanByCode(code: string): Promise<BillingResult<Plan>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.plans WHERE code = $1`,
+          `SELECT * FROM billing_plans WHERE code = $1`,
           [code],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -267,7 +261,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
         }
         const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.plans ${where} ORDER BY code ASC`,
+          `SELECT * FROM billing_plans ${where} ORDER BY code ASC`,
           values,
         );
         return { ok: true, value: result.rows.map(mapPlan) };
@@ -282,9 +276,9 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<BillingCustomer>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO billing.billing_customers
+          `INSERT INTO billing_billing_customers
              (id, org_id, display_name, email, status, provider, provider_customer_id, metadata, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id) DO UPDATE SET
              display_name = EXCLUDED.display_name,
              email = EXCLUDED.email,
@@ -292,7 +286,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
              provider = EXCLUDED.provider,
              provider_customer_id = EXCLUDED.provider_customer_id,
              metadata = EXCLUDED.metadata,
-             updated_at = now()
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            RETURNING *`,
           [
             input.id,
@@ -314,7 +308,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async getBillingCustomer(orgId: string): Promise<BillingResult<BillingCustomer>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.billing_customers WHERE org_id = $1`,
+          `SELECT * FROM billing_billing_customers WHERE org_id = $1`,
           [orgId],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -330,11 +324,11 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<Subscription>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO billing.subscriptions
+          `INSERT INTO billing_subscriptions
              (id, org_id, billing_customer_id, plan_id, status,
               current_period_start, current_period_end, trial_end, cancel_at, canceled_at,
               provider, provider_subscription_id, metadata, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (id) DO NOTHING
            RETURNING *`,
           [
@@ -371,7 +365,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<Subscription>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.subscriptions WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM billing_subscriptions WHERE org_id = $1 AND id = $2`,
           [orgId, id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -384,7 +378,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async getActiveSubscription(orgId: string): Promise<BillingResult<Subscription>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.subscriptions
+          `SELECT * FROM billing_subscriptions
              WHERE org_id = $1 AND status IN ('trialing', 'active', 'past_due')
              ORDER BY created_at DESC
              LIMIT 1`,
@@ -403,7 +397,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<PagedResult<Subscription>>> {
       return pagedList(
         executor,
-        "SELECT * FROM billing.subscriptions WHERE org_id = $1",
+        "SELECT * FROM billing_subscriptions WHERE org_id = $1",
         [orgId],
         params.limit,
         params.cursor,
@@ -443,8 +437,8 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
           // Nothing to update — return current
           return this.getSubscription(orgId, id);
         }
-        sets.push(`updated_at = now()`);
-        const sql = `UPDATE billing.subscriptions SET ${sets.join(", ")}
+        sets.push(`updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`);
+        const sql = `UPDATE billing_subscriptions SET ${sets.join(", ")}
                      WHERE org_id = $1 AND id = $2 RETURNING *`;
         const result = await executor.execute<Record<string, unknown>>(sql, values);
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -458,13 +452,13 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async upsertInvoice(input: UpsertInvoiceInput): Promise<BillingResult<Invoice>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO billing.invoices
+          `INSERT INTO billing_invoices
              (id, org_id, billing_customer_id, subscription_id, number, status,
               amount_due_cents, amount_paid_cents, currency,
               issued_at, due_at, paid_at, period_start, period_end,
               provider, provider_invoice_id, hosted_url, metadata,
               created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (id) DO UPDATE SET
              status = EXCLUDED.status,
              amount_due_cents = EXCLUDED.amount_due_cents,
@@ -479,8 +473,8 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
              provider_invoice_id = EXCLUDED.provider_invoice_id,
              hosted_url = EXCLUDED.hosted_url,
              metadata = EXCLUDED.metadata,
-             updated_at = now()
-           WHERE billing.invoices.org_id = EXCLUDED.org_id
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+           WHERE billing_invoices.org_id = EXCLUDED.org_id
            RETURNING *`,
           [
             input.id,
@@ -519,7 +513,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     async getInvoice(orgId: string, id: string): Promise<BillingResult<Invoice>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.invoices WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM billing_invoices WHERE org_id = $1 AND id = $2`,
           [orgId, id],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -554,7 +548,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
       const where = conditions.join(" AND ");
       return pagedList(
         executor,
-        `SELECT * FROM billing.invoices WHERE ${where}`,
+        `SELECT * FROM billing_invoices WHERE ${where}`,
         values,
         params.limit,
         params.cursor,
@@ -568,10 +562,10 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<Entitlement>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO billing.entitlements
+          `INSERT INTO billing_entitlements
              (id, org_id, subscription_id, entitlement_key, value_type,
               enabled, limit_value, source, metadata, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id, entitlement_key) DO UPDATE SET
              subscription_id = EXCLUDED.subscription_id,
              value_type = EXCLUDED.value_type,
@@ -579,7 +573,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
              limit_value = EXCLUDED.limit_value,
              source = EXCLUDED.source,
              metadata = EXCLUDED.metadata,
-             updated_at = now()
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            RETURNING *`,
           [
             input.id,
@@ -605,7 +599,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
     ): Promise<BillingResult<Entitlement>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.entitlements WHERE org_id = $1 AND entitlement_key = $2`,
+          `SELECT * FROM billing_entitlements WHERE org_id = $1 AND entitlement_key = $2`,
           [orgId, entitlementKey],
         );
         if (result.rowCount === 0) return { ok: false, error: { kind: "not_found" } };
@@ -633,7 +627,7 @@ export function createBillingRepository(executor: SqlExecutor): BillingRepositor
           idx++;
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM billing.entitlements WHERE ${conditions.join(" AND ")}
+          `SELECT * FROM billing_entitlements WHERE ${conditions.join(" AND ")}
            ORDER BY entitlement_key ASC`,
           values,
         );

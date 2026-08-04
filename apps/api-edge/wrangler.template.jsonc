@@ -1,9 +1,9 @@
 // Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
 // Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
-// resolved from AWS Secrets Manager at deploy time (wire-live) or from the
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
 // committed wiring.fixture.json for offline dry-runs (wire-fixture).
 {
-  "name": "lumen-api-edge",
+  "name": "cirrus-api-edge",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/index.ts",
@@ -11,7 +11,7 @@
   "vars": {
     "ENVIRONMENT": "local",
     "CONSOLE_CUSTOM_DOMAIN": "",
-    // M0 / Solo profile (Lumen ships single-user). Set "false" to restore the
+    // M0 / Solo profile (Cirrus ships single-user). Set "false" to restore the
     // full multi-tenant baseline. See specs/profiles/solo-m0.md.
     "SOLO_MODE": "true"
   },
@@ -42,13 +42,14 @@
     "stage": {
       "vars": {
         "ENVIRONMENT": "stage",
-        "CONSOLE_CUSTOM_DOMAIN": "stage.lumen.app",
+        "CONSOLE_CUSTOM_DOMAIN": "stage.cirrus.app",
         "SOLO_MODE": "true"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/stage:hyperdrive_id)@@"
+          "database_name": "cirrus-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
         }
       ],
       "kv_namespaces": [
@@ -60,43 +61,43 @@
       "services": [
         {
           "binding": "IDENTITY_WORKER",
-          "service": "lumen-identity-worker-stage"
+          "service": "cirrus-identity-worker-stage"
         },
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-stage"
+          "service": "cirrus-membership-worker-stage"
         },
         {
           "binding": "PROJECTS_WORKER",
-          "service": "lumen-projects-worker-stage"
+          "service": "cirrus-projects-worker-stage"
         },
         {
           "binding": "EVENTS_WORKER",
-          "service": "lumen-events-worker-stage"
+          "service": "cirrus-events-worker-stage"
         },
         {
           "binding": "CONFIG_WORKER",
-          "service": "lumen-config-worker-stage"
+          "service": "cirrus-config-worker-stage"
         },
         {
           "binding": "WEBHOOKS_WORKER",
-          "service": "lumen-webhooks-worker-stage"
+          "service": "cirrus-webhooks-worker-stage"
         },
         {
           "binding": "METERING_WORKER",
-          "service": "lumen-metering-worker-stage"
+          "service": "cirrus-metering-worker-stage"
         },
         {
           "binding": "BILLING_WORKER",
-          "service": "lumen-billing-worker-stage"
+          "service": "cirrus-billing-worker-stage"
         },
         {
           "binding": "NOTIFICATIONS_WORKER",
-          "service": "lumen-notifications-worker-stage"
+          "service": "cirrus-notifications-worker-stage"
         },
         {
           "binding": "INTEGRATIONS_WORKER",
-          "service": "lumen-integrations-worker-stage"
+          "service": "cirrus-integrations-worker-stage"
         }
       ],
       "durable_objects": {
@@ -111,13 +112,14 @@
     "prod": {
       "vars": {
         "ENVIRONMENT": "prod",
-        "CONSOLE_CUSTOM_DOMAIN": "prod.lumen.app",
+        "CONSOLE_CUSTOM_DOMAIN": "prod.cirrus.app",
         "SOLO_MODE": "true"
       },
-      "hyperdrive": [
+      "d1_databases": [
         {
           "binding": "PLATFORM_DB",
-          "id": "@@wiring(cloudflare-hyperdrive/prod:hyperdrive_id)@@"
+          "database_name": "cirrus-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
         }
       ],
       "kv_namespaces": [
@@ -129,43 +131,43 @@
       "services": [
         {
           "binding": "IDENTITY_WORKER",
-          "service": "lumen-identity-worker-prod"
+          "service": "cirrus-identity-worker-prod"
         },
         {
           "binding": "MEMBERSHIP_WORKER",
-          "service": "lumen-membership-worker-prod"
+          "service": "cirrus-membership-worker-prod"
         },
         {
           "binding": "PROJECTS_WORKER",
-          "service": "lumen-projects-worker-prod"
+          "service": "cirrus-projects-worker-prod"
         },
         {
           "binding": "EVENTS_WORKER",
-          "service": "lumen-events-worker-prod"
+          "service": "cirrus-events-worker-prod"
         },
         {
           "binding": "CONFIG_WORKER",
-          "service": "lumen-config-worker-prod"
+          "service": "cirrus-config-worker-prod"
         },
         {
           "binding": "WEBHOOKS_WORKER",
-          "service": "lumen-webhooks-worker-prod"
+          "service": "cirrus-webhooks-worker-prod"
         },
         {
           "binding": "METERING_WORKER",
-          "service": "lumen-metering-worker-prod"
+          "service": "cirrus-metering-worker-prod"
         },
         {
           "binding": "BILLING_WORKER",
-          "service": "lumen-billing-worker-prod"
+          "service": "cirrus-billing-worker-prod"
         },
         {
           "binding": "NOTIFICATIONS_WORKER",
-          "service": "lumen-notifications-worker-prod"
+          "service": "cirrus-notifications-worker-prod"
         },
         {
           "binding": "INTEGRATIONS_WORKER",
-          "service": "lumen-integrations-worker-prod"
+          "service": "cirrus-integrations-worker-prod"
         }
       ],
       "durable_objects": {

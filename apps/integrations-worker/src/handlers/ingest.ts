@@ -11,9 +11,9 @@
 //     redeliveries are acknowledged no-ops
 
 import type { Env } from "../env.js";
-import type { SqlExecutor } from "@saas/db/hyperdrive";
+import type { SqlExecutor } from "@saas/db/d1";
 import { createIntegrationsRepository } from "@saas/db/integrations";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { errorResponse, successResponse } from "../http.js";
 import { generateUuid } from "../ids.js";
 import { getConfiguredProvider } from "../providers/registry.js";

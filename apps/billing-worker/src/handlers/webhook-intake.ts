@@ -1,5 +1,5 @@
 import type { Env } from "../env.js";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createBillingRepository } from "@saas/db/billing";
 import { createEventsRepository } from "@saas/db/events";
 import { successResponse, errorResponse } from "../http.js";

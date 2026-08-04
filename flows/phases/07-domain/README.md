@@ -34,14 +34,39 @@ environment).
 ## Verify / done means
 
 The convergence run is green. Then check the product resolves on its own
-domain (DNS propagation applies).
+domain (DNS propagation applies). Re-run
+[phase 08](../08-docs/README.md) afterwards so the deployment manifest
+records the custom-domain URLs.
 
 ## Troubleshooting
 
 - **Plan fails: zone not found** — the zone does not exist in this
   Cloudflare account yet, or the brokered token's account differs from the
   zone's account. Create the zone, re-run.
-- **Express-flow users**: in the single-run path this component ships
-  PARKED for exactly this reason; un-parking it there
-  (`node flows/common/park.mjs unpark cloudflare-domain`) is the
-  equivalent of running this phase.
+
+## Example commands
+
+From the baseline checkout (local mode):
+
+```bash
+orun workflow run flows/phases/07-domain/workflow.yaml \
+  --set out=$HOME/sourceplane/acme --set workspace=ws_ABCD1234
+```
+
+Headless (fresh container / no checkout — see BOOTSTRAP.md §3c): same
+command by remote reference, with `ORUN_TOKEN` + `GITHUB_TOKEN` exported
+and `--set repo=<owner/name>` instead of `out`:
+
+```bash
+export ORUN_TOKEN="$(orun auth token | tail -1)" GITHUB_TOKEN=…
+orun workflow run github:sourceplane/cirrus@main//flows/phases/07-domain/workflow.yaml \
+  --set workspace=ws_ABCD1234 --set repo=sourceplane/acme
+```
+
+Preview with zero side effects (either mode): append `--set dryrun=true` —
+the blueprint is applied, shown, and reverted; nothing is pushed or
+deployed. Re-running a completed phase is always safe (idempotent): the
+apply is a no-op, the landing finds nothing, and verify re-asserts.
+
+Run ONLY after the product zone (e.g. `acme.dev`) exists in the Cloudflare
+account — the apply fails at plan without it.

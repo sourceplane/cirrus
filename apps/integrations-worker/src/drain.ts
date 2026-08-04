@@ -18,7 +18,7 @@ import {
   type IntegrationsRepository,
 } from "@saas/db/integrations";
 import { createEventsRepository, type EventsRepository } from "@saas/db/events";
-import type { SqlExecutor } from "@saas/db/hyperdrive";
+import type { SqlExecutor } from "@saas/db/d1";
 import { asUuid } from "@saas/db/ids";
 import { generateUuid, inboundDeliveryPublicId, orgPublicId, projectPublicId } from "./ids.js";
 import {
