@@ -18,12 +18,12 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://lumen/lumen/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://lumen/lumen/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
 
   optionalSecretEnv:
-    POLAR_ACCESS_TOKEN: "secret://lumen/lumen/{{ .environment }}/POLAR_ACCESS_TOKEN"
-    POLAR_WEBHOOK_SECRET: "secret://lumen/lumen/{{ .environment }}/POLAR_WEBHOOK_SECRET"
+    POLAR_ACCESS_TOKEN: "secret://cirrus/cirrus/{{ .environment }}/POLAR_ACCESS_TOKEN"
+    POLAR_WEBHOOK_SECRET: "secret://cirrus/cirrus/{{ .environment }}/POLAR_WEBHOOK_SECRET"
 
   subscribe:
     environments:
@@ -51,7 +51,7 @@ spec:
     # resolve real IDs from the Secrets Manager wiring manifest (BF5).
     orgName: sourceplane
     owner: sourceplane
-    repo: lumen
+    repo: cirrus
 
     # Runtime worker secrets, pushed by the secrets-live step from the
     # values orun resolves for the optionalSecretEnv references below.

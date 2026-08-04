@@ -36,7 +36,7 @@ inputs:
       orun workflow run flows/bootstrap-flow.yaml --set org=<slug> --set dryrun=true
   workspace:
     type: string
-    default: "lumen"
+    default: "cirrus"
     description: >-
       Workspace id (ws_…) or slug the secrets and runs resolve against. A
       fork MUST pass its own workspace (--set workspace=<ws-id>); the
@@ -199,10 +199,10 @@ steps:
         set -e
         ok=0; fail=0
         for url in \
-          https://lumen-api-edge-stage.rahulvarghesepullely.workers.dev/health \
-          https://lumen-api-edge-prod.rahulvarghesepullely.workers.dev/health \
-          https://lumen-web-console-next-stage.rahulvarghesepullely.workers.dev \
-          https://lumen-web-console-next-prod.rahulvarghesepullely.workers.dev; do
+          https://cirrus-api-edge-stage.rahulvarghesepullely.workers.dev/health \
+          https://cirrus-api-edge-prod.rahulvarghesepullely.workers.dev/health \
+          https://cirrus-web-console-next-stage.rahulvarghesepullely.workers.dev \
+          https://cirrus-web-console-next-prod.rahulvarghesepullely.workers.dev; do
           code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo 000)"
           if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
             echo "✓ $url → $code"; ok=$((ok+1))

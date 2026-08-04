@@ -1,4 +1,4 @@
-// `lumen login` — token-paste auth flow.
+// `cirrus login` — token-paste auth flow.
 //
 // Rationale (recorded in the implementer report's auth-flow choice):
 //   The api-edge currently exposes `/v1/auth/login/{start,complete}` for
@@ -13,7 +13,7 @@
 //   When the CLI later gains a device-flow endpoint, switching is a
 //   one-line dispatch in this file.
 
-import { Lumen } from "@saas/sdk";
+import { Cirrus } from "@saas/sdk";
 
 import type { OutputMode } from "../output/index.js";
 import { formatOutput } from "../output/index.js";
@@ -30,7 +30,7 @@ export interface LoginInput {
   readonly readToken: () => Promise<string>;
   readonly stdout: (line: string) => void;
   /** SDK factory override (tests). */
-  readonly sdkFactory?: (baseUrl: string, token: string) => Lumen;
+  readonly sdkFactory?: (baseUrl: string, token: string) => Cirrus;
 }
 
 export interface LoginOutcome {
@@ -61,7 +61,7 @@ export async function loginFlow(input: LoginInput): Promise<LoginOutcome> {
   // friendly "token rejected" message.
   const client =
     input.sdkFactory?.(apiUrl, token) ??
-    new Lumen({ baseUrl: apiUrl, auth: { kind: "bearer", token } });
+    new Cirrus({ baseUrl: apiUrl, auth: { kind: "bearer", token } });
   const result = await client.organizations.list();
   const orgCount = result.organizations.length;
 

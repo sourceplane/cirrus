@@ -1,4 +1,4 @@
-// `lumen webhook deliveries replay <attemptId> [--output=human|json]`
+// `cirrus webhook deliveries replay <attemptId> [--output=human|json]`
 //   — Task 0126, milestone B5-webhook-delivery-replay.
 //
 // The CLI leg of manual webhook delivery replay. Re-sends the SAME event to the
@@ -78,7 +78,7 @@ export async function webhookDeliveriesReplayCommand(
   const attemptId = ctx.args[0];
   if (attemptId === undefined || attemptId.length === 0) {
     throw new UsageError(
-      "usage: lumen webhook deliveries replay <attemptId> [--output=human|json]",
+      "usage: cirrus webhook deliveries replay <attemptId> [--output=human|json]",
     );
   }
 

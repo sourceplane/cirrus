@@ -45,7 +45,7 @@ variable "owner" {
 
 variable "repo" {
   type    = string
-  default = "lumen"
+  default = "cirrus"
 }
 
 variable "namespace" {
@@ -113,7 +113,7 @@ locals {
   database_name = "postgres"
   database_user = "postgres"
 
-  hyperdrive_name = "${var.namespacePrefix}lumen-${var.environment}"
+  hyperdrive_name = "${var.namespacePrefix}cirrus-${var.environment}"
 }
 
 # --- Create Hyperdrive resource ---

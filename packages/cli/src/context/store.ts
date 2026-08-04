@@ -1,4 +1,4 @@
-// Active CLI context — `~/.config/lumen/config.json`.
+// Active CLI context — `~/.config/cirrus/config.json`.
 //
 // Records the active org id and the last-used api-url. Mode 0644 (it's not
 // a secret). `org list` prints the active marker; `org use <id>` writes

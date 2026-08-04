@@ -2,7 +2,7 @@ apiVersion: sourceplane.io/v1
 kind: Intent
 
 metadata:
-  name: lumen
+  name: cirrus
   description: Reusable Cloudflare and Supabase multi-tenant SaaS starter
   namespace: sourceplane
 
@@ -92,12 +92,12 @@ environments:
         namespace: sourceplane
         namespacePrefix: dev-
         owner: sourceplane
-        repo: lumen
+        repo: cirrus
         CONSOLE_CUSTOM_DOMAIN: ""
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app
 
   stage:
     activation:
@@ -110,12 +110,12 @@ environments:
         namespace: sourceplane
         namespacePrefix: stg-
         owner: sourceplane
-        repo: lumen
-        CONSOLE_CUSTOM_DOMAIN: stage.lumen.app
+        repo: cirrus
+        CONSOLE_CUSTOM_DOMAIN: stage.cirrus.app
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app
 
   prod:
     activation:
@@ -131,9 +131,9 @@ environments:
         namespace: sourceplane
         namespacePrefix: prod-
         owner: sourceplane
-        repo: lumen
-        CONSOLE_CUSTOM_DOMAIN: prod.lumen.app
+        repo: cirrus
+        CONSOLE_CUSTOM_DOMAIN: prod.cirrus.app
     policies:
       requireApproval: "false"
     env:
-      BASE_DOMAIN: lumen.app
+      BASE_DOMAIN: cirrus.app

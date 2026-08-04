@@ -34,7 +34,7 @@ big-bang generator bolted on top.
 ## Thesis
 
 The platform is production-grade but **instance-bound**: identity values
-(`lumen`, `lumen.app`, the workers.dev subdomain), resource IDs
+(`cirrus`, `cirrus.app`, the workers.dev subdomain), resource IDs
 (Hyperdrive, KV), the Supabase org, and the AWS account are hardcoded across
 `wrangler.jsonc` files, source constants, Terraform, and even Stack Tectonic
 job templates. Terraform *creates* Hyperdrive/KV resources but nothing injects

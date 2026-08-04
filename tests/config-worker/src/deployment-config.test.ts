@@ -177,18 +177,18 @@ const HAS_API_EDGE = fs.existsSync(path.join(ROOT, "apps", "api-edge", "componen
     env: Record<string, { services?: Array<{ binding: string; service: string }> }>;
   };
 
-  test("stage binds CONFIG_WORKER to lumen-config-worker-stage", () => {
+  test("stage binds CONFIG_WORKER to cirrus-config-worker-stage", () => {
     const svc = rendered.env.stage?.services ?? [];
     const cw = svc.find((s) => s.binding === "CONFIG_WORKER");
     expect(cw).toBeDefined();
-    expect(cw!.service).toBe("lumen-config-worker-stage");
+    expect(cw!.service).toBe("cirrus-config-worker-stage");
   });
 
-  test("prod binds CONFIG_WORKER to lumen-config-worker-prod", () => {
+  test("prod binds CONFIG_WORKER to cirrus-config-worker-prod", () => {
     const svc = rendered.env.prod?.services ?? [];
     const cw = svc.find((s) => s.binding === "CONFIG_WORKER");
     expect(cw).toBeDefined();
-    expect(cw!.service).toBe("lumen-config-worker-prod");
+    expect(cw!.service).toBe("cirrus-config-worker-prod");
   });
 });
 

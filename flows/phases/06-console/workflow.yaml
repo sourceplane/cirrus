@@ -7,7 +7,7 @@ metadata:
 # Run from the baseline checkout (local mode: --set out=<product-path>), or
 # from ANYWHERE — a fresh container included — by remote ref (headless mode:
 # --set repo=<owner/name>; needs GITHUB_TOKEN + ORUN_TOKEN in the env):
-#   orun workflow run github:sourceplane/lumen@<ref>//flows/phases/06-console/workflow.yaml \
+#   orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/06-console/workflow.yaml \
 #     --set workspace=<ws-id> --set repo=<owner/name>
 # The baseline content is fetched at the SAME commit the flow came from
 # (ORUN_FLOW_SOURCE_SHA), so one remote reference pins everything.
@@ -48,7 +48,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"
@@ -79,7 +79,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"
@@ -109,7 +109,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"
@@ -140,7 +140,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"
@@ -172,7 +172,7 @@ steps:
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
           if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/lumen}"
+            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
             bref="{{ inputs.baselineref }}"
             [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
             echo "fetching baseline $brepo@$bref"

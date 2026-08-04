@@ -1,12 +1,12 @@
-// `lumen webhook verify` — local cryptographic verification of a
-// Lumen outbound webhook delivery (Task 0106).
+// `cirrus webhook verify` — local cryptographic verification of a
+// Cirrus outbound webhook delivery (Task 0106).
 //
 // This command is a thin shell around `@saas/webhook-verifier` (Task 0105).
 // It deliberately:
 //   - does NOT call the api-edge, the SDK, or any network. It is pure
 //     local crypto.
 //   - does NOT require auth, an active org, or a context store. The
-//     command is usable on a fresh install with no `lumen login`.
+//     command is usable on a fresh install with no `cirrus login`.
 //   - does NOT JSON-parse or `.trim()` the body. The verifier hashes the
 //     bytes verbatim; any reshape would break valid signatures.
 //

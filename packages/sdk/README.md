@@ -1,11 +1,11 @@
 # `@saas/sdk`
 
-Lumen TypeScript SDK — typed, dependency-free, runtime-agnostic client
-for the Lumen control plane API.
+Cirrus TypeScript SDK — typed, dependency-free, runtime-agnostic client
+for the Cirrus control plane API.
 
 ## Install (workspace)
 
-This package is internal to the `lumen` monorepo. Add it as a
+This package is internal to the `cirrus` monorepo. Add it as a
 workspace dependency:
 
 ```jsonc
@@ -22,11 +22,11 @@ Then `pnpm install` from the repo root.
 ## Getting started
 
 ```ts
-import { Lumen } from "@saas/sdk";
+import { Cirrus } from "@saas/sdk";
 
-const client = new Lumen({
-  baseUrl: "https://api.lumen.app",
-  auth: { kind: "bearer", token: process.env["LUMEN_TOKEN"]! },
+const client = new Cirrus({
+  baseUrl: "https://api.cirrus.app",
+  auth: { kind: "bearer", token: process.env["CIRRUS_TOKEN"]! },
 });
 
 const { organizations } = await client.organizations.list();
@@ -54,14 +54,14 @@ replay store guarantees no double-create.
 
 ## Error handling
 
-All non-2xx responses throw a typed subclass of `LumenError`. Branch on
+All non-2xx responses throw a typed subclass of `CirrusError`. Branch on
 the class (or on `error.code`):
 
 ```ts
 import {
   RateLimitError,
   ValidationError,
-  Lumen,
+  Cirrus,
 } from "@saas/sdk";
 
 try {
@@ -93,10 +93,10 @@ The full hierarchy:
 | `ValidationError`           | `validation_failed`   | 422            |
 | `RateLimitError`            | `rate_limited`        | 429            |
 | `InternalError`             | `internal_error`      | 500+           |
-| `LumenError` (base)   | _any_                 | _any_          |
+| `CirrusError` (base)   | _any_                 | _any_          |
 
 Unknown error codes (forward-compatible — e.g. a future `quota_exceeded`)
-decode to the base `LumenError` carrying the raw envelope. Non-JSON 5xx
+decode to the base `CirrusError` carrying the raw envelope. Non-JSON 5xx
 responses (gateway HTML, empty body) decode to `InternalError` with
 `message: "HTTP <status>"`.
 
@@ -122,7 +122,7 @@ The SDK is runtime-agnostic. The same source runs on:
 | Cloudflare Workers   | ✅ Tier 1  | No `node:*` imports; pure Web Platform.                 |
 | Bun                  | ✅ Tier 1  | Native `fetch` + Web Crypto.                            |
 
-A custom `fetch` implementation can be injected via `new Lumen({ fetch })`.
+A custom `fetch` implementation can be injected via `new Cirrus({ fetch })`.
 This is mostly useful for tests; production callers should rely on the platform
 global.
 

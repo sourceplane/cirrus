@@ -1,4 +1,4 @@
-// `lumen security events [--limit=N] [--cursor=CURSOR] [--all]`
+// `cirrus security events [--limit=N] [--cursor=CURSOR] [--all]`
 //   [--output=human|json] — Task 0122, milestone B7-security-events-surfaces.
 //
 // The CLI leg of the account security-events observability surface. Symmetric

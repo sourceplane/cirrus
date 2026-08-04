@@ -1,4 +1,4 @@
-// Tests for PX3 — `lumen notifications preferences [set]`.
+// Tests for PX3 — `cirrus notifications preferences [set]`.
 //
 // Same fake-SDK injection harness as security-events.test.ts: the commands
 // are thin adapters over `sdk.notifications.getPreferences/updatePreferences`
@@ -15,7 +15,7 @@ import * as path from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { Lumen, NotificationPreference } from "@saas/sdk";
+import type { Cirrus, NotificationPreference } from "@saas/sdk";
 
 import { runCli } from "../cli-runner.js";
 import { ContextStore } from "../context/store.js";
@@ -67,7 +67,7 @@ async function withHarness(
     const fakeSdk = {
       notifications: { getPreferences, updatePreferences },
       auth: { getProfile },
-    } as unknown as Lumen;
+    } as unknown as Cirrus;
 
     const runArgv = (argv: string[]): Promise<{ exitCode: number }> =>
       runCli(argv, {
