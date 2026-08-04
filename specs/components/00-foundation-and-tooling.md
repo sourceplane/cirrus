@@ -30,8 +30,8 @@ Bootstrap a production-grade Cloudflare monorepo that all later SaaS starter bou
 - linting, formatting, testing, and typechecking setup
 - Worker and Pages app scaffolds
 - shared environment typing
-- Supabase Postgres and Hyperdrive adapter conventions
-- Terraform provisioning for Supabase, Hyperdrive, Worker infra, AWS Secrets Manager secrets, and the S3 backend baseline
+- Cloudflare D1 adapter conventions
+- Terraform provisioning for D1, KV, and Worker infrastructure
 - local development scripts
 - Orun and Stack Tectonic CI/deploy pipeline skeleton
 - root `intent.yaml`, `kiox.yaml`, committed `kiox.lock`, and a pinned `stack-tectonic` OCI composition source
@@ -81,17 +81,16 @@ Bootstrap a production-grade Cloudflare monorepo that all later SaaS starter bou
 ### Environment Management
 
 - Typed env bindings for Workers.
-- Typed Hyperdrive bindings for Workers that need the primary Supabase Postgres database.
+- Typed D1 bindings for Workers that need the primary Cloudflare D1 database.
 - Clear separation between local, preview, and production configuration.
 - Local, preview, and production database targets must be selected through environment configuration, not hardcoded connection strings.
 - Secrets must be referenced through Wrangler and Secrets Store conventions, not `.env` files committed to git.
 
 ### Infrastructure Provisioning
 
-- Terraform provisions the target Supabase database/project and Cloudflare runtime resources through Orun jobs.
-- The current Supabase provisioning target is `stage` and `prod` only, under
-  Supabase organization `cirrus` (`dwazxcrywsdbxpuouifa`), with one
-  separate project/database per environment. `dev` is intentionally deferred.
+- Terraform provisions the target D1 database and Cloudflare runtime resources through Orun jobs.
+- The current provisioning target is `stage` and `prod` only, with one
+  separate D1 database per environment. `dev` is database-less by design.
 - Terraform state uses AWS S3 backend buckets `sourceplane-<env>` with native S3 locking, matching `aws-admin`.
 - Infra provisioning is exposed as Orun components under `infra/terraform`.
 - AWS IAM roles, S3 state buckets, and the multi-tenant SaaS repo permissions are created in `aws-admin`.
@@ -131,7 +130,7 @@ kiox -- orun run --plan plan.json --dry-run --runner github-actions
 - GitHub Actions uses the same Orun plan/run model and executes at least one test component.
 - A test-only change produces a test component job in the Orun matrix.
 - Infra changes run Terraform plan/apply through Orun with S3-backed state.
-- Supabase database creation, secret writes, and Cloudflare/Hyperdrive wiring are verified against live provider state when they are in task scope.
+- D1 database creation, secret writes, and Cloudflare/D1 wiring are verified against live provider state when they are in task scope.
 
 ## Extraction Seam
 

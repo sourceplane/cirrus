@@ -30,7 +30,7 @@ prj="${2:?project public id (prj_…)}"
 token="${3:?orun access token (backend password)}"
 backend="${ORUN_BACKEND_URL:-https://api-edge-prod.oruncloud.workers.dev}"
 
-COMPONENTS=(supabase cloudflare-kv cloudflare-hyperdrive cloudflare-domain)
+COMPONENTS=(cloudflare-d1 cloudflare-kv cloudflare-domain)
 ENVS=(stage prod)
 
 repo_root="$(git rev-parse --show-toplevel)"

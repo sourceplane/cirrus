@@ -36,7 +36,7 @@ Provide the single public HTTP entry point for the SaaS starter. The edge Worker
 
 ## Out Of Scope
 
-- direct writes to domain Supabase Postgres schemas or any other domain-owned database tables
+- direct writes to domain Cloudflare D1 schemas or any other domain-owned database tables
 - independent authorization policy decisions
 - domain-specific persistence logic
 

@@ -31,7 +31,7 @@ execution contracts; Orun compiles those inputs into an explicit plan DAG.
 | Intent | environments, discovery roots, composition sources, defaults, policies, triggers | long shell scripts or provider-specific execution logic |
 | Component | name, domain, path, subscriptions, parameters, labels, dependencies | copied job templates or per-env imperative branching |
 | Composition | schemas, jobs, profiles, step ordering, runtime contract | app-specific desired state |
-| CI workflow | checkout, install Orun, compile one plan, fan out `orun run` jobs | direct app, Terraform, Wrangler, Supabase, or AWS apply logic |
+| CI workflow | checkout, install Orun, compile one plan, fan out `orun run` jobs | direct app, Terraform, or Wrangler apply logic |
 
 ## Golden Path Repo Shape
 

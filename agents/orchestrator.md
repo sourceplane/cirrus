@@ -114,25 +114,24 @@ Operational access assumptions:
 - They may assume authenticated AWS access only through the repo-scoped IAM
   roles created by `aws-admin`, unless a task explicitly says it is migrating a
   temporary compatibility credential.
-- They may assume authenticated `wrangler` and Supabase access only for
+- They may assume authenticated `wrangler` access only for
   resources in task scope.
 - GitHub Actions must use the `aws-admin`-managed role path for AWS S3 backend
   and AWS Secrets Manager access.
-- All Cloudflare, Supabase, AWS secret, and Terraform backend resources must be
+- All Cloudflare and Terraform backend resources must be
   created programmatically through Orun jobs in CI.
-- Terraform owns Supabase project/database creation, database password
-  generation, AWS Secrets Manager writes, Cloudflare Hyperdrive, Worker
+- Terraform owns Cloudflare D1 database creation, KV namespaces, Worker
   bindings, and infrastructure config.
 - Terraform state must use the shared AWS S3 buckets named `sourceplane-<env>`
   with the same backend pattern as `aws-admin`.
 - Generated database credentials and connection details must be stored under
   `<org>/<repo>/<component>/<env>` in AWS Secrets Manager.
-- Whenever a task creates or updates a Cloudflare, Supabase, AWS IAM, S3, or
+- Whenever a task creates or updates a Cloudflare, AWS IAM, S3, or
   Secrets Manager resource, the Implementer must verify the resource after
   creation and record non-secret observed state in the report. The Verifier must
   independently inspect resource state instead of relying only on command exit
   status or CI summaries.
-- When credential scope, AWS role ARN, Supabase account/project, Cloudflare
+- When credential scope, AWS role ARN, Cloudflare
   account, GitHub repository target, environment target, or Stack Tectonic
   composition naming is unclear, ask the user instead of guessing.
 
@@ -323,7 +322,7 @@ Rules:
 
 ```json
 {
-  "goal": "Supabase/Postgres-backed multi-organization Orun SaaS control plane",
+  "goal": "Cloudflare-only multi-organization Orun SaaS control plane (Workers + D1 + KV)",
   "current_task": 21,
   "completed": [1, 2, 3],
   "repo_health": "yellow",
@@ -460,7 +459,7 @@ Verifier Merge Protocol:
 - Run `kiox -- orun validate --intent intent.yaml` when `intent.yaml` exists
 - Run `kiox -- orun plan --changed --intent intent.yaml --output plan.json` when Orun is scaffolded
 - Run `kiox -- orun run --plan plan.json --dry-run --runner github-actions` when a plan is produced; if no jobs are planned, record the no-op result
-- When a task creates or updates Cloudflare, Supabase, AWS IAM, S3, or Secrets Manager resources, verify the resulting resources directly with provider CLIs/APIs, Terraform state, or GitHub Actions logs and include non-secret observed resource state in the verifier report
+- When a task creates or updates Cloudflare, AWS IAM, S3, or Secrets Manager resources, verify the resulting resources directly with provider CLIs/APIs, Terraform state, or GitHub Actions logs and include non-secret observed resource state in the verifier report
 - Check PR CI logs with `gh`, including successful jobs, to confirm expected commands actually ran
 - Verify PR CI logs show `orun plan --changed --intent intent.yaml --output plan.json` and `orun run --plan plan.json --runner github-actions --remote-state` when applicable
 - If verification adds a report or small verification-only fix, commit it to the PR branch, push, and wait for CI again
@@ -557,7 +556,7 @@ The implementer owns migration structure, naming, and internal module layout
 inside `packages/db`; record non-obvious decisions with one-line rationale.
 Acceptance:
 Postgres migrations checked in.
-Supabase provisioning assumptions use AWS-admin-provided repo roles, S3
+Database provisioning assumptions use AWS-admin-provided repo roles, S3
 Terraform state, AWS Secrets Manager, and Orun Terraform component contracts.
 DB package typechecks.
 Core schema test or migration smoke exists.
@@ -688,7 +687,7 @@ mentally compare its output against before reporting complete.
 - **Resend / Postmark** — transactional email developer ergonomics.
 - **GitHub / Linear** — keyboard-first ergonomics, Cmd-K registry.
 - **Cloudflare Workers** — cold-start sensitivity, edge-bound state model.
-- **Supabase Studio** — admin/data UX where the user is technical.
+- **Cloudflare dashboard (D1 console)** — admin/data UX where the user is technical.
 
 Naming a bar is shorter and more actionable than enumerating individual
 properties. The implementer is expected to know what the bar means; if it

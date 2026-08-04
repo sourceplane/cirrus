@@ -20,8 +20,8 @@ Platform dependencies:
 - Workflows as the default durable orchestration mechanism
 - Durable Objects for per-resource locking and strong coordination where needed
 - Queues for async triggers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for deployment metadata
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for deployment metadata
 - R2 for artifacts if required by component handlers
 
 ## Intent

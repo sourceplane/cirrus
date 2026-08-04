@@ -1,42 +1,70 @@
 # cirrus
 
-Reusable Cloudflare + Supabase multi-tenant SaaS starter, built as an
+Reusable **Cloudflare-only** multi-tenant SaaS starter, built as an
 [Orun](https://opencode.ai/docs) component-native desired-state repo. Identity,
 organizations, projects, RBAC, audit, metering, billing, webhooks, and
 notifications ship as separate bounded-context Cloudflare Workers behind a single
-public edge API, with a Next.js console on Workers + Static Assets.
+public edge API, with a Next.js console on Workers + Static Assets — and
+Cloudflare D1 as the database, so Cloudflare is the only provider in the loop.
+
+## Live deployment
+
+<!-- 08-docs:begin -->
+_Not yet recorded — run [`flows/phases/08-docs`](flows/phases/08-docs/README.md)
+after phase 06 to fill this section from verified live state
+([manifest](ai/context/deployment.md) · [operating contract](ai/context/operations.md))._
+<!-- 08-docs:end -->
 
 ## Status
 
 - **Runtime is live, per environment, through Orun.** The edge API, the
   bounded-context Workers, and the console deploy to `stage` and `prod` via
   `orun run` (no direct Wrangler/Terraform/pnpm in CI).
-- **Data plane is provisioned by Terraform:** Supabase `stage` and `prod`
-  projects, Cloudflare Hyperdrive (pooled Postgres for Workers), and the
-  `api-edge` idempotency KV namespace, with credentials in AWS Secrets Manager.
-- **Database migrations** run through the `db-migrate` component (plan on PRs,
-  apply on merge to `main`).
+- **Data plane is provisioned by Terraform:** a Cloudflare D1 database per
+  environment and the `api-edge` idempotency KV namespace. Terraform state
+  lives in the Orun Cloud HTTP state backend; provider credentials are
+  BROKERED per-run from the workspace's Cloudflare connection (no AWS, no
+  long-lived secrets at rest).
+- **Database migrations** run through the `db-migrate` component against D1's
+  REST API (plan on PRs, apply on merge to `main`).
 - **Billing** is live end-to-end via the Polar adapter (embedded checkout,
   plan changes, multi-org fan-out).
-- **Known credential-blocked tails** (see `specs/epics/saas-baseline/`): full
-  production OAuth/magic-link auth and Stripe require human-supplied
-  credentials. The notifications email provider is Cloudflare Email Service
-  (`cloudflare-email`, no API key — the `send_email` binding is the
-  credential); it needs one-time account setup: Workers Paid plan and the
-  sending domain verified in Email Service (DKIM/SPF).
-- The `dev` environment is verify-only (no provisioned Supabase project by
-  design).
+- **Known credential-blocked tails**: full production OAuth/magic-link auth
+  and Stripe require human-supplied credentials. The notifications email
+  provider is Cloudflare Email Service (`cloudflare-email`, no API key — the
+  `send_email` binding is the credential); it needs one-time account setup:
+  Workers Paid plan and the sending domain verified in Email Service
+  (DKIM/SPF).
+- The `dev` environment is verify-only (no provisioned database by design).
 
-## Forking / rebranding
+## Why Cloudflare-only
 
-This baseline is built to be instantiated as new products. The mechanical
-rename (repo slug, product name/domain, SDK class, CLI bin, worker prefixes,
-user agents, workers.dev subdomain) is one script —
-`node tooling/rebrand/rebrand.mjs --values my-brand.json` — and everything
-that needs human hands is a checklist. Forks can also grow **a few
-components at a time**: `tooling/fork/components.mjs` orders and validates
-per-component copies against the full prerequisite graph (and keeps
-`pnpm-lock.yaml` in sync). See **[FORKING.md](FORKING.md)**.
+One provider means one consent, one token, and one place to look when
+something breaks. The cost is D1's shape, and this baseline is explicit about
+it rather than quiet:
+
+- **No interactive transactions.** D1 offers atomic `batch()` for a statement
+  list decided up front, not a transaction held open across reads and writes.
+  `executor.transaction(...)` therefore runs its statements in order with no
+  rollback; every call site is a place a reviewer should look first. Prefer a
+  single statement with `RETURNING`, or an upsert with `ON CONFLICT`, where
+  all-or-nothing actually matters.
+- **SQLite types.** Timestamps are ISO-8601 text, JSON documents are text,
+  booleans are 0/1. `@saas/db/json` owns the decoding so row mappers never
+  guess.
+- **No schemas.** The bounded-context boundary is a table-name prefix
+  (`identity_users`, `membership_organizations`) enforced by the
+  repositories — which is where it was actually enforced under Postgres too.
+
+## Instantiating products
+
+This baseline births new products through the phased bootstrap
+(**[BOOTSTRAP.md](BOOTSTRAP.md)** → [flows/phases/](flows/phases/README.md)):
+eight idempotent workflows — scaffold, foundation, infrastructure, workers,
+edge, console, optional domain, docs — each landing a verified slice.
+Products receive **product-only content** (source, infra, CI, their own
+docs); none of this baseline's machinery ships, and a product's docs speak
+only about the product.
 
 ## Prerequisites
 
@@ -78,22 +106,21 @@ apps/web-console-next     Next.js console (Cloudflare Workers + Static Assets)
 
 packages/contracts        Shared API, tenancy, event, and error types + validators
 packages/policy-engine    RBAC evaluation logic
-packages/db               Migration harness, manifest, and runner
+packages/db               D1 executor, migration harness, manifest, and runner
 packages/sdk              TypeScript SDK (contract-driven)
 packages/cli              `cirrus` CLI
 packages/notifications-client  Notifications client
 packages/shared           Generic helpers (IDs, errors) — no domain logic
 packages/testing          Test fixtures and utilities
 
-infra/terraform/bootstrap          Verifies AWS state backend + Secrets access
-infra/terraform/supabase           Supabase project provisioning (stage/prod)
-infra/terraform/cloudflare-hyperdrive  Hyperdrive config fronting Supabase
+infra/terraform/cloudflare-d1      D1 database provisioning (stage/prod)
 infra/terraform/cloudflare-kv      api-edge idempotency KV namespace
 infra/terraform/cloudflare-domain  Zone adoption + console custom domain
 infra/db-migrate                   Database migration runner component
 
 tooling/tsconfig          Shared TypeScript configurations
 tooling/eslint            Shared ESLint configuration
+tooling/wire              Deploy-time wrangler config renderer
 tests/*                   Per-component contract and verifier test suites
 ```
 
@@ -126,13 +153,13 @@ environment promotion or cross-component dependencies (`--view dag`).
 
 ## Infrastructure
 
-Terraform provisions Supabase projects, Cloudflare Hyperdrive, and the
-`api-edge` KV namespace for `stage` and `prod`. Credentials are generated by
-Terraform and stored in AWS Secrets Manager under
-`<org>/cirrus/<component>/<env>`. Terraform state uses the shared S3
-buckets `sourceplane-<env>` (IAM roles and buckets are owned by the `aws-admin`
-repo). See `specs/core/access-and-infra.md` for the access model and the
-manual prerequisites.
+Terraform provisions the D1 database and the `api-edge` KV namespace for
+`stage` and `prod`. Both roots carry `adopt.tf`, which imports an existing
+resource at plan time instead of colliding with it — so a re-bootstrap over a
+half-torn-down attempt heals rather than fails. Credentials are brokered per
+run from the workspace's Cloudflare connection and Terraform state lives on
+the platform; nothing provider-shaped is stored in this repo or in GitHub.
+See `specs/core/access-and-infra.md` for the access model.
 
 ## Adding a New Component
 

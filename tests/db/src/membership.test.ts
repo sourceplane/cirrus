@@ -1430,9 +1430,8 @@ describe("MembershipRepository", () => {
 
       expect(exportKeys).toContain("createMembershipRepository");
       expect(exportKeys).not.toContain("runMigrations");
-      expect(exportKeys).not.toContain("PgAdapter");
-      expect(exportKeys).not.toContain("loadSecret");
-      expect(exportKeys).not.toContain("SupabaseApiAdapter");
+      expect(exportKeys).not.toContain("D1ApiAdapter");
+      expect(exportKeys).not.toContain("loadD1CredentialsFromEnv");
     });
   });
 

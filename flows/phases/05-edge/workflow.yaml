@@ -27,13 +27,17 @@ inputs:
     type: string
     default: ""
     description: Baseline git ref to fetch when no local checkout exists. Empty = the commit this flow was fetched from (ORUN_FLOW_SOURCE_SHA), else main.
+  watch:
+    type: string
+    default: "true"
+    description: '"false" skips watching the CI convergence (use when this environment cannot observe GitHub Actions; converge state must then be verified out-of-band). Later steps (restore/verify) proceed.'
   dryrun:
     type: string
     default: "false"
     description: '"true" previews the phase (blueprint applied + shown + reverted, no PR, no deploy).'
 steps:
   - name: preflight
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -47,15 +51,23 @@ steps:
           # one level up so baseline/ and product/ persist across phases.
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
-          if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
-            bref="{{ inputs.baselineref }}"
-            [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
+          brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
+          bref="{{ inputs.baselineref }}"
+          [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
+          # Fetch when the baseline is absent, partial, or at a DIFFERENT
+          # commit than the pinned ref — a stale reuse would silently apply
+          # old content against a new flow. Every git step is rerun-safe
+          # (remote add falls back to set-url; failures print before exiting
+          # — a bare exit-1 here surfaced as an empty error, hit live).
+          if [ "$(git -C "$L" rev-parse HEAD 2>/dev/null)" != "$bref" ]; then
             echo "fetching baseline $brepo@$bref"
-            git init -q "$L"
-            git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
-            git -C "$L" checkout -q FETCH_HEAD
+            git init -q "$L" 2>/dev/null || true
+            git -C "$L" remote add origin "https://github.com/$brepo" 2>/dev/null \
+              || git -C "$L" remote set-url origin "https://github.com/$brepo"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref" \
+              || { echo "baseline fetch FAILED for $brepo@$bref — check repo access (gh auth) and the ref"; exit 1; }
+            git -C "$L" checkout -q --detach FETCH_HEAD \
+              || { echo "baseline checkout FAILED (FETCH_HEAD missing?)"; exit 1; }
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
@@ -64,7 +76,7 @@ steps:
     timeout: 15m
   - name: apply
     needs: [preflight]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -85,7 +97,7 @@ steps:
             echo "fetching baseline $brepo@$bref"
             git init -q "$L"
             git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref"
             git -C "$L" checkout -q FETCH_HEAD
           fi
         fi
@@ -94,7 +106,7 @@ steps:
     timeout: 15m
   - name: land
     needs: [apply]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -115,17 +127,18 @@ steps:
             echo "fetching baseline $brepo@$bref"
             git init -q "$L"
             git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref"
             git -C "$L" checkout -q FETCH_HEAD
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: skipping PR/merge"; exit 0; }
-        "$L/flows/common/land-pr.sh" "$P" 05-edge "phase(05-edge): api-edge"
+        # --no-wait: same single-deploy rationale as phase 04.
+        "$L/flows/common/land-pr.sh" --no-wait "$P" 05-edge "phase(05-edge): api-edge"
     timeout: 30m
   - name: converge
     needs: [land]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -146,18 +159,19 @@ steps:
             echo "fetching baseline $brepo@$bref"
             git init -q "$L"
             git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref"
             git -C "$L" checkout -q FETCH_HEAD
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: would watch the main convergence run (resume budget 3)"; exit 0; }
+        [ "{{ inputs.watch }}" = "false" ] && { echo "watch=false: NOT watching the convergence — verify the run out-of-band before trusting later phases"; exit 0; }
         cd "$P"
         "$L/flows/common/converge.sh" '' 3
     timeout: 45m
   - name: verify
     needs: [converge]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -178,7 +192,7 @@ steps:
             echo "fetching baseline $brepo@$bref"
             git init -q "$L"
             git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref"
             git -C "$L" checkout -q FETCH_HEAD
           fi
         fi

@@ -32,11 +32,11 @@ spec:
 
   # Everything the runner needs to reach D1 over the REST API, all resolved
   # from orun secrets: the provider credential is minted fresh per run from the
-  # Cloudflare integration (D1 edit scope), the account id is a non-secret
+  # Cloudflare integration's d1-edit template, the account id is a non-secret
   # connection fact, and the database id arrives in the wiring document the
   # cloudflare-d1 component lease-publishes.
   secretEnv:
-    CLOUDFLARE_API_TOKEN: "secret://cirrus/cirrus/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+    CLOUDFLARE_API_TOKEN: "secret://cirrus/cirrus/{{ .environment }}/CLOUDFLARE_D1_TOKEN"
     CLOUDFLARE_ACCOUNT_ID: "secret://cirrus/cirrus/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
     WIRING_CLOUDFLARE_D1: "secret://cirrus/cirrus/{{ .environment }}/WIRING_CLOUDFLARE_D1"
 

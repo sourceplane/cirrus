@@ -18,8 +18,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for support-action records and review state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for support-action records and review state
 
 ## Intent
 

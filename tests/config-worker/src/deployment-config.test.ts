@@ -9,7 +9,7 @@
  * render they perform themselves, so they are hermetic on a fresh checkout.
  *
  * Task 0057 — introduced after main CI run 26568163207 failed because
- * config-worker stage used PLACEHOLDER_STAGE_HYPERDRIVE_ID.
+ * config-worker stage used a placeholder database id.
  */
 
 import { spawnSync } from "node:child_process";

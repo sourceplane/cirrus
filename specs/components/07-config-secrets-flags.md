@@ -15,8 +15,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for config, secret metadata, and feature flag state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for config, secret metadata, and feature flag state
 - KV for read-heavy resolved config cache
 - Secrets Store for envelope-encryption keys
 

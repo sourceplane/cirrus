@@ -16,8 +16,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for resource registry metadata and relationship state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for resource registry metadata and relationship state
 - R2 for stored manifests or packaged artifacts
 - KV for registry cache if needed
 
@@ -88,7 +88,7 @@ This component owns:
 
 ## Agent Freedom
 
-- The agent may choose whether manifests are stored directly in Supabase Postgres, in R2 with Supabase Postgres metadata, or both.
+- The agent may choose whether manifests are stored directly in Cloudflare D1, in R2 with Cloudflare D1 metadata, or both.
 - The agent may choose how resource graph queries are represented internally.
 - Resource patch semantics may use full replace or structured partial update if the public contract is explicit.
 

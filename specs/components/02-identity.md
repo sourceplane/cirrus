@@ -17,8 +17,8 @@ Primary dependencies:
 Platform dependencies:
 
 - Workers
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for identity-owned relational state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for identity-owned relational state
 - KV for derived session cache if needed
 - Secrets Store for signing and encryption keys
 
@@ -67,7 +67,7 @@ Own all facts about who a user is and how an actor proves identity to the platfo
 
 ### Minimum V1 Authentication Requirement
 
-V1 must ship with at least one first-party sign-in path that is Cirrus-owned and served through the Worker runtime, such as email magic link or one-time code. Additional OAuth providers may be added through adapters, but hosted auth SaaS, including Supabase Auth, is not the starter source of truth unless a future spec explicitly changes that boundary.
+V1 must ship with at least one first-party sign-in path that is Cirrus-owned and served through the Worker runtime, such as email magic link or one-time code. Additional OAuth providers may be added through adapters, but hosted auth SaaS is not the starter source of truth unless a future spec explicitly changes that boundary.
 
 ### Recommended Public Route Surface
 
@@ -319,7 +319,7 @@ This component owns records such as:
 
 - The agent may choose opaque sessions, signed sessions, or a hybrid model.
 - The agent may choose passwordless email, passkeys, or both for the initial first-party login method.
-- The agent must persist identity state in Supabase Postgres through a repository layer. SQL, Hyperdrive connectivity, and transaction details belong inside the persistence adapter.
+- The agent must persist identity state in Cloudflare D1 through a repository layer. SQL, D1 binding access, and transaction details belong inside the persistence adapter.
 
 ## Acceptance Criteria
 

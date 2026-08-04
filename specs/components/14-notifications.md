@@ -18,8 +18,8 @@ Platform dependencies:
 
 - Workers
 - Queues for async delivery
-- Hyperdrive binding to primary Supabase Postgres
-- Supabase Postgres for notification preferences, templates, and delivery state
+- D1 binding to the primary Cloudflare D1 database
+- Cloudflare D1 for notification preferences, templates, and delivery state
 - Secrets Store for provider credentials
 
 ## Intent

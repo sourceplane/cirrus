@@ -50,7 +50,7 @@ inputs:
     description: '"true" renders the scaffold into a temp dir and reports, creating nothing.'
 steps:
   - name: blueprint
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -64,15 +64,23 @@ steps:
           # one level up so baseline/ and product/ persist across phases.
           case "$PWD" in */.orun/wfruns/*) W="${PWD%%/.orun/wfruns/*}" ;; *) W="$PWD" ;; esac
           L="$W/baseline"
-          if [ ! -e "$L/.git" ]; then
-            brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
-            bref="{{ inputs.baselineref }}"
-            [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
+          brepo="${ORUN_FLOW_SOURCE_REPO:-sourceplane/cirrus}"
+          bref="{{ inputs.baselineref }}"
+          [ -n "$bref" ] || bref="${ORUN_FLOW_SOURCE_SHA:-main}"
+          # Fetch when the baseline is absent, partial, or at a DIFFERENT
+          # commit than the pinned ref — a stale reuse would silently apply
+          # old content against a new flow. Every git step is rerun-safe
+          # (remote add falls back to set-url; failures print before exiting
+          # — a bare exit-1 here surfaced as an empty error, hit live).
+          if [ "$(git -C "$L" rev-parse HEAD 2>/dev/null)" != "$bref" ]; then
             echo "fetching baseline $brepo@$bref"
-            git init -q "$L"
-            git -C "$L" remote add origin "https://github.com/$brepo"
-            git -C "$L" -c credential.helper='!gh auth git-credential' fetch -q --depth 1 origin "$bref"
-            git -C "$L" checkout -q FETCH_HEAD
+            git init -q "$L" 2>/dev/null || true
+            git -C "$L" remote add origin "https://github.com/$brepo" 2>/dev/null \
+              || git -C "$L" remote set-url origin "https://github.com/$brepo"
+            git -C "$L" -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch -q --depth 1 origin "$bref" \
+              || { echo "baseline fetch FAILED for $brepo@$bref — check repo access (gh auth) and the ref"; exit 1; }
+            git -C "$L" checkout -q --detach FETCH_HEAD \
+              || { echo "baseline checkout FAILED (FETCH_HEAD missing?)"; exit 1; }
           fi
         fi
         out="{{ inputs.out }}"
@@ -83,6 +91,14 @@ steps:
         if [ "{{ inputs.dryrun }}" = "true" ]; then
           out="$(mktemp -d)/scaffold-preview"
           echo "DRY RUN: rendering scaffold into $out"
+        fi
+        # Refuse to scaffold INTO a checkout of the blueprint itself: running
+        # the umbrella from inside baseline/ with out=$PWD scaffolded into the
+        # blueprint clone and pushed at sourceplane/cirrus (observed live). The
+        # marker files that make a checkout "the baseline" are the refusal key.
+        if [ -f "$out/repo-blueprint.yaml" ] && [ -d "$out/flows/phases" ]; then
+          echo "scaffold: out=$out looks like the BLUEPRINT checkout (repo-blueprint.yaml + flows/phases present) — run the umbrella from the PRODUCT checkout root with --set out=\"\$PWD\"" >&2
+          exit 1
         fi
         mkdir -p "$out"
         # Empty discovery roots FIRST: orun new's repo-scale gate (and later
@@ -101,17 +117,111 @@ steps:
           --set "orunWorkspace={{ inputs.workspace }}"
         cd "$out"
         [ -d .git ] || git init -q -b main
+        # When the product checkout IS the workdir (the sandbox path), the
+        # fetched blueprint (baseline/) and orun's run scratch (.orun/) live
+        # inside it. Neither belongs in the product's history — and a staged
+        # baseline gitlink crashed the rebrand sweep mid-bootstrap (observed
+        # live). Ignore both, and un-stage any gitlink a prior run left.
+        grep -qxF 'baseline/' .gitignore 2>/dev/null || printf 'baseline/\n' >> .gitignore
+        grep -qxF '.orun/' .gitignore 2>/dev/null || printf '.orun/\n' >> .gitignore
+        git rm -r -q --cached baseline .orun 2>/dev/null || true
         git add -A
-        node tooling/rebrand/rebrand.mjs --values .rebrand/values.json --allow-dirty
+        node "$L/tooling/rebrand/rebrand.mjs" --values .rebrand/values.json --allow-dirty
         python3 - <<'PYEOF'
         import json, re
-        ws = (json.load(open(".rebrand/values.json")).get("orunWorkspace") or "").strip() or "ws_SET_ME"
+        vals = json.load(open(".rebrand/values.json"))
+        ws = (vals.get("orunWorkspace") or "").strip() or "ws_SET_ME"
+        proj = (vals.get("repoName") or "").strip()
         s = open("intent.yaml").read()
         s2 = re.sub(r"^(\s*workspace:\s*).*$", r"\g<1>" + ws, s, count=1, flags=re.M)
         assert s2 != s or ws in s, "no workspace: line in intent.yaml"
+        # Declare the project beside the workspace: headless runs authenticate
+        # with workspace-scoped tokens, which cannot write the repo link that
+        # project resolution would otherwise fall back to.
+        if proj and not re.search(r"^\s*project:", s2, flags=re.M):
+            s2 = re.sub(r"^(\s*)(workspace:.*)$", r"\g<1>\g<2>\n\g<1>project: " + proj, s2, count=1, flags=re.M)
         open("intent.yaml", "w").write(s2)
-        print("intent.yaml workspace ->", ws)
+        print("intent.yaml workspace ->", ws, "project ->", proj or "(none)")
+        # ── product-only agent context ──
+        # Products carry NOTHING of the baseline's working state: fresh
+        # current/decisions/open-risks, no provenance files. The docs are
+        # the PRODUCT's — they never present it as a copy of anything.
+        import os
+        name = (vals.get("repoName") or "product").strip()
+        open("ai/context/current.md", "w").write("\n".join([
+            "# Current Context (compact)",
+            "",
+            "Keep this file current as product work begins.",
+            "",
+            "## State",
+            "",
+            name + " is freshly scaffolded. Deployment phases may still be in",
+            "progress; the docs flow (phase 08) records the verified live state.",
+            "",
+            "- **What is deployed, where:** [deployment.md](deployment.md) - the",
+            "  generated manifest (placeholder until the docs flow runs).",
+            "- **How to operate it:** [operations.md](operations.md).",
+            "- Established design decisions and risks: [decisions.md](decisions.md),",
+            "  [open-risks.md](open-risks.md).",
+            "",
+            "## Next",
+            "",
+            "Product work starts here. Replace this section with the active",
+            "epic/task state as it forms.",
+            "",
+        ]))
+        open("ai/context/decisions.md", "w").write("\n".join([
+            "# Decisions",
+            "",
+            "Architecture and process decisions for " + name + ". Add an entry per",
+            "decision (date, decision, rationale); prune superseded ones.",
+            "",
+            "## Active Decisions",
+            "",
+            "- The `dev` environment is verify-only by design: plan/verify lanes",
+            "  run, nothing deploys and no dev database exists.",
+            "- Provider credentials are brokered per-run from workspace",
+            "  integrations; no long-lived provider secrets at rest, and no",
+            "  tooling may print a secret value.",
+            "- Merges to `main` converge automatically; the convergence run is",
+            "  the deployment (see [operations.md](operations.md)).",
+            "",
+        ]))
+        open("ai/context/open-risks.md", "w").write("\n".join([
+            "# Open Risks",
+            "",
+            "Live risks for " + name + ". Add entries as they surface; close them",
+            "with a note when mitigated.",
+            "",
+            "## Active Risks",
+            "",
+            "- Production OAuth/magic-link auth and Stripe need human-supplied",
+            "  credentials before those surfaces work end-to-end",
+            "  (`orun secrets set ... --env <env>`; wire-now-seed-later).",
+            "- Notifications email needs one-time Cloudflare Email Service setup",
+            "  (Workers Paid plan + sending-domain DKIM/SPF).",
+            "",
+        ]))
+        for stray in ("ai/context/fork-from-baseline.md",):
+            if os.path.exists(stray):
+                os.remove(stray)
+        # The README ships product-only: baseline-reader sections go.
+        r = open("README.md").read()
+        r2 = re.sub(r"\n## (Forking / rebranding|Instantiating products)\n.*?(?=\n## |\Z)", "\n", r, flags=re.S)
+        if r2 != r:
+            open("README.md", "w").write(r2)
+        # The ops-flows pointer must survive the rebrand: the template says
+        # OPSFLOWS; fill it with the repo these flows actually came from.
+        src = (os.environ.get("ORUN_FLOW_SOURCE_REPO") or "sourceplane/cirrus") + "@main"
+        o = open("ai/context/operations.md").read()
+        open("ai/context/operations.md", "w").write(o.replace("OPSFLOWS", src))
+        print("ai/context + README reset for the product")
         PYEOF
+        # Belt-and-braces: nothing baseline-shaped ships, even if the
+        # blueprint module list drifts.
+        rm -rf agents flows FORKING.md \
+          tooling/blueprint tooling/bootstrap tooling/fork tooling/rebrand tooling/migrations \
+          ai/state.json ai/tasks ai/proposals ai/reports ai/deferred.md ai/waiting_for_input.md
         git add -A
         if [ "{{ inputs.dryrun }}" = "true" ]; then
           echo "DRY RUN: scaffold rendered $(git ls-files | wc -l | xargs) file(s); removing"
@@ -122,7 +232,7 @@ steps:
 
   - name: repo
     needs: [blueprint]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
@@ -136,7 +246,10 @@ steps:
         fi
         cd "$out"
         [ -d .git ] || git init -q -b main
-        git config credential.helper '!gh auth git-credential'
+        # --replace-all: the grounded sandbox clone already carries a repo-local
+        # credential.helper (set at clone time); a bare `git config` errors on
+        # the resulting multi-value key (observed live on a re-run).
+        git config --replace-all credential.helper '!gh auth git-credential'
         if ! git config user.email >/dev/null 2>&1 && ! git config --global user.email >/dev/null 2>&1; then
           git config user.email "bootstrap-bot@users.noreply.github.com"
           git config user.name "bootstrap-bot"
@@ -147,21 +260,95 @@ steps:
         # repo pre-created on GitHub (org policy may restrict creation to
         # admins) → wire origin and push; nothing anywhere → create private
         # repo and push. Idempotent across re-runs in every case.
+        #
+        # Remote choice: headless (a GitHub token in env — fine-grained PATs
+        # push workflow files with plain contents:write) uses https; local
+        # mode uses SSH, because gh's OAuth token lacks the `workflow` scope
+        # and GitHub rejects pushing .github/workflows/ over it (hit live,
+        # twice). A push that still hits that rejection in local mode is
+        # retried once over SSH — this also heals clones wired to https by
+        # an earlier run.
         slug="{{ inputs.githuborg }}/{{ inputs.reponame }}"
-        if git remote get-url origin >/dev/null 2>&1; then
-          git push -qu origin main
-        elif gh repo view "$slug" >/dev/null 2>&1; then
-          echo "repo $slug already exists on GitHub — wiring origin and pushing"
-          git remote add origin "https://github.com/$slug"
-          git push -qu origin main
+        if [ -n "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]; then
+          remote_url="https://github.com/$slug"
         else
-          gh repo create "$slug" --private --source . --push
+          remote_url="git@github.com:$slug.git"
+        fi
+        push_main() {
+          out="$(git push -u origin main 2>&1)" && { echo "$out" | tail -1; return 0; }
+          echo "$out" >&2
+          # Two refusal dialects for the same fact: classic PATs/gh OAuth say
+          # "without `workflow` scope"; GitHub App installation tokens say
+          # "without `workflows` permission" (both hit live).
+          wf_refused=false
+          printf '%s' "$out" | grep -qiE "without .workflows?. (scope|permission)" && wf_refused=true
+          if $wf_refused && [ -z "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]; then
+            echo "push rejected for workflow files over https — retrying over SSH"
+            git remote set-url origin "git@github.com:$slug.git"
+            git push -qu origin main
+            return $?
+          fi
+          if $wf_refused && [ -d .github/workflows ]; then
+            # Headless degradation: land the scaffold WITHOUT the CI workflow
+            # files rather than dying — the sandbox cannot grant the App its
+            # Workflows permission, only an operator can. Files stay on disk
+            # (excluded, not deleted); the completion report names the fix:
+            # grant the GitHub App "Workflows: Read & write", then
+            #   git add .github/workflows && git commit && git push.
+            echo "token cannot push .github/workflows/ — landing the scaffold without them; grant the GitHub App 'Workflows: Read & write' and push them afterwards" >&2
+            git rm -r -q --cached .github/workflows
+            grep -qxF '.github/workflows/' .git/info/exclude 2>/dev/null || echo '.github/workflows/' >> .git/info/exclude
+            git commit -q -m "scaffold: land without CI workflows (push token lacks the workflows permission)"
+            git push -u origin main && return 0
+            return 1
+          fi
+          if $wf_refused; then
+            echo "your GitHub token cannot push .github/workflows/ — classic PATs and gh OAuth tokens need the \`workflow\` scope; fine-grained PATs need only contents:write (BOOTSTRAP.md §3c)" >&2
+          fi
+          return 1
+        }
+        # Existence check via authenticated ls-remote, NOT `gh repo view`:
+        # gh's GraphQL path is blocked in some sandboxes, and treating ANY
+        # view failure as "absent" fell through to a doomed `repo create`
+        # against an existing repo (hit live). ls-remote distinguishes the
+        # cases: exit 0 = exists (possibly EMPTY — zero refs is fine),
+        # "not found" = definitively absent, anything else = a real error
+        # to surface, never a reason to create.
+        if git remote get-url origin >/dev/null 2>&1; then
+          push_main
+        else
+          probe="$(git -c credential.helper= -c 'credential.helper=!f(){ [ "$1" = get ] && exec gh auth git-credential get; :; }; f' ls-remote "$remote_url" HEAD 2>&1)"; probe_rc=$?
+          if [ "$probe_rc" -eq 0 ]; then
+            echo "repo $slug exists — wiring origin and pushing (an EMPTY repo is normal: this scaffold IS the first commit, landed directly on main)"
+            git remote add origin "$remote_url"
+            push_main
+          elif printf '%s' "$probe" | grep -qiE "repository not found|not found"; then
+            gh repo create "$slug" --private               || { echo "repo $slug not found and creation failed — pre-create it and re-run (this phase is idempotent)" >&2; exit 1; }
+            git remote add origin "$remote_url"
+            push_main
+          else
+            echo "cannot reach $slug — NOT creating (the failure is access/network, not absence):" >&2
+            printf '%s\n' "$probe" >&2
+            exit 1
+          fi
+        fi
+        # First push to an empty repo makes THAT branch the default. We
+        # always push main first, and additionally pin the default branch
+        # explicitly — best-effort (settings writes are blocked in some
+        # sandboxes; a later branch push then cannot steal the default).
+        tok="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+        if [ -n "$tok" ]; then
+          curl -sf -X PATCH -H "Authorization: Bearer $tok" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"default_branch":"main"}' "https://api.github.com/repos/$slug" >/dev/null \
+            && echo "default branch pinned to main" \
+            || echo "note: could not pin default branch to main (settings write blocked?) — verify it manually"
         fi
     timeout: 5m
 
   - name: link
     needs: [repo]
-    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN]
+    envInherit: [GITHUB_TOKEN, GH_TOKEN, ORUN_TOKEN, ORUN_TOKEN_FILE, GH_REPO, GH_HOST, ORUN_BACKEND_URL]
     run:
       - /bin/bash
       - -c
