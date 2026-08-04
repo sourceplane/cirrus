@@ -6,6 +6,8 @@ import { createSqlExecutor, type D1Binding } from "@saas/db/d1";
 import { createIdentityRepository } from "@saas/db/identity";
 import { createMembershipRepository } from "@saas/db/membership";
 import { createProjectsRepository } from "@saas/db/projects";
+import { createMeteringRepository } from "@saas/db/metering";
+import { createWebhookRepository } from "@saas/db/webhooks";
 import { asUuid } from "@saas/db";
 import { D1ApiAdapter } from "@saas/db/runner";
 
@@ -209,5 +211,125 @@ describe("repositories against a real SQLite engine", () => {
     const counted = await projects.countActiveProjects(orgId);
     expect(counted.ok).toBe(true);
     if (counted.ok) expect(counted.value).toBe(1);
+  });
+});
+
+// The three queries the port rewrote most, run for real. Each replaced a
+// Postgres construct SQLite does not have (date_trunc, md5, INTERVAL, a
+// timestamptz cast), and each is a place where a mock executor would happily
+// assert the text of SQL that the engine rejects.
+describe("the rewritten queries, against a real SQLite engine", () => {
+  let db: DatabaseSync;
+  let executor: ReturnType<typeof createSqlExecutor>;
+
+  beforeEach(() => {
+    db = migratedDatabase();
+    executor = createSqlExecutor(d1Over(db));
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("materializes usage rollups: strftime buckets, a key-derived id, and an upsert", async () => {
+    const repo = createMeteringRepository(executor);
+    const orgId = "org-roll";
+
+    // Two records in the same hour, one in the next: the aggregation must fold
+    // the first two together and keep the third separate.
+    const at = async (iso: string, key: string, quantity: number) => {
+      const r = await repo.recordUsage({
+        id: `usage-${key}`,
+        orgId,
+        metric: "api_requests",
+        quantity,
+        idempotencyKey: key,
+        recordedAt: new Date(iso),
+      });
+      expect(r.ok).toBe(true);
+    };
+    await at("2026-03-15T11:10:00.000Z", "a", 3);
+    await at("2026-03-15T11:50:00.000Z", "b", 4);
+    await at("2026-03-15T12:05:00.000Z", "c", 5);
+
+    const first = await repo.materializeUsageRollups({
+      bucketType: "hour",
+      start: new Date("2026-03-15T11:00:00.000Z"),
+      end: new Date("2026-03-15T13:00:00.000Z"),
+    });
+    expect(first.ok).toBe(true);
+
+    const rows = db
+      .prepare(
+        "SELECT bucket_start, quantity, record_count FROM metering_usage_rollups ORDER BY bucket_start",
+      )
+      .all() as { bucket_start: string; quantity: number; record_count: number }[];
+    expect(rows).toEqual([
+      { bucket_start: "2026-03-15T11:00:00.000Z", quantity: 7, record_count: 2 },
+      { bucket_start: "2026-03-15T12:00:00.000Z", quantity: 5, record_count: 1 },
+    ]);
+
+    // Re-materializing the same window must UPDATE, never duplicate — the
+    // ON CONFLICT target has to match the unique index expression for expression.
+    const again = await repo.materializeUsageRollups({
+      bucketType: "hour",
+      start: new Date("2026-03-15T11:00:00.000Z"),
+      end: new Date("2026-03-15T13:00:00.000Z"),
+    });
+    expect(again.ok).toBe(true);
+    const count = db.prepare("SELECT COUNT(*) AS n FROM metering_usage_rollups").get() as {
+      n: number;
+    };
+    expect(count.n).toBe(2);
+  });
+
+  it("rotates a webhook secret with a grace window computed by strftime", async () => {
+    const repo = createWebhookRepository(executor);
+    const orgId = asUuid("77777777-7777-4777-8777-777777777777");
+    const endpointId = "wep_rotate";
+
+    const created = await repo.createEndpoint({
+      id: endpointId,
+      orgId,
+      url: "https://example.test/hook",
+      secretCiphertext: "envelope-v1",
+    });
+    expect(created.ok).toBe(true);
+
+    const rotated = await repo.rotateEndpointSecret(orgId, endpointId, {
+      secretCiphertext: "envelope-v2",
+      gracePeriodSeconds: 3600,
+    });
+    expect(rotated.ok).toBe(true);
+
+    const row = db
+      .prepare(
+        `SELECT previous_secret_ciphertext, previous_secret_version, previous_secret_expires_at
+         FROM webhooks_webhook_endpoints WHERE id = ?`,
+      )
+      .get(endpointId) as {
+      previous_secret_ciphertext: string;
+      previous_secret_version: number;
+      previous_secret_expires_at: string;
+    };
+    expect(row.previous_secret_ciphertext).toBe("envelope-v1");
+    expect(row.previous_secret_version).toBe(1);
+    // The INTERVAL literal became a strftime modifier; if the modifier were
+    // malformed SQLite returns NULL rather than failing, so assert the shape.
+    expect(row.previous_secret_expires_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    expect(new Date(row.previous_secret_expires_at).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("counts a delivery failure streak past the epoch fallback", async () => {
+    // The fallback used a `'1970-01-01'::timestamptz` cast; with no prior
+    // success the whole count depends on it comparing sanely against the
+    // ISO-8601 text the rest of the schema stores.
+    const repo = createWebhookRepository(executor);
+    const orgId = asUuid("88888888-8888-4888-8888-888888888888");
+    const streak = await repo.countConsecutiveEndpointFailures(orgId, "wep_none");
+    expect(streak.ok).toBe(true);
+    if (streak.ok) expect(streak.value).toBe(0);
   });
 });
