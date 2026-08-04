@@ -13,9 +13,9 @@ import {
 } from "@saas/contracts/integrations";
 import { createIntegrationsRepository } from "@saas/db/integrations";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import type { Uuid } from "@saas/db/ids";
-import type { SqlExecutor } from "@saas/db/hyperdrive";
+import type { SqlExecutor } from "@saas/db/d1";
 import type { FetchLike } from "../github-app.js";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";

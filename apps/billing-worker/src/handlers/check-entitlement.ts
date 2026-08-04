@@ -4,7 +4,7 @@ import type {
   CheckBillingEntitlementResponse,
 } from "@saas/contracts/billing";
 import type { BillingRepository, EntitlementDecisionRepository } from "@saas/db/billing";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createBillingRepository } from "@saas/db/billing";
 import { createEntitlementDecisionRepository } from "@saas/db/billing";
 import { errorResponse, successResponse, validationError } from "../http.js";
@@ -43,7 +43,7 @@ interface ParsedRequest {
  * `limitValue: null` would mean unlimited; finite values give a sane free cap.
  *
  * Task 0128 (B11) makes the free tier a REAL plan: org bootstrap now assigns the
- * `free` plan and materializes these same keys into `billing.entitlements`
+ * `free` plan and materializes these same keys into `billing_entitlements`
  * rows, so this map is normally never consulted. It is retained as a
  * **last-resort safety net** so a transient plan-assignment failure during
  * bootstrap can't hard-block the REQUIRED create-project/environment/invite
@@ -174,8 +174,8 @@ export async function decideEntitlement(
 export interface CheckEntitlementDeps {
   repoFactory?: (env: Env) => Pick<BillingRepository, "getEntitlement">;
   // Best-effort decision-observation recorder. Injected for unit-testing the
-  // emission seam without a DB. When omitted, production uses the Hyperdrive
-  // executor + billing.entitlement_decision_observations.
+  // emission seam without a DB. When omitted, production uses the D1
+  // executor + billing_entitlement_decision_observations.
   recorderFactory?: (
     env: Env,
   ) => Pick<EntitlementDecisionRepository, "recordDecisionObservation">;
@@ -254,7 +254,7 @@ export async function handleCheckEntitlement(
 
   // PERF3 (task 0132): when not injected, the repo and the decision-observation
   // recorder share ONE executor (connection) per request instead of opening two
-  // separate Hyperdrive clients.
+  // separate D1 executors.
   let sharedExecutor: ReturnType<typeof createSqlExecutor> | null = null;
   const getSharedExecutor = () => {
     if (!sharedExecutor) sharedExecutor = createSqlExecutor(env.PLATFORM_DB!);

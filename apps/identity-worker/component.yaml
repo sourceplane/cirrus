@@ -10,7 +10,7 @@ spec:
   domain: starter-runtime
   path: apps/identity-worker
   dependsOn:
-    - component: cloudflare-hyperdrive
+    - component: cloudflare-d1
     - component: policy-worker
     - component: membership-worker
     - component: notifications-worker
@@ -21,8 +21,8 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   optionalSecretEnv:
     GITHUB_OAUTH_CLIENT_SECRET: "secret://cirrus/cirrus/{{ .environment }}/GITHUB_OAUTH_CLIENT_SECRET"
@@ -63,7 +63,7 @@ spec:
     turboFilter: "@saas/identity-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-hyperdrive"
+    wiringComponents: "cloudflare-d1"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

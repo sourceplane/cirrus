@@ -3,7 +3,7 @@ import {
   permissionsWithinGrant,
 } from "@integrations-worker/handlers/token-broker";
 import type { Env } from "@integrations-worker/env";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 import { asUuid } from "@saas/db";
 
 const ORG_UUID = "11111111-1111-4111-8111-111111111111";
@@ -177,9 +177,9 @@ describe("POST .../integrations/github/token (the broker)", () => {
   it("mints a scoped token for linked repos and audits without the token", async () => {
     const ghCalls: Array<{ url: string; body: unknown }> = [];
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.repo_links")) return [linkRow()];
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("FROM integrations.github_installations"))
+      if (text.includes("FROM integrations_repo_links")) return [linkRow()];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_github_installations"))
         return [installationRow({ checks: "write", contents: "read" })];
       return [{ _event: {}, _audit: {} }];
     });
@@ -205,7 +205,7 @@ describe("POST .../integrations/github/token (the broker)", () => {
     });
 
     // Audited — actor + scope, never the token; nothing cached.
-    const audit = queries.find((q) => q.text.includes("events.event_log"));
+    const audit = queries.find((q) => q.text.includes("events_event_log"));
     expect(audit).toBeDefined();
     expect(JSON.stringify(audit!.params)).not.toContain("ghs_scoped_secret");
     expect(queries.some((q) => q.text.includes("installation_tokens"))).toBe(false);
@@ -213,7 +213,7 @@ describe("POST .../integrations/github/token (the broker)", () => {
 
   it("denies unlinked repositories with a safe 412", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.repo_links")) return [];
+      if (text.includes("FROM integrations_repo_links")) return [];
       return [];
     });
     const res = await handleIssueGithubToken(
@@ -231,9 +231,9 @@ describe("POST .../integrations/github/token (the broker)", () => {
 
   it("denies permissions exceeding the App grant", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.repo_links")) return [linkRow()];
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("FROM integrations.github_installations"))
+      if (text.includes("FROM integrations_repo_links")) return [linkRow()];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_github_installations"))
         return [installationRow({ contents: "read" })];
       return [];
     });

@@ -209,7 +209,7 @@ export interface MeteringRepository {
   ): Promise<MeteringResult<PagedResult<UsageRollup>>>;
 
   /**
-   * Materialize `metering.usage_rollups` rows from `metering.usage_records`
+   * Materialize `metering_usage_rollups` rows from `metering_usage_records`
    * for the given bounded window and bucket type. Idempotent: re-running for
    * the same window overwrites the affected rollup rows with the latest
    * aggregate values rather than duplicating them.

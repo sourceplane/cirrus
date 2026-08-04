@@ -6,11 +6,11 @@ import type { EntitlementValueType } from "@saas/db/billing";
  * Pure data + helpers (no DB, no fetch) so the catalog and the per-plan
  * entitlement set can be unit-tested in isolation. This is the single source of
  * truth for which entitlements a plan grants. The billing-worker materializes
- * these into `billing.entitlements` rows when a plan is assigned to an org
+ * these into `billing_entitlements` rows when a plan is assigned to an org
  * (see `handlers/assign-plan.ts`), so policy/product surfaces read real
  * per-org rows rather than the PR-#209 hard-coded fallback.
  *
- * Plans are global catalog rows (`billing.plans`); they are ensured idempotently
+ * Plans are global catalog rows (`billing_plans`); they are ensured idempotently
  * on first assignment (`createPlan` is `ON CONFLICT (code) DO NOTHING`), so no
  * data migration is required for the lifecycle to work. `priceAmountCents` is a
  * nominal display price only — a payment provider remains the source of truth
@@ -26,9 +26,9 @@ export interface PlanEntitlementDef {
 }
 
 export interface PlanDefinition {
-  /** Stable plan row id (billing.plans.id) — exposed verbatim as the public id. */
+  /** Stable plan row id (billing_plans.id) — exposed verbatim as the public id. */
   id: string;
-  /** Stable machine code (billing.plans.code) — the assignment key. */
+  /** Stable machine code (billing_plans.code) — the assignment key. */
   code: string;
   name: string;
   description: string;

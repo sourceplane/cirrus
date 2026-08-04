@@ -107,8 +107,9 @@ jobs:
             $retry_flag
         env:
           # GITHUB_TOKEN is the only credential CI holds — GitHub-issued and
-          # ephemeral. Every provider credential (Cloudflare token + account
-          # id, Supabase management token + org id) is an orun-managed secret:
+          # ephemeral. Every provider credential (the Cloudflare token and
+          # account id — this baseline has no second provider) is an
+          # orun-managed secret:
           # brokered fresh per run from the workspace's integrations, resolved
           # lease-bound by the jobs that declare it (profile secretBindings or
           # component secretEnv), and log-redacted. Nothing provider-shaped is

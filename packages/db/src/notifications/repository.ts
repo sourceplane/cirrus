@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   CreateNotificationAttemptInput,
   CreateNotificationInput,
@@ -12,6 +12,7 @@ import type {
   StoredNotificationSuppression,
   UpsertNotificationPreferenceInput,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -100,14 +101,6 @@ function mapSuppression(row: Record<string, unknown>): StoredNotificationSuppres
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 function safeError(message: string): NotificationsResult<never> {
   return { ok: false, error: { kind: "internal", message } };
@@ -122,7 +115,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async createNotification(input: CreateNotificationInput) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO notifications.notifications (
+          `INSERT INTO notifications_notifications (
             id, org_id, category, template_key, template_data,
             channel, recipient_address, recipient_subject_kind, recipient_subject_id,
             status, idempotency_key, correlation_id, queued_at, updated_at
@@ -164,7 +157,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async getNotificationById(id: string) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM notifications.notifications WHERE id = $1`,
+          `SELECT * FROM notifications_notifications WHERE id = $1`,
           [id],
         );
         if (result.rows.length === 0) {
@@ -179,7 +172,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async findNotificationByIdempotencyKey(orgId: string, idempotencyKey: string) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM notifications.notifications
+          `SELECT * FROM notifications_notifications
            WHERE org_id = $1 AND idempotency_key = $2
            LIMIT 1`,
           [orgId, idempotencyKey],
@@ -196,7 +189,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async markNotificationStatus(input: MarkNotificationStatusInput) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE notifications.notifications
+          `UPDATE notifications_notifications
            SET status = $3,
                provider_message_id = COALESCE($4, provider_message_id),
                last_error = $5,
@@ -228,7 +221,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async recordAttempt(input: CreateNotificationAttemptInput) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO notifications.notification_attempts (
+          `INSERT INTO notifications_notification_attempts (
             id, notification_id, org_id, attempt_number,
             status, provider_message_id, error_reason, attempted_at
           ) VALUES (
@@ -263,7 +256,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async listAttempts(notificationId: string) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM notifications.notification_attempts
+          `SELECT * FROM notifications_notification_attempts
            WHERE notification_id = $1
            ORDER BY attempt_number ASC`,
           [notificationId],
@@ -276,7 +269,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
 
     async listPreferences(orgId, subjectKind, subjectId, channel) {
       try {
-        let sql = `SELECT * FROM notifications.notification_preferences
+        let sql = `SELECT * FROM notifications_notification_preferences
                    WHERE org_id = $1 AND subject_kind = $2 AND subject_id = $3`;
         const params: unknown[] = [orgId, subjectKind, subjectId];
         if (channel) {
@@ -294,7 +287,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async upsertPreference(input: UpsertNotificationPreferenceInput) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO notifications.notification_preferences (
+          `INSERT INTO notifications_notification_preferences (
             id, org_id, subject_kind, subject_id, channel, categories, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $7
@@ -326,7 +319,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async isSuppressed(orgId: string, channel: string, address: string) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT 1 FROM notifications.notification_suppressions
+          `SELECT 1 FROM notifications_notification_suppressions
            WHERE org_id = $1 AND channel = $2 AND address = $3
            LIMIT 1`,
           [orgId, channel, address.toLowerCase()],
@@ -340,7 +333,7 @@ export function createNotificationsRepository(executor: SqlExecutor): Notificati
     async createSuppression(input: CreateNotificationSuppressionInput) {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO notifications.notification_suppressions (
+          `INSERT INTO notifications_notification_suppressions (
             id, org_id, channel, address, reason, created_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6

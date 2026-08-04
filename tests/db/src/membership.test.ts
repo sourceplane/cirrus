@@ -2,7 +2,7 @@ import {
   createMembershipRepository,
 } from "@saas/db/membership";
 import { asUuid } from "@saas/db";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 const ORG1 = asUuid("00000000-0000-0000-0000-000000000001");
 const ORG2 = asUuid("00000000-0000-0000-0000-000000000002");
@@ -166,7 +166,7 @@ describe("MembershipRepository", () => {
 
     it("returns conflict on unique violation error code", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createMembershipRepository(executor);
 
@@ -402,7 +402,7 @@ describe("MembershipRepository", () => {
 
     it("returns conflict on duplicate member", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createMembershipRepository(executor);
 
@@ -544,7 +544,7 @@ describe("MembershipRepository", () => {
 
     it("returns conflict on duplicate invitation", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createMembershipRepository(executor);
 
@@ -925,7 +925,7 @@ describe("MembershipRepository", () => {
       const { executor } = createFakeExecutor({
         callResponses: [
           { rows: [SAMPLE_INVITATION_ROW], rowCount: 1 },
-          { error: { code: "23505" } },
+          { error: new Error("D1_ERROR: UNIQUE constraint failed") },
         ],
       });
       const repo = createMembershipRepository(executor);
@@ -1074,7 +1074,7 @@ describe("MembershipRepository", () => {
 
     it("returns conflict on duplicate active role assignment", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createMembershipRepository(executor);
 
@@ -1180,7 +1180,7 @@ describe("MembershipRepository", () => {
   describe("safe error handling", () => {
     it("never exposes raw SQL errors in repository outputs", async () => {
       const pgError = new Error(
-        'relation "membership.organizations" does not exist at character 15',
+        'relation "membership_organizations" does not exist at character 15',
       );
       const { executor } = createFakeExecutor({ error: pgError });
       const repo = createMembershipRepository(executor);
@@ -1643,9 +1643,9 @@ describe("MembershipRepository", () => {
       const sql = queries[0]!.text;
       expect(sql).toContain("$1");
       expect(sql).toContain("$2");
-      expect(sql).toContain("membership.organization_members");
+      expect(sql).toContain("membership_organization_members");
       expect(sql).toContain("status = 'active'");
-      expect(sql).toContain("membership.organization_invitations");
+      expect(sql).toContain("membership_organization_invitations");
       expect(sql).toContain("status = 'pending'");
       expect(sql).toContain("revoked_at IS NULL");
       expect(sql).toContain("accepted_at IS NULL");

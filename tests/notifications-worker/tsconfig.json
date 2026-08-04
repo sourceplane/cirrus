@@ -11,7 +11,7 @@
     "paths": {
       "@saas/contracts": ["../../packages/contracts/src/index.ts"],
       "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
-      "@saas/db/hyperdrive": ["../../packages/db/src/hyperdrive/index.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
       "@saas/db/notifications": ["../../packages/db/src/notifications/index.ts"],
       "@notifications-worker/*": ["../../apps/notifications-worker/src/*.ts"]
     }

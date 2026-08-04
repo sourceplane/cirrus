@@ -3,7 +3,7 @@ import type {
   MeteringRepository,
   RollupMaterializationResult,
 } from "@saas/db/metering";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import type { Env } from "./env.js";
 
 /**
@@ -130,7 +130,7 @@ export async function materializeRecentRollups(
 }
 
 /**
- * Scheduled entry point: opens an executor against the Hyperdrive binding,
+ * Scheduled entry point: opens an executor against the D1 binding,
  * runs the recent-window materialization, and logs bounded counts only.
  *
  * Fails closed when `PLATFORM_DB` is missing — does not throw.

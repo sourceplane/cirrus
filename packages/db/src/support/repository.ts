@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   RecordSupportActionInput,
   StoredSupportActionRecord,
@@ -10,6 +10,7 @@ import type {
   SupportResult,
   SupportUserProjection,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
 
 // ---------------------------------------------------------------------------
 // JSON helpers
@@ -65,14 +66,6 @@ function mapUserProjection(row: Record<string, unknown>): SupportUserProjection 
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 function safeError(message: string): SupportResult<never> {
   return { ok: false, error: { kind: "internal", message } };
@@ -112,7 +105,7 @@ export function createSupportRepository(executor: SqlExecutor): SupportRepositor
     ): Promise<SupportResult<StoredSupportActionRecord>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO support.support_action_records (
+          `INSERT INTO support_support_action_records (
             id, actor_id, actor_type, target_org_id,
             action, reason, request_id, metadata, occurred_at
           ) VALUES (
@@ -152,7 +145,7 @@ export function createSupportRepository(executor: SqlExecutor): SupportRepositor
       try {
         const { clause, params: cursorParams } = buildCursorCondition(params.cursor, 3);
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM support.support_action_records
+          `SELECT * FROM support_support_action_records
            WHERE target_org_id = $1${clause}
            ORDER BY occurred_at DESC, id DESC
            LIMIT $2`,
@@ -180,10 +173,10 @@ export function createSupportRepository(executor: SqlExecutor): SupportRepositor
              o.status,
              o.created_at,
              (
-               SELECT count(*) FROM membership.organization_members m
+               SELECT count(*) FROM membership_organization_members m
                WHERE m.org_id = o.id AND m.status = 'active'
              ) AS member_count
-           FROM membership.organizations o
+           FROM membership_organizations o
            WHERE o.id = $1`,
           [orgId],
         );
@@ -204,7 +197,7 @@ export function createSupportRepository(executor: SqlExecutor): SupportRepositor
         // auth identities, sessions, login challenges, or token material.
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, email, display_name, status, created_at
-           FROM identity.users
+           FROM identity_users
            WHERE id = $1`,
           [userId],
         );

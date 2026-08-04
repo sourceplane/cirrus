@@ -37,7 +37,7 @@ async function setupAuthenticatedUser(repo: ReturnType<typeof createFakeReposito
   return { token: completeResult.token, userId: completeResult.user.id };
 }
 
-function makeEnv(db: Hyperdrive = {} as Hyperdrive): Env {
+function makeEnv(db: D1Database = {} as D1Database): Env {
   return { PLATFORM_DB: db, ENVIRONMENT: "test" } as Env;
 }
 

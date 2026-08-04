@@ -6,7 +6,7 @@ import type {
   Scope,
   SecretMetadata,
 } from "@saas/db/config";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 type QueryRecord = { text: string; params: unknown[] };
 
@@ -104,7 +104,7 @@ describe("ConfigRepository — Settings", () => {
       expect(result.value.environmentId).toBeNull();
     }
     expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("config.settings");
+    expect(queries[0]!.text).toContain("config_settings");
     expect(queries[0]!.params[2]).toBeNull(); // project_id null
     expect(queries[0]!.params[3]).toBeNull(); // environment_id null
   });
@@ -142,7 +142,7 @@ describe("ConfigRepository — Settings", () => {
   });
 
   it("returns conflict on unique violation", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createConfigRepository(executor);
     const result = await repo.createSetting({
       id: "set-001",
@@ -280,7 +280,7 @@ describe("ConfigRepository — Feature Flags", () => {
       expect(result.value.flagKey).toBe("beta_feature");
       expect(result.value.enabled).toBe(true);
     }
-    expect(queries[0]!.text).toContain("config.feature_flags");
+    expect(queries[0]!.text).toContain("config_feature_flags");
   });
 
   it("creates a project-scoped flag with orgId + projectId", async () => {
@@ -296,7 +296,7 @@ describe("ConfigRepository — Feature Flags", () => {
   });
 
   it("returns conflict on duplicate flag key", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createConfigRepository(executor);
     const result = await repo.createFeatureFlag({
       id: "flg-001",
@@ -337,7 +337,7 @@ describe("ConfigRepository — Feature Flags", () => {
     const repo = createConfigRepository(executor);
     const result = await repo.listFeatureFlags(ORG_SCOPE, { limit: 10, cursor: null });
     expect(result.ok).toBe(true);
-    expect(queries[0]!.text).toContain("config.feature_flags");
+    expect(queries[0]!.text).toContain("config_feature_flags");
   });
 });
 
@@ -463,7 +463,7 @@ describe("ConfigRepository — Secret Metadata", () => {
   });
 
   it("returns conflict on duplicate secret key", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createConfigRepository(executor);
     const result = await repo.createSecretMetadata({
       id: "sec-001",

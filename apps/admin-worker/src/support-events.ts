@@ -2,12 +2,12 @@ import type { Env } from "./env.js";
 import type { EventsRepository } from "@saas/db/events";
 import type { SupportActor } from "./support-auth.js";
 import { createEventsRepository } from "@saas/db/events";
-import type { SqlExecutor } from "@saas/db/hyperdrive";
+import type { SqlExecutor } from "@saas/db/d1";
 
 // Shared event-emit seam for the admin-worker. Mirrors the events-audit pattern
 // used by peer workers (EventsRepository.appendEventWithAudit) — does NOT fork a
-// new publish mechanism. Every support event lands in events.event_log with a
-// matching events.audit_entries projection, in the same write.
+// new publish mechanism. Every support event lands in events_event_log with a
+// matching events_audit_entries projection, in the same write.
 
 export interface SupportEventInput {
   type: "support.action_recorded" | "support.access_denied";

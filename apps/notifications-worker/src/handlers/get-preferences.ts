@@ -3,7 +3,7 @@ import type {
   GetNotificationPreferencesResponse,
   NotificationPreference,
 } from "@saas/contracts/notifications";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import {
   createNotificationsRepository,
   type NotificationsRepository,

@@ -216,7 +216,7 @@ function createFakeEventsRepo(): FakeEventsRepo {
 
 function makeEnv(membershipFetcher: Fetcher, policyFetcher: Fetcher): Env {
   return {
-    PLATFORM_DB: {} as Hyperdrive,
+    PLATFORM_DB: {} as D1Database,
     MEMBERSHIP_WORKER: membershipFetcher,
     POLICY_WORKER: policyFetcher,
     ENVIRONMENT: "test",

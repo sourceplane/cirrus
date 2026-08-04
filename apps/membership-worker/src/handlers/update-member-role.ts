@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import type { MembershipRepository } from "@saas/db/membership";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMembershipRepository } from "@saas/db/membership";
 import { createEventsRepository } from "@saas/db/events";
 import { ORGANIZATION_ROLES } from "@saas/contracts/membership";

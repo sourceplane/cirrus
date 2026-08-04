@@ -3,7 +3,7 @@ import {
   handleUnlinkRepoLink,
 } from "@integrations-worker/handlers/repo-links";
 import type { Env } from "@integrations-worker/env";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 import { asUuid } from "@saas/db";
 
 const ORG_UUID = "11111111-1111-4111-8111-111111111111";
@@ -132,9 +132,9 @@ const VALID_BODY = {
 describe("POST .../projects/{id}/repo-links", () => {
   it("creates a link, validating the branch map against live environments", async () => {
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
       if (text.includes("COUNT(*)::int")) return [{ count: 0 }];
-      if (text.includes("INSERT INTO integrations.repo_links")) return [linkRow()];
+      if (text.includes("INSERT INTO integrations_repo_links")) return [linkRow()];
       return [{ _event: {}, _audit: {} }];
     });
     const res = await handleCreateRepoLink(
@@ -150,7 +150,7 @@ describe("POST .../projects/{id}/repo-links", () => {
     const body = (await res.json()) as { data: { repoLink: Record<string, unknown> } };
     expect(body.data.repoLink.branchEnvMap).toEqual({ main: "prod" });
     expect(body.data.repoLink.id).toMatch(/^repl_/);
-    expect(queries.some((q) => q.text.includes("events.event_log"))).toBe(true);
+    expect(queries.some((q) => q.text.includes("events_event_log"))).toBe(true);
   });
 
   it("rejects branch maps pointing at unknown environments (422)", async () => {
@@ -172,8 +172,8 @@ describe("POST .../projects/{id}/repo-links", () => {
 
   it("enforces limit.repo_links with 412 limit_reached + usage details", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
-      if (text.includes("COUNT(*)::int")) return [{ count: 1 }]; // at the limit of 1
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("COUNT(*) AS count")) return [{ count: 1 }]; // at the limit of 1
       return [];
     });
     const res = await handleCreateRepoLink(
@@ -194,7 +194,7 @@ describe("POST .../projects/{id}/repo-links", () => {
 
   it("404s when the connection is not active in this org", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id"))
+      if (text.includes("FROM integrations_connections WHERE org_id"))
         return [{ ...connectionRow(), status: "revoked" }];
       return [];
     });
@@ -212,9 +212,9 @@ describe("POST .../projects/{id}/repo-links", () => {
 
   it("maps duplicate active links to 409", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.connections WHERE org_id")) return [connectionRow()];
+      if (text.includes("FROM integrations_connections WHERE org_id")) return [connectionRow()];
       if (text.includes("COUNT(*)::int")) return [{ count: 0 }];
-      if (text.includes("INSERT INTO integrations.repo_links")) throw { code: "23505" };
+      if (text.includes("INSERT INTO integrations_repo_links")) throw new Error("D1_ERROR: UNIQUE constraint failed");
       return [];
     });
     const res = await handleCreateRepoLink(
@@ -233,7 +233,7 @@ describe("POST .../projects/{id}/repo-links", () => {
 describe("DELETE .../repo-links/{id}", () => {
   it("soft-unlinks and emits scm.repo.unlinked", async () => {
     const { executor, queries } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.repo_links WHERE org_id")) return [linkRow()];
+      if (text.includes("FROM integrations_repo_links WHERE org_id")) return [linkRow()];
       if (text.includes("SET status = 'unlinked'")) return [linkRow({ status: "unlinked" })];
       return [{ _event: {}, _audit: {} }];
     });
@@ -248,13 +248,13 @@ describe("DELETE .../repo-links/{id}", () => {
     );
     expect(res.status).toBe(200);
     expect(queries.some((q) => q.text.includes("SET status = 'unlinked'"))).toBe(true);
-    const event = queries.find((q) => q.text.includes("events.event_log"));
+    const event = queries.find((q) => q.text.includes("events_event_log"));
     expect(event!.params[1]).toBe("scm.repo.unlinked");
   });
 
   it("404s when the link belongs to another project", async () => {
     const { executor } = fakeExecutor((text) => {
-      if (text.includes("FROM integrations.repo_links WHERE org_id"))
+      if (text.includes("FROM integrations_repo_links WHERE org_id"))
         return [linkRow({ project_id: "99999999-9999-4999-8999-999999999999" })];
       return [];
     });

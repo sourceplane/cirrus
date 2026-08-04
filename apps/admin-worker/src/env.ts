@@ -1,4 +1,4 @@
 export interface Env {
-  PLATFORM_DB?: Hyperdrive;
+  PLATFORM_DB?: D1Database;
   ENVIRONMENT: string;
 }

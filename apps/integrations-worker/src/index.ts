@@ -1,7 +1,7 @@
 import type { Env } from "./env.js";
 import { route } from "./router.js";
 import { drainInboundDeliveries } from "./drain.js";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

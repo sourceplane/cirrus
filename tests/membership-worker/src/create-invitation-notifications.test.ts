@@ -99,7 +99,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -141,7 +141,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -170,7 +170,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
   it("returns 201 unchanged when enqueue fails (non_2xx)", async () => {
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -199,7 +199,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
   it("returns 201 unchanged when enqueue returns no_binding (NOTIFICATIONS_WORKER undefined)", async () => {
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       // NOTIFICATIONS_WORKER intentionally absent.
@@ -251,7 +251,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -279,7 +279,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(false),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -308,7 +308,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
       BILLING_WORKER: {} as Fetcher,
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -353,7 +353,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "true",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -384,7 +384,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     const recorder = makeRecorder();
     const env: Env = {
       POLICY_WORKER: policyFetcher(true),
-      PLATFORM_DB: {} as Hyperdrive,
+      PLATFORM_DB: {} as D1Database,
       ENVIRONMENT: "test",
       DEBUG_DELIVERY: "false",
       NOTIFICATIONS_WORKER: {} as Fetcher,
@@ -425,7 +425,7 @@ describe("create-invitation → notifications-worker wire (Task 0088)", () => {
     function makeEnv(): Env {
       return {
         POLICY_WORKER: policyFetcher(true),
-        PLATFORM_DB: {} as Hyperdrive,
+        PLATFORM_DB: {} as D1Database,
         ENVIRONMENT: "test",
         DEBUG_DELIVERY: "false",
         NOTIFICATIONS_WORKER: {} as Fetcher,

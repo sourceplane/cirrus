@@ -3,7 +3,7 @@ kind: Intent
 
 metadata:
   name: cirrus
-  description: Reusable Cloudflare and Supabase multi-tenant SaaS starter
+  description: Reusable Cloudflare-only multi-tenant SaaS starter (Workers, D1, KV)
   namespace: sourceplane
 
 execution:

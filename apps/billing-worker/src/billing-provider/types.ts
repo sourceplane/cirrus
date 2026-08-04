@@ -11,7 +11,7 @@
  * Invariants honored by every adapter:
  *  - Entitlement DECISIONS are never read live from a provider — providers
  *    mutate our billing state via webhooks; product gates read
- *    `billing.entitlements`. This seam is for purchase/manage/sync only.
+ *    `billing_entitlements`. This seam is for purchase/manage/sync only.
  *  - No provider SDK types, secrets, raw payloads, or tokenized URLs cross this
  *    seam into `@saas/contracts`, the DB, `metadata`, or logs. Only the
  *    normalized, safe shapes below leave an adapter.

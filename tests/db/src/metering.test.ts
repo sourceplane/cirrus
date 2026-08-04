@@ -2,7 +2,7 @@ import { createMeteringRepository } from "@saas/db/metering";
 import type {
   RecordUsageInput,
 } from "@saas/db/metering";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 // ── Mock executor ──────────────────────────────────────────
 
@@ -142,9 +142,9 @@ describe("Metering Repository", () => {
 
     it("handles unique violation errors", async () => {
       const executor = createMockExecutor(() => {
-        const err = new Error("unique violation") as Error & { code: string };
-        err.code = "23505";
-        throw err;
+        throw new Error(
+          "D1_ERROR: UNIQUE constraint failed: metering_usage_records.idempotency_key",
+        );
       });
       const repo = createMeteringRepository(executor);
       const result = await repo.recordUsage(makeUsageInput());
@@ -305,7 +305,7 @@ describe("Metering Repository", () => {
     const WIN_START = new Date("2026-03-15T11:00:00.000Z");
     const WIN_END = new Date("2026-03-15T13:00:00.000Z");
 
-    it("aggregates raw usage into rollups grouped by org/project/env/metric/bucket with date_trunc", async () => {
+    it("aggregates raw usage into rollups grouped by org/project/env/metric/bucket", async () => {
       const executor = createMockExecutor(() => ({ rows: [], rowCount: 4 }));
       const repo = createMeteringRepository(executor);
 
@@ -325,7 +325,9 @@ describe("Metering Repository", () => {
 
       const call = executor.calls[0]!;
       // Grouping must include org_id + project_id + environment_id + metric + bucket
-      expect(call.sql).toMatch(/GROUP BY\s+org_id,\s*project_id,\s*environment_id,\s*metric,\s*date_trunc/i);
+      expect(call.sql).toMatch(
+        /GROUP BY\s+org_id,\s*project_id,\s*environment_id,\s*metric,\s*strftime/i,
+      );
       // Window is parameter-bound, not interpolated
       expect(call.sql).toContain("recorded_at >= $2");
       expect(call.sql).toContain("recorded_at <  $3");
@@ -358,7 +360,7 @@ describe("Metering Repository", () => {
       });
 
       const sql = executor.calls[0]!.sql;
-      expect(sql).toMatch(/INSERT INTO metering\.usage_rollups/i);
+      expect(sql).toMatch(/INSERT INTO metering_usage_rollups/i);
       expect(sql).toMatch(/ON CONFLICT[\s\S]*DO UPDATE SET/i);
       // The conflict key must mirror the unique index on the table:
       // (org_id, COALESCE(project_id,''), COALESCE(environment_id,''), metric, bucket_type, bucket_start)
@@ -368,7 +370,7 @@ describe("Metering Repository", () => {
       // Updated columns are the aggregate values + updated_at, not the id.
       expect(sql).toMatch(/quantity\s*=\s*EXCLUDED\.quantity/i);
       expect(sql).toMatch(/record_count\s*=\s*EXCLUDED\.record_count/i);
-      expect(sql).toMatch(/updated_at\s*=\s*now\(\)/i);
+      expect(sql).toMatch(/updated_at\s*=\s*strftime\('%Y-%m-%dT%H:%M:%fZ','now'\)/i);
     });
 
     it("emits a deterministic id derived from the full aggregation key (org + project + env + metric + bucket_type + bucket_start)", async () => {
@@ -382,13 +384,14 @@ describe("Metering Repository", () => {
       });
 
       const sql = executor.calls[0]!.sql;
-      // The id is a hash of the aggregation key — same inputs produce same id on re-run.
-      expect(sql).toMatch(/md5\(/i);
+      // The id IS the aggregation key — same inputs produce the same id on
+      // re-run. (SQLite has no md5, and the key was already unique; hashing
+      // only shortened it.)
       expect(sql).toMatch(/org_id\s*\|\|/i);
       expect(sql).toMatch(/COALESCE\(project_id,\s*''\)\s*\|\|/i);
       expect(sql).toMatch(/COALESCE\(environment_id,\s*''\)\s*\|\|/i);
       expect(sql).toMatch(/metric\s*\|\|/i);
-      expect(sql).toMatch(/bucket_start::text/i);
+      expect(sql).toMatch(/bucket_start AS id/i);
     });
 
     it("never aggregates across organizations — org_id is always in GROUP BY", async () => {

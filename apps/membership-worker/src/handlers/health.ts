@@ -1,5 +1,5 @@
 import type { Env } from "../env.js";
-import { createHyperdriveAdapter } from "@saas/db/hyperdrive";
+import { createD1Adapter } from "@saas/db/d1";
 
 export async function handleHealth(env: Env, _requestId: string): Promise<Response> {
   const db = await checkDatabase(env);
@@ -23,7 +23,7 @@ async function checkDatabase(
     return { configured: false, reachable: false };
   }
 
-  const adapter = createHyperdriveAdapter(env.PLATFORM_DB);
+  const adapter = createD1Adapter(env.PLATFORM_DB);
   try {
     return await adapter.ping();
   } finally {

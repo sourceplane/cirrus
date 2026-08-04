@@ -1,62 +1,58 @@
-// Supabase credentials from the ENVIRONMENT (de-AWS): the supabase terraform
-// component wires its outputs into the workspace's project/env secret rung
-// (composition wire-secrets step), and orun resolves the keys this runner
-// declares in its component secretEnv into the job env — SUPABASE_PROJECT_REF,
-// SUPABASE_DB_PASSWORD, SUPABASE_DB_URL. No Secrets Manager, no AWS SDK.
+// D1 credentials from the ENVIRONMENT.
+//
+// The `cloudflare-d1` terraform component publishes its outputs to the
+// workspace's project/env secret rung (the composition's wire-secrets step),
+// and orun resolves the keys this runner declares in its component `secretEnv`
+// into the job env. Nothing is read from a file, a cloud secret store, or an
+// ambient CI value.
+//
+// Two shapes are accepted for the database id, because the wiring layer speaks
+// documents and an operator running this by hand speaks variables:
+//   - WIRING_CLOUDFLARE_D1 — the component's JSON wiring document
+//   - D1_DATABASE_ID       — the flat override
 
-export interface SupabaseSecret {
-  project_ref: string;
-  project_url: string;
-  database_host: string;
-  database_port: string;
-  database_name: string;
-  database_user: string;
-  database_password: string;
-  connection_uri: string;
+export interface D1Credentials {
+  accountId: string;
+  databaseId: string;
+  apiToken: string;
 }
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(
-      `${name} is not set — declare it in the component's secretEnv (wired from the supabase component's outputs)`,
+      `${name} is not set — declare it in the component's secretEnv ` +
+        `(wired from the cloudflare-d1 component's outputs)`,
     );
   }
   return value;
 }
 
-/** Assembles the credential document from the wired env vars. The derived
- * fields (host/port/db/user) follow the same convention the supabase
- * component's payload always used. */
-export function loadSecretFromEnv(): SupabaseSecret {
-  const projectRef = requireEnv("SUPABASE_PROJECT_REF");
-  const password = requireEnv("SUPABASE_DB_PASSWORD");
-  const host = `db.${projectRef}.supabase.co`;
-  const connectionUri =
-    process.env["SUPABASE_DB_URL"]?.trim() ||
-    `postgresql://postgres:${encodeURIComponent(password)}@${host}:5432/postgres`;
-  return {
-    project_ref: projectRef,
-    project_url: `https://${projectRef}.supabase.co`,
-    database_host: host,
-    database_port: "5432",
-    database_name: "postgres",
-    database_user: "postgres",
-    database_password: password,
-    connection_uri: connectionUri,
-  };
+/** Pull the database id out of the wiring document, if one is present. */
+function databaseIdFromWiring(): string | null {
+  const raw = process.env["WIRING_CLOUDFLARE_D1"]?.trim();
+  if (!raw) return null;
+  let doc: Record<string, unknown>;
+  try {
+    doc = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    throw new Error("WIRING_CLOUDFLARE_D1 is set but is not valid JSON");
+  }
+  const id = doc["d1_database_id"];
+  return typeof id === "string" && id.length > 0 ? id : null;
 }
 
-/** Direct or pooler connection URI. When a pooler region is provided, use the
- * Supabase session pooler to avoid IPv6 connectivity issues with the direct
- * database host — the pooler has IPv4 addresses and supports session-level
- * advisory locks and transactions. */
-export function loadConnectionUriFromEnv(poolerRegion?: string): string {
-  const secret = loadSecretFromEnv();
-  if (poolerRegion) {
-    const poolerHost = `aws-0-${poolerRegion}.pooler.supabase.com`;
-    const user = `postgres.${secret.project_ref}`;
-    return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(secret.database_password)}@${poolerHost}:6543/${secret.database_name}`;
+export function loadD1CredentialsFromEnv(): D1Credentials {
+  const databaseId = process.env["D1_DATABASE_ID"]?.trim() || databaseIdFromWiring();
+  if (!databaseId) {
+    throw new Error(
+      "No D1 database id — set D1_DATABASE_ID, or wire WIRING_CLOUDFLARE_D1 " +
+        "from the cloudflare-d1 component",
+    );
   }
-  return secret.connection_uri;
+  return {
+    accountId: requireEnv("CLOUDFLARE_ACCOUNT_ID"),
+    databaseId,
+    apiToken: requireEnv("CLOUDFLARE_API_TOKEN"),
+  };
 }

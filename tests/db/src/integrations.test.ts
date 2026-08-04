@@ -1,6 +1,6 @@
 import { createIntegrationsRepository } from "@saas/db/integrations";
 import { asUuid } from "@saas/db";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 const ORG_ID = asUuid("00000000-0000-4000-8000-000000000001");
 const OTHER_ID = asUuid("00000000-0000-4000-8000-000000000099");
@@ -124,13 +124,13 @@ describe("IntegrationsRepository — connections", () => {
       expect(result.value.orgId).toBe(ORG_ID);
     }
     expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("integrations.connections");
+    expect(queries[0]!.text).toContain("integrations_connections");
     expect(queries[0]!.text).toContain("'pending'");
     expect(queries[0]!.params).toContain("abc123hash");
   });
 
   it("maps a unique violation to a conflict error", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createIntegrationsRepository(executor);
     const result = await repo.createConnection({
       id: CONNECTION_ID,
@@ -171,7 +171,7 @@ describe("IntegrationsRepository — connections", () => {
     const sql = queries[0]!.text;
     expect(sql).toContain("SET state_nonce_hash = NULL");
     expect(sql).toContain("status = 'pending'");
-    expect(sql).toContain("state_expires_at > now()");
+    expect(sql).toContain("state_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')");
   });
 
   it("fails closed when the state nonce does not resolve", async () => {
@@ -252,7 +252,7 @@ describe("IntegrationsRepository — GitHub installations", () => {
     const sql = queries[0]!.text;
     expect(sql).toContain("ON CONFLICT (installation_id)");
     // An orphan re-delivery (connection_id NULL) must never clear a binding.
-    expect(sql).toContain("COALESCE(EXCLUDED.connection_id, integrations.github_installations.connection_id)");
+    expect(sql).toContain("COALESCE(EXCLUDED.connection_id, integrations_github_installations.connection_id)");
   });
 
   it("supports orphaned installations (no connection binding)", async () => {
@@ -297,13 +297,13 @@ describe("IntegrationsRepository — repo links", () => {
     if (result.ok) {
       expect(result.value.branchEnvMap).toEqual({ main: "prod" });
     }
-    expect(queries[0]!.text).toContain("integrations.repo_links");
+    expect(queries[0]!.text).toContain("integrations_repo_links");
     expect(queries[0]!.params[1]).toBe(ORG_ID);
     expect(queries[0]!.params[2]).toBe(PROJECT_ID);
   });
 
   it("maps duplicate active links to conflict", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createIntegrationsRepository(executor);
     const result = await repo.createRepoLink({
       id: LINK_ID,
@@ -399,7 +399,7 @@ describe("IntegrationsRepository — inbound deliveries (durable inbox)", () => 
     expect(result.ok).toBe(true);
     const sql = queries[0]!.text;
     expect(sql).toContain("status IN ('received', 'attributed')");
-    expect(sql).toContain("next_attempt_at IS NULL OR next_attempt_at <= now()");
+    expect(sql).toContain("next_attempt_at IS NULL OR next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now')");
     expect(sql).toContain("ORDER BY received_at ASC, id ASC");
   });
 
@@ -463,7 +463,7 @@ describe("IntegrationsRepository — installation token cache", () => {
     const { executor, queries } = createFakeExecutor({ rows: [SAMPLE_TOKEN_ROW] });
     const repo = createIntegrationsRepository(executor);
     await repo.getInstallationToken(CONNECTION_ID);
-    expect(queries[0]!.text).toContain("expires_at > now()");
+    expect(queries[0]!.text).toContain("expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')");
   });
 
   it("deletes the cache entry on revoke", async () => {
@@ -471,7 +471,7 @@ describe("IntegrationsRepository — installation token cache", () => {
     const repo = createIntegrationsRepository(executor);
     const result = await repo.deleteInstallationToken(CONNECTION_ID);
     expect(result.ok).toBe(true);
-    expect(queries[0]!.text).toContain("DELETE FROM integrations.installation_tokens");
+    expect(queries[0]!.text).toContain("DELETE FROM integrations_installation_tokens");
   });
 
   it("returns a safe internal error without leaking driver details", async () => {

@@ -10,13 +10,13 @@ spec:
   domain: starter-runtime
   path: apps/admin-worker
   dependsOn:
-    - component: cloudflare-hyperdrive
+    - component: cloudflare-d1
   # BF6 wiring documents from orun secrets (SEC-JOB): lease-published by
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   subscribe:
     environments:
@@ -49,7 +49,7 @@ spec:
     turboFilter: "@saas/admin-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-hyperdrive"
+    wiringComponents: "cloudflare-d1"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

@@ -52,7 +52,7 @@ function makeRecorder() {
 
 function makeEnv(extras: Partial<Env> = {}): Env {
   return {
-    PLATFORM_DB: {} as Hyperdrive,
+    PLATFORM_DB: {} as D1Database,
     ENVIRONMENT: "test",
     NOTIFICATIONS_WORKER: {} as Fetcher,
     ...extras,

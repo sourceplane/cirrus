@@ -1,7 +1,7 @@
 import type { Env } from "../env.js";
 import type { BillingRepository, Subscription } from "@saas/db/billing";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createBillingRepository } from "@saas/db/billing";
 import { createEventsRepository } from "@saas/db/events";
 import { successResponse, errorResponse, validationError } from "../http.js";
@@ -25,7 +25,7 @@ import {
  *   2. ensures a billing customer exists for the org (upsert by org),
  *   3. creates the active subscription (cancelling a prior active one on a
  *      plan change), and
- *   4. materializes the plan's entitlement set into `billing.entitlements`
+ *   4. materializes the plan's entitlement set into `billing_entitlements`
  *      (idempotent upsert keyed on (org, key)) so `check-entitlement` reads
  *      real rows instead of the PR-#209 fallback,
  *   5. emits `subscription.created|updated` + `entitlements.updated` events.

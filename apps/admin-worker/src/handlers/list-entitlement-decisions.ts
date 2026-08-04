@@ -5,7 +5,7 @@ import type {
   DecisionAggregateBucket,
 } from "@saas/db/billing";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createEntitlementDecisionRepository } from "@saas/db/billing";
 import { authorizeSupportAction } from "../support-auth.js";
 import { successResponse, errorResponse, validationError } from "../http.js";

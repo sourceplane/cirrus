@@ -10,7 +10,7 @@
     "baseUrl": ".",
     "paths": {
       "@saas/db": ["../../packages/db/src/index.ts"],
-      "@saas/db/hyperdrive": ["../../packages/db/src/hyperdrive/index.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
       "@saas/db/identity": ["../../packages/db/src/identity/index.ts"],
       "@saas/db/runner": ["../../packages/db/src/runner/index.ts"],
       "@saas/db/manifest": ["../../packages/db/src/manifest.ts"],

@@ -2,7 +2,7 @@ import {
   createProjectsRepository,
 } from "@saas/db/projects";
 import { asUuid } from "@saas/db";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 const ORG_ID = asUuid("aaaaaaaa-0001-0001-0001-000000000001");
 const PRJ_ID = asUuid("bbbbbbbb-0001-0001-0001-000000000001");
@@ -136,7 +136,7 @@ describe("ProjectsRepository", () => {
 
     it("returns conflict on unique violation error code", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createProjectsRepository(executor);
 
@@ -187,7 +187,7 @@ describe("ProjectsRepository", () => {
 
       expect(queries).toHaveLength(1);
       expect(queries[0]!.text).toContain("COUNT(*)");
-      expect(queries[0]!.text).toContain("projects.projects");
+      expect(queries[0]!.text).toContain("projects_projects");
       expect(queries[0]!.text).toContain("org_id = $1");
       expect(queries[0]!.text).toContain("status = 'active'");
       expect(queries[0]!.params).toEqual([ORG_ID]);
@@ -270,7 +270,7 @@ describe("ProjectsRepository", () => {
 
       expect(queries).toHaveLength(1);
       expect(queries[0]!.text).toContain("COUNT(*)");
-      expect(queries[0]!.text).toContain("projects.environments");
+      expect(queries[0]!.text).toContain("projects_environments");
       expect(queries[0]!.text).toContain("org_id = $1");
       expect(queries[0]!.text).toContain("project_id = $2");
       expect(queries[0]!.text).toContain("status = 'active'");
@@ -558,7 +558,7 @@ describe("ProjectsRepository", () => {
 
     it("returns conflict on unique violation", async () => {
       const { executor } = createFakeExecutor({
-        error: Object.assign(new Error("unique_violation"), { code: "23505" }),
+        error: new Error("D1_ERROR: UNIQUE constraint failed"),
       });
       const repo = createProjectsRepository(executor);
 
@@ -743,7 +743,7 @@ describe("ProjectsRepository", () => {
   describe("safe error handling", () => {
     it("never exposes raw SQL errors in repository outputs", async () => {
       const pgError = new Error(
-        'relation "projects.projects" does not exist at character 15',
+        'relation "projects_projects" does not exist at character 15',
       );
       const { executor } = createFakeExecutor({ error: pgError });
       const repo = createProjectsRepository(executor);

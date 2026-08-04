@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import type { ReconcileResponse } from "@saas/contracts/billing";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createBillingRepository } from "@saas/db/billing";
 import { createEventsRepository } from "@saas/db/events";
 import { errorResponse, successResponse } from "../http.js";

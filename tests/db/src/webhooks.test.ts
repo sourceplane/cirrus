@@ -2,7 +2,7 @@ import {
   createWebhookRepository,
 } from "@saas/db/webhooks";
 import { asUuid } from "@saas/db";
-import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/hyperdrive";
+import type { SqlExecutor, SqlExecutorResult, SqlRow } from "@saas/db/d1";
 
 // Valid canonical UUIDs. webhook_endpoints/subscriptions org_id & project_id are
 // UUID columns, so the branded create inputs require real UUIDs (not slugs).
@@ -102,7 +102,7 @@ describe("WebhookRepository — Endpoints", () => {
       expect(result.value.secretVersion).toBe(1);
     }
     expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("webhooks.webhook_endpoints");
+    expect(queries[0]!.text).toContain("webhooks_webhook_endpoints");
     expect(queries[0]!.params[2]).toBeNull(); // project_id null
   });
 
@@ -153,7 +153,7 @@ describe("WebhookRepository — Endpoints", () => {
   });
 
   it("returns conflict on unique violation", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createWebhookRepository(executor);
     const result = await repo.createEndpoint({
       id: "ep-001",
@@ -363,9 +363,10 @@ describe("WebhookRepository — Endpoints", () => {
     // SQL must snapshot current secret_ciphertext + secret_version into previous_*
     expect(sql).toMatch(/previous_secret_ciphertext\s*=\s*secret_ciphertext/);
     expect(sql).toMatch(/previous_secret_version\s*=\s*secret_version/);
-    // SQL must compute expires_at = now() + interval scaled by the grace param
+    // SQL must compute expires_at as now + the grace window in seconds. On
+    // SQLite that is a strftime modifier, not an INTERVAL literal.
     expect(sql).toContain("previous_secret_expires_at");
-    expect(sql).toContain("interval");
+    expect(sql).toContain("' || $4 || ' seconds'");
     // grace seconds and ciphertext both passed as parameters
     expect(queries[0]!.params).toContain(86400);
     expect(queries[0]!.params).toContain("new-encrypted-envelope");
@@ -417,7 +418,7 @@ describe("WebhookRepository — Subscriptions", () => {
       expect(result.value.enabled).toBe(true);
       expect(result.value.projectId).toBeNull();
     }
-    expect(queries[0]!.text).toContain("webhooks.webhook_subscriptions");
+    expect(queries[0]!.text).toContain("webhooks_webhook_subscriptions");
   });
 
   it("creates a project-scoped subscription with orgId + projectId", async () => {
@@ -436,7 +437,7 @@ describe("WebhookRepository — Subscriptions", () => {
   });
 
   it("returns conflict on duplicate subscription", async () => {
-    const { executor } = createFakeExecutor({ error: { code: "23505" } });
+    const { executor } = createFakeExecutor({ error: new Error("D1_ERROR: UNIQUE constraint failed") });
     const repo = createWebhookRepository(executor);
     const result = await repo.createSubscription({
       id: "sub-001",
@@ -509,7 +510,7 @@ describe("WebhookRepository — Delivery Attempts", () => {
       expect(result.value.status).toBe("pending");
       expect(result.value.attemptNumber).toBe(1);
     }
-    expect(queries[0]!.text).toContain("webhooks.webhook_delivery_attempts");
+    expect(queries[0]!.text).toContain("webhooks_webhook_delivery_attempts");
   });
 
   it("updates a delivery attempt by orgId + attemptId", async () => {

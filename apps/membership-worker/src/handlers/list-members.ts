@@ -1,7 +1,7 @@
 import type { Env } from "../env.js";
 import type { ActorContext } from "../router.js";
 import type { MembershipRepository, PageQueryParams } from "@saas/db/membership";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMembershipRepository } from "@saas/db/membership";
 import { authorizeViaPolicy } from "../policy-client.js";
 import { successResponse, errorResponse, validationError, withTimings } from "../http.js";

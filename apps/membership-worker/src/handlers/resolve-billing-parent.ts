@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import type { MembershipRepository } from "@saas/db/membership";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createMembershipRepository, effectiveBillingOrgId } from "@saas/db/membership";
 import { successResponse, errorResponse } from "../http.js";
 import { parseOrgPublicId, orgPublicId } from "../ids.js";

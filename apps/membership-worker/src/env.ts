@@ -1,5 +1,5 @@
 export interface Env {
-  PLATFORM_DB?: Hyperdrive;
+  PLATFORM_DB?: D1Database;
   POLICY_WORKER?: Fetcher;
   BILLING_WORKER?: Fetcher;
   NOTIFICATIONS_WORKER?: Fetcher;

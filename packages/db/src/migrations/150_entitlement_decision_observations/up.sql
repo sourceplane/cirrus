@@ -21,27 +21,27 @@
 --   * Counts by (org_id, entitlement_key, outcome) over a bounded time window are
 --     a cheap GROUP BY backed by the composite index below. At entitlement-check
 --     volumes this read is bounded by the window, not the full table.
---   * Append-only mirrors the peer `support.support_action_records` ledger
+--   * Append-only mirrors the peer `support_support_action_records` ledger
 --     (migration 140) and the events/audit append discipline.
 --
 -- Design rules:
 --   * Forward-only and idempotent: CREATE TABLE / INDEX guarded with IF NOT
---     EXISTS, safe against the Supabase autocommit runner re-running the file.
+--     EXISTS, safe when the runner re-applies the file.
 --   * No backfill, no destructive change to existing billing schema/tables.
 --   * COUNTS ONLY, SECRET-FREE: a row carries org_id + entitlement_key + outcome
 --     (+ denial reason when denied) + occurred_at. It NEVER stores limit values,
 --     subscription IDs, plan/source details, provider payloads, tokens, or
 --     connection strings. This is enforced by CHECK constraints on the small,
 --     closed outcome/reason vocabularies and by the absence of any value column.
---   * Tenant-scoped: every row carries an org_id (opaque UUID, no FK — mirrors how
+--   * Tenant-scoped: every row carries an org_id (opaque TEXT, no FK — mirrors how
 --     billing/events reference tenant IDs).
 
 -- Append-only, counts-only ledger of entitlement decisions.
-CREATE TABLE IF NOT EXISTS billing.entitlement_decision_observations (
-  id                UUID        PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS billing_entitlement_decision_observations (
+  id                TEXT        PRIMARY KEY,
 
   -- Target tenant the decision was made for.
-  org_id            UUID        NOT NULL,
+  org_id            TEXT        NOT NULL,
 
   -- Stable machine identifier of the entitlement that was checked
   -- (e.g. 'feature.custom_domains', 'limit.projects'). Matches the worker's
@@ -57,8 +57,8 @@ CREATE TABLE IF NOT EXISTS billing.entitlement_decision_observations (
   denial_reason     TEXT,
 
   -- When the decision occurred (worker-supplied) and when persisted.
-  occurred_at       TIMESTAMPTZ NOT NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  occurred_at       TEXT NOT NULL,
+  created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 
   CONSTRAINT entitlement_decision_observations_outcome_check
     CHECK (outcome IN ('allowed', 'denied')),
@@ -74,28 +74,18 @@ CREATE TABLE IF NOT EXISTS billing.entitlement_decision_observations (
     ),
 
   CONSTRAINT entitlement_decision_observations_key_not_blank
-    CHECK (length(btrim(entitlement_key)) > 0)
+    CHECK (length(trim(entitlement_key)) > 0)
 );
 
 -- Primary read path: aggregate counts by (org, key, outcome) over a bounded
 -- time window. Leading org_id + occurred_at lets the window scan stay tenant-
 -- scoped and bounded; entitlement_key + outcome support the GROUP BY.
 CREATE INDEX IF NOT EXISTS entitlement_decision_observations_org_window_idx
-  ON billing.entitlement_decision_observations
+  ON billing_entitlement_decision_observations
   (org_id, occurred_at DESC, entitlement_key, outcome);
 
-COMMENT ON TABLE billing.entitlement_decision_observations IS
-  'Append-only, counts-only observations of entitlement decisions (one row per '
-  'decision on the internal check-entitlement path). Carries org_id, '
-  'entitlement_key, outcome, and denial_reason only — NEVER limit values, '
-  'subscription IDs, plan/source details, provider payloads, or secrets. Read '
-  'as a narrow time-windowed aggregation by the admin-support worker.';
-COMMENT ON COLUMN billing.entitlement_decision_observations.org_id IS
-  'Target organization the entitlement decision was made for. Tenant scope.';
-COMMENT ON COLUMN billing.entitlement_decision_observations.entitlement_key IS
-  'Stable machine identifier of the checked entitlement. Never free-form text.';
-COMMENT ON COLUMN billing.entitlement_decision_observations.outcome IS
-  'Decision outcome: allowed | denied. Closed vocabulary.';
-COMMENT ON COLUMN billing.entitlement_decision_observations.denial_reason IS
-  'Denial reason (not_configured | disabled), present only when denied. Mirrors '
-  'the frozen CheckBillingEntitlementResponse reason contract. Never a value/secret.';
+-- table billing_entitlement_decision_observations: Append-only, counts-only observations of entitlement decisions (one row per decision on the internal check-entitlement path). Carries org_id, entitlement_key, outcome, and denial_reason only — NEVER limit values, subscription IDs, plan/source details, provider payloads, or secrets. Read as a narrow time-windowed aggregation by the admin-support worker.
+-- column billing_entitlement_decision_observations.org_id: Target organization the entitlement decision was made for. Tenant scope.
+-- column billing_entitlement_decision_observations.entitlement_key: Stable machine identifier of the checked entitlement. Never free-form text.
+-- column billing_entitlement_decision_observations.outcome: Decision outcome: allowed | denied. Closed vocabulary.
+-- column billing_entitlement_decision_observations.denial_reason: Denial reason (not_configured | disabled), present only when denied. Mirrors the frozen CheckBillingEntitlementResponse reason contract. Never a value/secret.

@@ -1,4 +1,4 @@
-import { createHyperdriveAdapter } from "@saas/db/hyperdrive";
+import { createD1Adapter } from "@saas/db/d1";
 import type { HealthStatus } from "@saas/contracts/health";
 import type { Env } from "./env";
 import { resolveRequestId, notFound } from "./http";
@@ -120,7 +120,7 @@ async function checkDatabase(
     return { configured: false, reachable: false };
   }
 
-  const adapter = createHyperdriveAdapter(env.PLATFORM_DB);
+  const adapter = createD1Adapter(env.PLATFORM_DB);
   try {
     return await adapter.ping();
   } finally {

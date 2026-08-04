@@ -1,5 +1,5 @@
 import type { Env } from "../env.js";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createNotificationsRepository, type NotificationsRepository } from "@saas/db/notifications";
 import { successResponse, errorResponse } from "../http.js";
 import { getNotificationByPublicId } from "../services/notifications.js";

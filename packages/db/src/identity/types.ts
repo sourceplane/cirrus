@@ -1,4 +1,4 @@
-export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../hyperdrive/executor.js";
+export type { SqlExecutor, SqlExecutorResult, SqlRow } from "../d1/executor.js";
 import type { Uuid } from "../ids/index.js";
 
 export type IdentityRepositoryError =

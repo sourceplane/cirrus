@@ -3,7 +3,7 @@ import type { IdentityRepository } from "@saas/db/identity";
 import type { EventsRepository } from "@saas/db/events";
 import { createIdentityRepository } from "@saas/db/identity";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { servicePrincipalSubjectId } from "@saas/contracts/service-principal";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";

@@ -1,10 +1,10 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type { BillingResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Entitlement-decision observability (B9)
 //
-// A narrow, counts-only repository over billing.entitlement_decision_observations
+// A narrow, counts-only repository over billing_entitlement_decision_observations
 // (migration 150). Owned by the billing bounded context. Two operations:
 //
 //   * recordDecisionObservation — append one secret-free observation per
@@ -79,7 +79,7 @@ export function createEntitlementDecisionRepository(
         const denialReason =
           input.outcome === "denied" ? (input.denialReason ?? null) : null;
         await executor.execute(
-          `INSERT INTO billing.entitlement_decision_observations (
+          `INSERT INTO billing_entitlement_decision_observations (
              id, org_id, entitlement_key, outcome, denial_reason, occurred_at
            ) VALUES (
              $1, $2, $3, $4, $5, $6
@@ -116,7 +116,7 @@ export function createEntitlementDecisionRepository(
 
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT entitlement_key, outcome, denial_reason, count(*) AS decision_count
-             FROM billing.entitlement_decision_observations
+             FROM billing_entitlement_decision_observations
             WHERE org_id = $1
               AND occurred_at >= $2${upperClause}
             GROUP BY entitlement_key, outcome, denial_reason

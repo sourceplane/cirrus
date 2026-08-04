@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   WebhookRepository,
   WebhookResult,
@@ -21,6 +21,8 @@ import type {
   RotateEndpointSecretInput,
   RotateEndpointSecretResult,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseBooleanColumn } from "../json.js";
 
 // ── Row mappers ────────────────────────────────────────────
 
@@ -52,7 +54,7 @@ function mapSubscription(row: Record<string, unknown>): WebhookSubscription {
     endpointId: row.endpoint_id as string,
     projectId: (row.project_id as string) ?? null,
     eventType: row.event_type as string,
-    enabled: row.enabled as boolean,
+    enabled: parseBooleanColumn(row.enabled),
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -84,14 +86,6 @@ function safeError(message: string): WebhookResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 // ── Paged list helper ──────────────────────────────────────
 
@@ -150,11 +144,11 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
       try {
         const hasCiphertext = input.secretCiphertext !== undefined;
         const sql = hasCiphertext
-          ? `INSERT INTO webhooks.webhook_endpoints (id, org_id, project_id, url, name, description, secret_ciphertext, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
+          ? `INSERT INTO webhooks_webhook_endpoints (id, org_id, project_id, url, name, description, secret_ciphertext, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
              RETURNING ${ENDPOINT_SAFE_COLUMNS}`
-          : `INSERT INTO webhooks.webhook_endpoints (id, org_id, project_id, url, name, description, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+          : `INSERT INTO webhooks_webhook_endpoints (id, org_id, project_id, url, name, description, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
              RETURNING ${ENDPOINT_SAFE_COLUMNS}`;
         const values: unknown[] = [
           input.id,
@@ -183,7 +177,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async getEndpoint(orgId: string, endpointId: string): Promise<WebhookResult<WebhookEndpoint>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT ${ENDPOINT_SAFE_COLUMNS} FROM webhooks.webhook_endpoints WHERE org_id = $1 AND id = $2`,
+          `SELECT ${ENDPOINT_SAFE_COLUMNS} FROM webhooks_webhook_endpoints WHERE org_id = $1 AND id = $2`,
           [orgId, endpointId],
         );
         if (result.rowCount === 0) {
@@ -199,7 +193,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
       if (projectId) {
         return pagedList(
           executor,
-          "webhooks.webhook_endpoints",
+          "webhooks_webhook_endpoints",
           "org_id = $1 AND project_id = $2",
           [orgId, projectId],
           params,
@@ -209,7 +203,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
       }
       return pagedList(
         executor,
-        "webhooks.webhook_endpoints",
+        "webhooks_webhook_endpoints",
         "org_id = $1",
         [orgId],
         params,
@@ -239,7 +233,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
           idx++;
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE webhooks.webhook_endpoints SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING ${ENDPOINT_SAFE_COLUMNS}`,
+          `UPDATE webhooks_webhook_endpoints SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING ${ENDPOINT_SAFE_COLUMNS}`,
           values,
         );
         if (result.rowCount === 0) {
@@ -254,8 +248,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async disableEndpoint(orgId: string, endpointId: string, input: DisableWebhookEndpointInput): Promise<WebhookResult<WebhookEndpoint>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE webhooks.webhook_endpoints
-           SET status = 'disabled', disabled_reason = $3, disabled_at = now(), updated_at = now()
+          `UPDATE webhooks_webhook_endpoints
+           SET status = 'disabled', disabled_reason = $3, disabled_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING ${ENDPOINT_SAFE_COLUMNS}`,
           [orgId, endpointId, input.reason ?? null],
@@ -276,8 +270,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         // not_found (mirrors disable's "missing or already disabled" model).
         // `pending` endpoints are intentionally excluded.
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE webhooks.webhook_endpoints
-           SET status = 'active', disabled_reason = NULL, disabled_at = NULL, updated_at = now()
+          `UPDATE webhooks_webhook_endpoints
+           SET status = 'active', disabled_reason = NULL, disabled_at = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            WHERE org_id = $1 AND id = $2 AND status = 'disabled'
            RETURNING ${ENDPOINT_SAFE_COLUMNS}`,
           [orgId, endpointId],
@@ -294,7 +288,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async deleteEndpoint(orgId: string, endpointId: string): Promise<WebhookResult<{ deleted: true }>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `DELETE FROM webhooks.webhook_endpoints WHERE org_id = $1 AND id = $2`,
+          `DELETE FROM webhooks_webhook_endpoints WHERE org_id = $1 AND id = $2`,
           [orgId, endpointId],
         );
         if (result.rowCount === 0) {
@@ -324,32 +318,32 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         const values: unknown[] = [orgId, endpointId];
         if (useGrace) {
           setClause = `secret_version = secret_version + 1,
-                       secret_last_rotated_at = now(),
+                       secret_last_rotated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
                        previous_secret_ciphertext = secret_ciphertext,
                        previous_secret_version = secret_version,
-                       previous_secret_expires_at = now() + ($4::int * interval '1 second'),
+                       previous_secret_expires_at = strftime('%Y-%m-%dT%H:%M:%fZ','now', '+' || $4 || ' seconds'),
                        secret_ciphertext = $3,
-                       updated_at = now()`;
+                       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
           values.push(secretCiphertext, gracePeriodSeconds);
         } else if (hasCiphertext) {
           setClause = `secret_version = secret_version + 1,
-                       secret_last_rotated_at = now(),
+                       secret_last_rotated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
                        previous_secret_ciphertext = NULL,
                        previous_secret_version = NULL,
                        previous_secret_expires_at = NULL,
                        secret_ciphertext = $3,
-                       updated_at = now()`;
+                       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
           values.push(secretCiphertext);
         } else {
           setClause = `secret_version = secret_version + 1,
-                       secret_last_rotated_at = now(),
+                       secret_last_rotated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
                        previous_secret_ciphertext = NULL,
                        previous_secret_version = NULL,
                        previous_secret_expires_at = NULL,
-                       updated_at = now()`;
+                       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
         }
 
-        const sql = `UPDATE webhooks.webhook_endpoints
+        const sql = `UPDATE webhooks_webhook_endpoints
                      SET ${setClause}
                      WHERE org_id = $1 AND id = $2 AND status = 'active'
                      RETURNING ${ENDPOINT_SAFE_COLUMNS}, previous_secret_version, previous_secret_expires_at`;
@@ -382,8 +376,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async createSubscription(input: CreateWebhookSubscriptionInput): Promise<WebhookResult<WebhookSubscription>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO webhooks.webhook_subscriptions (id, org_id, endpoint_id, project_id, event_type, enabled, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+          `INSERT INTO webhooks_webhook_subscriptions (id, org_id, endpoint_id, project_id, event_type, enabled, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING *`,
           [input.id, input.orgId, input.endpointId, input.projectId ?? null, input.eventType, input.enabled ?? true],
         );
@@ -402,7 +396,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async getSubscription(orgId: string, subscriptionId: string): Promise<WebhookResult<WebhookSubscription>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM webhooks.webhook_subscriptions WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM webhooks_webhook_subscriptions WHERE org_id = $1 AND id = $2`,
           [orgId, subscriptionId],
         );
         if (result.rowCount === 0) {
@@ -417,7 +411,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async listSubscriptions(orgId: string, endpointId: string, params: PageQueryParams): Promise<WebhookResult<PagedResult<WebhookSubscription>>> {
       return pagedList(
         executor,
-        "webhooks.webhook_subscriptions",
+        "webhooks_webhook_subscriptions",
         "org_id = $1 AND endpoint_id = $2",
         [orgId, endpointId],
         params,
@@ -436,7 +430,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
           idx++;
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE webhooks.webhook_subscriptions SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
+          `UPDATE webhooks_webhook_subscriptions SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
           values,
         );
         if (result.rowCount === 0) {
@@ -451,7 +445,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async deleteSubscription(orgId: string, subscriptionId: string): Promise<WebhookResult<{ deleted: true }>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `DELETE FROM webhooks.webhook_subscriptions WHERE org_id = $1 AND id = $2`,
+          `DELETE FROM webhooks_webhook_subscriptions WHERE org_id = $1 AND id = $2`,
           [orgId, subscriptionId],
         );
         if (result.rowCount === 0) {
@@ -468,8 +462,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async createDeliveryAttempt(input: CreateDeliveryAttemptInput): Promise<WebhookResult<WebhookDeliveryAttempt>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO webhooks.webhook_delivery_attempts (id, org_id, endpoint_id, subscription_id, event_id, event_type, idempotency_key, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
+          `INSERT INTO webhooks_webhook_delivery_attempts (id, org_id, endpoint_id, subscription_id, event_id, event_type, idempotency_key, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING *`,
           [input.id, input.orgId, input.endpointId, input.subscriptionId, input.eventId, input.eventType, input.idempotencyKey ?? null],
         );
@@ -516,7 +510,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
           idx++;
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE webhooks.webhook_delivery_attempts SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
+          `UPDATE webhooks_webhook_delivery_attempts SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
           values,
         );
         if (result.rowCount === 0) {
@@ -531,7 +525,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async getDeliveryAttempt(orgId: string, attemptId: string): Promise<WebhookResult<WebhookDeliveryAttempt>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM webhooks.webhook_delivery_attempts WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM webhooks_webhook_delivery_attempts WHERE org_id = $1 AND id = $2`,
           [orgId, attemptId],
         );
         if (result.rowCount === 0) {
@@ -546,7 +540,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async listDeliveryAttempts(orgId: string, endpointId: string, params: PageQueryParams): Promise<WebhookResult<PagedResult<WebhookDeliveryAttempt>>> {
       return pagedList(
         executor,
-        "webhooks.webhook_delivery_attempts",
+        "webhooks_webhook_delivery_attempts",
         "org_id = $1 AND endpoint_id = $2",
         [orgId, endpointId],
         params,
@@ -561,7 +555,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT id, org_id, url, status, secret_ciphertext, secret_version,
                   previous_secret_ciphertext, previous_secret_version, previous_secret_expires_at
-           FROM webhooks.webhook_endpoints WHERE org_id = $1 AND id = $2`,
+           FROM webhooks_webhook_endpoints WHERE org_id = $1 AND id = $2`,
           [orgId, endpointId],
         );
         if (result.rowCount === 0) {
@@ -595,8 +589,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         // Match exact event type OR wildcard subscriptions (e.g. "project.*" matches "project.created")
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT s.id, s.org_id, s.endpoint_id, s.project_id, s.event_type
-           FROM webhooks.webhook_subscriptions s
-           JOIN webhooks.webhook_endpoints e ON e.id = s.endpoint_id AND e.org_id = s.org_id
+           FROM webhooks_webhook_subscriptions s
+           JOIN webhooks_webhook_endpoints e ON e.id = s.endpoint_id AND e.org_id = s.org_id
            WHERE s.org_id = $1 AND s.enabled = true AND e.status = 'active'
              AND (s.event_type = $2 OR s.event_type = '*'
                   OR ($2 LIKE s.event_type || '.%' AND s.event_type LIKE '%.*'))`,
@@ -618,8 +612,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async listRetryableDeliveries(limit: number): Promise<WebhookResult<WebhookDeliveryAttempt[]>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM webhooks.webhook_delivery_attempts
-           WHERE status = 'retrying' AND next_retry_at IS NOT NULL AND next_retry_at <= now()
+          `SELECT * FROM webhooks_webhook_delivery_attempts
+           WHERE status = 'retrying' AND next_retry_at IS NOT NULL AND next_retry_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now')
            ORDER BY next_retry_at ASC
            LIMIT $1`,
           [limit],
@@ -636,7 +630,7 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
       try {
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT org_id, subscriber_lane, last_event_id, last_occurred_at, updated_at
-           FROM webhooks.webhook_dispatch_cursor
+           FROM webhooks_webhook_dispatch_cursor
            WHERE org_id = $1 AND subscriber_lane = $2`,
           [orgId, lane],
         );
@@ -672,10 +666,10 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
     async advanceDispatchCursor(orgId: string, lastEventId: string, lastOccurredAt: string, lane = "webhooks"): Promise<WebhookResult<DispatchCursor>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO webhooks.webhook_dispatch_cursor (org_id, subscriber_lane, last_event_id, last_occurred_at, updated_at)
-           VALUES ($1, $2, $3, $4, now())
+          `INSERT INTO webhooks_webhook_dispatch_cursor (org_id, subscriber_lane, last_event_id, last_occurred_at, updated_at)
+           VALUES ($1, $2, $3, $4, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id, subscriber_lane)
-           DO UPDATE SET last_event_id = $3, last_occurred_at = $4, updated_at = now()
+           DO UPDATE SET last_event_id = $3, last_occurred_at = $4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            RETURNING *`,
           [orgId, lane, lastEventId, lastOccurredAt],
         );
@@ -701,12 +695,12 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         // Finds the latest success (if any) and counts failures after it.
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT COUNT(*) AS streak
-           FROM webhooks.webhook_delivery_attempts
+           FROM webhooks_webhook_delivery_attempts
            WHERE org_id = $1 AND endpoint_id = $2 AND status = 'failed'
              AND completed_at > COALESCE(
-               (SELECT MAX(completed_at) FROM webhooks.webhook_delivery_attempts
+               (SELECT MAX(completed_at) FROM webhooks_webhook_delivery_attempts
                 WHERE org_id = $1 AND endpoint_id = $2 AND status = 'success'),
-               '1970-01-01'::timestamptz
+               '1970-01-01T00:00:00.000Z'
              )`,
           [orgId, endpointId],
         );
@@ -722,8 +716,8 @@ export function createWebhookRepository(executor: SqlExecutor): WebhookRepositor
         // Orgs that have at least one enabled subscription with an active endpoint
         const result = await executor.execute<Record<string, unknown>>(
           `SELECT DISTINCT s.org_id
-           FROM webhooks.webhook_subscriptions s
-           JOIN webhooks.webhook_endpoints e ON e.id = s.endpoint_id AND e.org_id = s.org_id
+           FROM webhooks_webhook_subscriptions s
+           JOIN webhooks_webhook_endpoints e ON e.id = s.endpoint_id AND e.org_id = s.org_id
            WHERE s.enabled = true AND e.status = 'active'`,
           [],
         );

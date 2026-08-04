@@ -5,7 +5,7 @@ import type { EventsRepository } from "@saas/db/events";
 import type { ConfigRepository } from "@saas/db/config";
 import { createConfigRepository } from "@saas/db/config";
 import { createEventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { fetchAuthorizationContext } from "../membership-client.js";
 import { authorizeViaPolicy } from "../policy-client.js";
 import { errorResponse, successResponse, validationError } from "../http.js";

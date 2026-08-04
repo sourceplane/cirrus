@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { AuthorizationContextRequest, AuthorizationContextResponse } from "@saas/contracts/policy";
 import type { MembershipRepository } from "@saas/db/membership";
 import { createMembershipRepository } from "@saas/db/membership";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { asUuid } from "@saas/db/ids";
 import { mapRoleAssignmentsToFacts } from "../membership-facts.js";
 import { errorResponse, successResponse, validationError } from "../http.js";

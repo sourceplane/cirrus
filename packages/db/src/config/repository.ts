@@ -1,4 +1,4 @@
-import type { SqlExecutor } from "../hyperdrive/executor.js";
+import type { SqlExecutor } from "../d1/executor.js";
 import type {
   ConfigRepository,
   ConfigResult,
@@ -15,6 +15,8 @@ import type {
   UpdateFeatureFlagInput,
   UpdateSettingInput,
 } from "./types.js";
+import { isUniqueViolation } from "../d1/errors.js";
+import { parseBooleanColumn, parseJsonColumn, parseNullableJsonColumn } from "../json.js";
 
 // ── Scope helpers ──────────────────────────────────────────
 
@@ -55,7 +57,7 @@ function mapSetting(row: Record<string, unknown>): Setting {
     environmentId: (row.environment_id as string) ?? null,
     scopeKind: row.scope_kind as Setting["scopeKind"],
     key: row.key as string,
-    value: row.value,
+    value: parseJsonColumn<unknown>(row.value, null),
     description: (row.description as string) ?? null,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
@@ -70,8 +72,8 @@ function mapFeatureFlag(row: Record<string, unknown>): FeatureFlag {
     environmentId: (row.environment_id as string) ?? null,
     scopeKind: row.scope_kind as FeatureFlag["scopeKind"],
     flagKey: row.flag_key as string,
-    enabled: row.enabled as boolean,
-    value: row.value ?? null,
+    enabled: parseBooleanColumn(row.enabled),
+    value: parseNullableJsonColumn<unknown>(row.value),
     description: (row.description as string) ?? null,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
@@ -107,14 +109,6 @@ function safeError(message: string): ConfigResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
-}
 
 function isCheckViolation(err: unknown): boolean {
   return (
@@ -182,8 +176,8 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
       try {
         const sc = scopeColumns(input.scope);
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO config.settings (id, org_id, project_id, environment_id, scope_kind, key, value, description, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+          `INSERT INTO config_settings (id, org_id, project_id, environment_id, scope_kind, key, value, description, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'), COALESCE(environment_id, '00000000-0000-0000-0000-000000000000'), key) DO NOTHING
            RETURNING *`,
           [input.id, sc.orgId, sc.projectId, sc.environmentId, sc.scopeKind, input.key, JSON.stringify(input.value), input.description ?? null],
@@ -206,8 +200,8 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     async updateSetting(orgId: string, settingId: string, input: UpdateSettingInput): Promise<ConfigResult<Setting>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE config.settings
-           SET value = $3, description = COALESCE($4, description), updated_at = now()
+          `UPDATE config_settings
+           SET value = $3, description = COALESCE($4, description), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            WHERE org_id = $1 AND id = $2
            RETURNING *`,
           [orgId, settingId, JSON.stringify(input.value), input.description ?? null],
@@ -224,7 +218,7 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     async getSetting(orgId: string, settingId: string): Promise<ConfigResult<Setting>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM config.settings WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM config_settings WHERE org_id = $1 AND id = $2`,
           [orgId, settingId],
         );
         if (result.rowCount === 0) {
@@ -237,7 +231,7 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     },
 
     async listSettings(scope: Scope, params: PageQueryParams): Promise<ConfigResult<PagedResult<Setting>>> {
-      return pagedList(executor, "config.settings", scope, params, mapSetting);
+      return pagedList(executor, "config_settings", scope, params, mapSetting);
     },
 
     // ── Feature flags ─────────────────────────────────────
@@ -246,8 +240,8 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
       try {
         const sc = scopeColumns(input.scope);
         const result = await executor.execute<Record<string, unknown>>(
-          `INSERT INTO config.feature_flags (id, org_id, project_id, environment_id, scope_kind, flag_key, enabled, value, description, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+          `INSERT INTO config_feature_flags (id, org_id, project_id, environment_id, scope_kind, flag_key, enabled, value, description, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            ON CONFLICT (org_id, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'), COALESCE(environment_id, '00000000-0000-0000-0000-000000000000'), flag_key) DO NOTHING
            RETURNING *`,
           [input.id, sc.orgId, sc.projectId, sc.environmentId, sc.scopeKind, input.flagKey, input.enabled ?? false, input.value ? JSON.stringify(input.value) : null, input.description ?? null],
@@ -288,7 +282,7 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
           idx++;
         }
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE config.feature_flags SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
+          `UPDATE config_feature_flags SET ${setClauses.join(", ")} WHERE org_id = $1 AND id = $2 RETURNING *`,
           values,
         );
         if (result.rowCount === 0) {
@@ -303,7 +297,7 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     async getFeatureFlag(orgId: string, flagId: string): Promise<ConfigResult<FeatureFlag>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT * FROM config.feature_flags WHERE org_id = $1 AND id = $2`,
+          `SELECT * FROM config_feature_flags WHERE org_id = $1 AND id = $2`,
           [orgId, flagId],
         );
         if (result.rowCount === 0) {
@@ -316,7 +310,7 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     },
 
     async listFeatureFlags(scope: Scope, params: PageQueryParams): Promise<ConfigResult<PagedResult<FeatureFlag>>> {
-      return pagedList(executor, "config.feature_flags", scope, params, mapFeatureFlag);
+      return pagedList(executor, "config_feature_flags", scope, params, mapFeatureFlag);
     },
 
     // ── Secret metadata ───────────────────────────────────
@@ -326,11 +320,11 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
         const sc = scopeColumns(input.scope);
         const hasCiphertext = input.ciphertextEnvelope !== undefined;
         const sql = hasCiphertext
-          ? `INSERT INTO config.secret_metadata (id, org_id, project_id, environment_id, scope_kind, secret_key, display_name, status, version, rotation_policy, expires_at, created_by, ciphertext_envelope, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 1, $8, $9, $10, $11, now(), now())
+          ? `INSERT INTO config_secret_metadata (id, org_id, project_id, environment_id, scope_kind, secret_key, display_name, status, version, rotation_policy, expires_at, created_by, ciphertext_envelope, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 1, $8, $9, $10, $11, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING ${SECRET_METADATA_SAFE_COLUMNS}`
-          : `INSERT INTO config.secret_metadata (id, org_id, project_id, environment_id, scope_kind, secret_key, display_name, status, version, rotation_policy, expires_at, created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 1, $8, $9, $10, now(), now())
+          : `INSERT INTO config_secret_metadata (id, org_id, project_id, environment_id, scope_kind, secret_key, display_name, status, version, rotation_policy, expires_at, created_by, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 1, $8, $9, $10, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
            RETURNING ${SECRET_METADATA_SAFE_COLUMNS}`;
         const params = [input.id, sc.orgId, sc.projectId, sc.environmentId, sc.scopeKind, input.secretKey, input.displayName ?? null, input.rotationPolicy ?? null, input.expiresAt?.toISOString() ?? null, input.createdBy];
         if (hasCiphertext) {
@@ -353,13 +347,13 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     },
 
     async listSecretMetadata(scope: Scope, params: PageQueryParams): Promise<ConfigResult<PagedResult<SecretMetadata>>> {
-      return pagedList(executor, "config.secret_metadata", scope, params, mapSecretMetadata, SECRET_METADATA_SAFE_COLUMNS);
+      return pagedList(executor, "config_secret_metadata", scope, params, mapSecretMetadata, SECRET_METADATA_SAFE_COLUMNS);
     },
 
     async getSecretMetadata(orgId: string, secretId: string): Promise<ConfigResult<SecretMetadata>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `SELECT ${SECRET_METADATA_SAFE_COLUMNS} FROM config.secret_metadata WHERE org_id = $1 AND id = $2`,
+          `SELECT ${SECRET_METADATA_SAFE_COLUMNS} FROM config_secret_metadata WHERE org_id = $1 AND id = $2`,
           [orgId, secretId],
         );
         if (result.rowCount === 0) {
@@ -375,12 +369,12 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
       try {
         const hasCiphertext = ciphertextEnvelope !== undefined;
         const sql = hasCiphertext
-          ? `UPDATE config.secret_metadata
-           SET version = version + 1, last_rotated_at = now(), updated_at = now(), ciphertext_envelope = $3
+          ? `UPDATE config_secret_metadata
+           SET version = version + 1, last_rotated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), ciphertext_envelope = $3
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING ${SECRET_METADATA_SAFE_COLUMNS}`
-          : `UPDATE config.secret_metadata
-           SET version = version + 1, last_rotated_at = now(), updated_at = now()
+          : `UPDATE config_secret_metadata
+           SET version = version + 1, last_rotated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING ${SECRET_METADATA_SAFE_COLUMNS}`;
         const params: unknown[] = [orgId, secretId];
@@ -400,8 +394,8 @@ export function createConfigRepository(executor: SqlExecutor): ConfigRepository 
     async revokeSecretMetadata(orgId: string, secretId: string): Promise<ConfigResult<SecretMetadata>> {
       try {
         const result = await executor.execute<Record<string, unknown>>(
-          `UPDATE config.secret_metadata
-           SET status = 'revoked', updated_at = now()
+          `UPDATE config_secret_metadata
+           SET status = 'revoked', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
            WHERE org_id = $1 AND id = $2 AND status = 'active'
            RETURNING ${SECRET_METADATA_SAFE_COLUMNS}`,
           [orgId, secretId],

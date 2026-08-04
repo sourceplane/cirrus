@@ -10,7 +10,7 @@ spec:
   domain: starter-runtime
   path: apps/api-edge
   dependsOn:
-    - component: cloudflare-hyperdrive
+    - component: cloudflare-d1
     - component: cloudflare-kv
     - component: projects-worker
     - component: events-worker
@@ -26,8 +26,8 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_HYPERDRIVE_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_HYPERDRIVE"
-    WIRING_CLOUDFLARE_HYPERDRIVE_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_HYPERDRIVE"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
     WIRING_CLOUDFLARE_KV_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_KV"
     WIRING_CLOUDFLARE_KV_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_KV"
 
@@ -62,7 +62,7 @@ spec:
     # deploy lanes resolve real IDs from the Secrets Manager wiring manifest
     # published by the named infra components (BF5).
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-hyperdrive,cloudflare-kv"
+    wiringComponents: "cloudflare-d1,cloudflare-kv"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     orgName: sourceplane

@@ -2,7 +2,7 @@ import type { Env } from "../env.js";
 import type { SupportActor } from "../support-auth.js";
 import type { SupportRepository, StoredSupportActionRecord } from "@saas/db/support";
 import type { EventsRepository } from "@saas/db/events";
-import { createSqlExecutor } from "@saas/db/hyperdrive";
+import { createSqlExecutor } from "@saas/db/d1";
 import { createSupportRepository } from "@saas/db/support";
 import { createEventsRepository } from "@saas/db/events";
 import { authorizeSupportAction } from "../support-auth.js";
@@ -25,7 +25,7 @@ export interface RecordSupportActionBody {
 }
 
 // Test seam. When provided, the handler runs against injected repos (no DB) and
-// the non-transactional path; production uses the Hyperdrive executor + a real
+// the non-transactional path; production uses the D1 executor + a real
 // transaction so the record write and the audit-event append commit together.
 export interface RecordSupportActionDeps {
   supportRepo: Pick<SupportRepository, "recordSupportAction">;

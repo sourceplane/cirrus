@@ -12,7 +12,7 @@
       "@saas/contracts": ["../../packages/contracts/src/index.ts"],
       "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
       "@saas/db": ["../../packages/db/src/index.ts"],
-      "@saas/db/hyperdrive": ["../../packages/db/src/hyperdrive/index.ts"],
+      "@saas/db/d1": ["../../packages/db/src/d1/index.ts"],
       "@saas/db/support": ["../../packages/db/src/support/index.ts"],
       "@saas/db/events": ["../../packages/db/src/events/index.ts"],
       "@admin-worker/*": ["../../apps/admin-worker/src/*.ts"]
