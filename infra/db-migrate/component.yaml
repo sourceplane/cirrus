@@ -36,9 +36,9 @@ spec:
   # connection fact, and the database id arrives in the wiring document the
   # cloudflare-d1 component lease-publishes.
   secretEnv:
-    CLOUDFLARE_API_TOKEN: "secret://cirrus/cirrus/{{ .environment }}/CLOUDFLARE_D1_TOKEN"
-    CLOUDFLARE_ACCOUNT_ID: "secret://cirrus/cirrus/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
-    WIRING_CLOUDFLARE_D1: "secret://cirrus/cirrus/{{ .environment }}/WIRING_CLOUDFLARE_D1"
+    CLOUDFLARE_API_TOKEN: "secret://lumen/cirrus/{{ .environment }}/CLOUDFLARE_D1_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://lumen/cirrus/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    WIRING_CLOUDFLARE_D1: "secret://lumen/cirrus/{{ .environment }}/WIRING_CLOUDFLARE_D1"
 
   subscribe:
     environments:

@@ -18,12 +18,12 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
-    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   optionalSecretEnv:
-    POLAR_ACCESS_TOKEN: "secret://cirrus/cirrus/{{ .environment }}/POLAR_ACCESS_TOKEN"
-    POLAR_WEBHOOK_SECRET: "secret://cirrus/cirrus/{{ .environment }}/POLAR_WEBHOOK_SECRET"
+    POLAR_ACCESS_TOKEN: "secret://lumen/cirrus/{{ .environment }}/POLAR_ACCESS_TOKEN"
+    POLAR_WEBHOOK_SECRET: "secret://lumen/cirrus/{{ .environment }}/POLAR_WEBHOOK_SECRET"
 
   subscribe:
     environments:

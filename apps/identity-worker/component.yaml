@@ -21,13 +21,13 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
-    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   optionalSecretEnv:
-    GITHUB_OAUTH_CLIENT_SECRET: "secret://cirrus/cirrus/{{ .environment }}/GITHUB_OAUTH_CLIENT_SECRET"
-    GOOGLE_OAUTH_CLIENT_SECRET: "secret://cirrus/cirrus/{{ .environment }}/GOOGLE_OAUTH_CLIENT_SECRET"
-    OAUTH_STATE_SECRET: "secret://cirrus/cirrus/{{ .environment }}/OAUTH_STATE_SECRET"
+    GITHUB_OAUTH_CLIENT_SECRET: "secret://lumen/cirrus/{{ .environment }}/GITHUB_OAUTH_CLIENT_SECRET"
+    GOOGLE_OAUTH_CLIENT_SECRET: "secret://lumen/cirrus/{{ .environment }}/GOOGLE_OAUTH_CLIENT_SECRET"
+    OAUTH_STATE_SECRET: "secret://lumen/cirrus/{{ .environment }}/OAUTH_STATE_SECRET"
 
   subscribe:
     environments:

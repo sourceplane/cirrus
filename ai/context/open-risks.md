@@ -19,6 +19,15 @@ with a note when mitigated.
   connected account's parent token lacks D1 Write, the mint is refused with
   `parent_grant_insufficient` — the operator must re-issue the Cloudflare
   token with that permission group and re-connect.
+- **Cirrus shares the Lumen baseline's workspace.** `intent.yaml` declares
+  `workspace: ws_4975BJ7P` (slug `lumen`) — inherited by the fork, because the
+  orun state backend is org-owned and the rebrand deliberately does not touch
+  it. The `secret://` refs therefore read `secret://lumen/cirrus/…`: workspace
+  `lumen`, project `cirrus`. That is internally consistent and resolves today,
+  but it is not obviously the intended end state. Moving Cirrus to its own
+  workspace is two edits — the `workspace:` id in `intent.yaml` and the first
+  segment of every `secret://` ref (`tooling/rebrand/rebrand.mjs` renames that
+  segment from `orunWorkspaceSlug`, so a fork gets it right automatically).
 
 ### D1 semantics
 

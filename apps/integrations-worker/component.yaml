@@ -21,15 +21,15 @@ spec:
   # the infra components; wire-live renders the wrangler template from
   # these instead of Secrets Manager documents.
   secretEnv:
-    WIRING_CLOUDFLARE_D1_STAGE: "secret://cirrus/cirrus/stage/WIRING_CLOUDFLARE_D1"
-    WIRING_CLOUDFLARE_D1_PROD: "secret://cirrus/cirrus/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/cirrus/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/cirrus/prod/WIRING_CLOUDFLARE_D1"
 
   optionalSecretEnv:
-    SECRET_ENCRYPTION_KEY: "secret://cirrus/cirrus/{{ .environment }}/SECRET_ENCRYPTION_KEY"
-    INTEGRATIONS_STATE_SECRET: "secret://cirrus/cirrus/{{ .environment }}/INTEGRATIONS_STATE_SECRET"
-    GITHUB_APP_PRIVATE_KEY: "secret://cirrus/cirrus/{{ .environment }}/GITHUB_APP_PRIVATE_KEY"
-    GITHUB_APP_WEBHOOK_SECRET: "secret://cirrus/cirrus/{{ .environment }}/GITHUB_APP_WEBHOOK_SECRET"
-    GITHUB_APP_CLIENT_SECRET: "secret://cirrus/cirrus/{{ .environment }}/GITHUB_APP_CLIENT_SECRET"
+    SECRET_ENCRYPTION_KEY: "secret://lumen/cirrus/{{ .environment }}/SECRET_ENCRYPTION_KEY"
+    INTEGRATIONS_STATE_SECRET: "secret://lumen/cirrus/{{ .environment }}/INTEGRATIONS_STATE_SECRET"
+    GITHUB_APP_PRIVATE_KEY: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_PRIVATE_KEY"
+    GITHUB_APP_WEBHOOK_SECRET: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_WEBHOOK_SECRET"
+    GITHUB_APP_CLIENT_SECRET: "secret://lumen/cirrus/{{ .environment }}/GITHUB_APP_CLIENT_SECRET"
 
   subscribe:
     environments:
