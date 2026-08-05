@@ -97,7 +97,6 @@ describe("isSoloSuppressed — suppressed surfaces", () => {
     ["/v1/organizations/org_x/integrations", "GET"],
     ["/v1/organizations/org_x/integrations/github", "GET"],
     ["/ingress/github/webhook", "POST"],
-    ["/v1/organizations", "POST"], // creating a second org
   ];
   it.each(suppressed)("suppresses %s %s", (path, method) => {
     expect(isSoloSuppressed(path, method)).toBe(true);
@@ -108,6 +107,11 @@ describe("isSoloSuppressed — kept (single-user) surfaces", () => {
   const kept: Array<[string, string]> = [
     ["/v1/organizations", "GET"], // list (resolve the personal org)
     ["/v1/organizations/org_x", "GET"], // read the personal org
+    // Bootstrapping the personal org. The one-org rule is enforced in
+    // membership-worker (which can count the account's orgs); suppressing the
+    // verb here also blocked the FIRST org, stranding any account whose
+    // login-time auto-provisioning didn't land.
+    ["/v1/organizations", "POST"],
     ["/v1/auth/session", "GET"],
     ["/v1/auth/login/start", "POST"],
     ["/v1/auth/profile", "PATCH"],
@@ -141,9 +145,12 @@ describe("worker.fetch with SOLO_MODE on", () => {
     expect(res.status).toBe(404);
   });
 
-  it("404s creating a second org (POST /v1/organizations)", async () => {
+  it("keeps org bootstrap reachable (POST /v1/organizations)", async () => {
+    // The Solo one-org rule is membership-worker's call — the edge must let the
+    // account's FIRST org through, or an account whose login-time provisioning
+    // no-oped can never obtain one (the console's onboarding fallback 404s).
     const res = await worker.fetch(req("/v1/organizations", "POST"), env as never);
-    expect(res.status).toBe(404);
+    expect(res.status).not.toBe(404);
   });
 
   it("keeps the personal-org list reachable (GET /v1/organizations)", async () => {

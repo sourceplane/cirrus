@@ -5,4 +5,6 @@ export interface Env {
   NOTIFICATIONS_WORKER?: Fetcher;
   ENVIRONMENT: string;
   DEBUG_DELIVERY?: string;
+  /** M0 / Solo profile switch — see ./solo-mode.ts. */
+  SOLO_MODE?: string;
 }

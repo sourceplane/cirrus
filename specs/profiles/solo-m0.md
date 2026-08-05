@@ -28,11 +28,12 @@ code, so the baseline is the safe default; this Cirrus instance turns it *on*):
 |---|---|---|
 | **api-edge** | `apps/api-edge/wrangler.template.jsonc` → `vars.SOLO_MODE` (all envs) | `apps/api-edge/src/solo-mode.ts` → `isSoloMode(env)` |
 | **identity-worker** | `apps/identity-worker/wrangler.template.jsonc` → `vars.SOLO_MODE` | `apps/identity-worker/src/solo-mode.ts` → `isSoloMode(env)` |
+| **membership-worker** | `apps/membership-worker/wrangler.template.jsonc` → `vars.SOLO_MODE` (all envs) | `apps/membership-worker/src/solo-mode.ts` → `isSoloMode(env)` |
 | **web-console-next** | `apps/web-console-next/next.config.mjs` → `env.NEXT_PUBLIC_SOLO_MODE` (default `"true"`) | `apps/web-console-next/src/lib/solo-mode.ts` → `SOLO_MODE` |
 
-**To restore the full baseline:** set `SOLO_MODE` to `"false"` on api-edge and
-identity-worker (re-render configs, redeploy) and build the console with
-`NEXT_PUBLIC_SOLO_MODE=false`. Nothing else changes.
+**To restore the full baseline:** set `SOLO_MODE` to `"false"` on api-edge,
+identity-worker and membership-worker (re-render configs, redeploy) and build the
+console with `NEXT_PUBLIC_SOLO_MODE=false`. Nothing else changes.
 
 ## Enforcement — blocked at the API edge
 
@@ -52,12 +53,12 @@ matchers, so it can never drift from the real routes.
 | Outbound webhooks | `/v1/organizations/:id/webhooks/...` (+ project-scoped) |
 | Integrations | `/v1/organizations/:id/integrations[/...]`, repo-links, `/ingress/github/*` |
 | API keys | `/v1/organizations/:id/api-keys[/:keyId]` (M0-hidden; flag re-enables) |
-| Second org | `POST /v1/organizations` |
 
 **Kept and working (the single-user surfaces):**
 
 - Auth — magic-link + social (OAuth), account/profile, security events
 - Reading/using the one personal org — `GET /v1/organizations[/:id]`
+- Bootstrapping that org — `POST /v1/organizations` (see *One org per account*)
 - Per-user billing — checkout, portal, and the provider billing webhook
   (`/v1/billing/webhooks/polar`, which is distinct from outbound webhooks)
 - Config — settings & feature flags
@@ -66,6 +67,26 @@ matchers, so it can never drift from the real routes.
 > Note: project-scoped config routes are technically still open at the edge, but
 > are unreachable in Solo because no projects exist. The config *context* is
 > intentionally kept (settings/flags are a Solo surface).
+
+## One org per account — enforced in membership, not at the edge
+
+The user is the tenant, so an account may own exactly one organization. That rule
+is enforced in `apps/membership-worker/src/handlers/create-organization.ts`
+(inside the MO2 gate), which already loads the actor's org list and can therefore
+tell the account's **bootstrap** org from an illegal **second** one:
+
+- account has zero orgs → **allowed** (this is the bootstrap path);
+- account has ≥1 org → **403 `forbidden`**, `reason: "solo_profile"`, *before*
+  the billing entitlement checks, so an upgraded Solo account can't buy its way
+  past the cap.
+
+The edge deliberately does **not** suppress `POST /v1/organizations`. It cannot
+count the actor's orgs, so suppressing the verb blocked the *first* org too — and
+the first org is exactly what auto-provisioning (below) and the console's
+onboarding fallback create. With the verb suppressed, any account that reached
+the console with zero orgs was permanently stranded: the onboarding flow's only
+request came back `404 Route not found: /v1/organizations`, with no way forward
+from the UI.
 
 ## Auto-provisioning — the invisible personal workspace
 
@@ -87,10 +108,18 @@ Properties:
   exempt from the multi-org billing gate, so no plan is required.
 - **Best-effort.** Provisioning never fails a login; if membership is
   unreachable it no-ops and the next login retries. The internal
-  identity→membership call bypasses the api-edge, so the edge's `POST` block does
-  not affect it.
+  identity→membership call bypasses the api-edge.
 - **No new contract / no schema change.** It only calls existing endpoints with
   the standard actor headers.
+
+Because it is best-effort, an account **can** legitimately reach the console with
+zero orgs. The console self-heals that case rather than stranding the user: under
+Solo, `/onboarding` provisions the personal workspace itself (through the public
+`POST /v1/organizations`) and forwards, instead of rendering the create-org
+wizard. It derives the same name and slug as the worker
+(`apps/web-console-next/src/lib/personal-workspace.ts` mirrors
+`personalOrgName`/`personalOrgSlug`), so the two paths converge on one org — the
+loser of a race gets a 409, which the console treats as success.
 
 The provisioned `subjectId` is the user's public id — the exact value the normal
 request path resolves as the actor — so the membership record matches every
@@ -109,6 +138,11 @@ later request.
   wording never flashes. The org root (`/orgs/:slug`) and post-auth landing go to
   the **Account (settings)** surface instead of Projects (which is suppressed).
   `/orgs/new` is blocked (bounces home).
+- **Onboarding self-heals, silently.** `/onboarding` (the destination the shell's
+  `OnboardingGate` funnels a zero-org account to) provisions the personal
+  workspace instead of rendering the create-org wizard, so no org wording — and
+  no plan picker — is ever shown. Off the profile it renders the wizard
+  unchanged.
 - **Hidden surfaces** (nav + settings): members, invitations, projects,
   environments, usage/quota, webhooks, integrations, API keys. **Kept:** Account
   general, Notifications, Billing, Config (flags).
@@ -122,9 +156,12 @@ later request.
   off (47 assertions). Full api-edge suite stays green (403).
 - identity: `tests/identity-worker/src/solo-mode.test.ts` — idempotent,
   race-safe, best-effort provisioning (10). Full suite green (174).
-- console: `tests/web-console-next/src/{nav-items,settings-nav,last-org}.test.ts`
-  — suppression + relabel + landing toggle with the flag; baseline unchanged.
-  Full suite green (248).
+- membership: `tests/membership-worker/src/org-creation-gate.test.ts` — with the
+  flag on, the bootstrap org is still created (201) and a second org is denied
+  403/`solo_profile` even on a multi-org plan. Full suite green (271).
+- console: `tests/web-console-next/src/{nav-items,settings-nav,last-org,personal-workspace}.test.ts`
+  — suppression + relabel + landing toggle with the flag, and the self-heal
+  naming rules pinned to the worker's; baseline unchanged. Full suite green (258).
 - Build: `pnpm build` green (40/40) with Solo on; the console also builds with
   `NEXT_PUBLIC_SOLO_MODE=false`, confirming the baseline is restorable.
 

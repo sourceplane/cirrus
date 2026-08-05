@@ -134,6 +134,32 @@ describe("handleCreateOrganization — MO2 additional-org gate", () => {
     expect(JSON.stringify(await res.json())).toContain("limit_reached");
   });
 
+  // M0 / Solo profile: the account is capped at its one personal org. The
+  // BOOTSTRAP org must stay creatable — that is what login-time
+  // auto-provisioning (and the console's onboarding fallback when it didn't
+  // land) uses; blanket-blocking the verb at the edge stranded those accounts.
+  describe("with SOLO_MODE on", () => {
+    const soloEnv = { ENVIRONMENT: "test", SOLO_MODE: "true" } as Env;
+
+    it("still allows the first/bootstrap org", async () => {
+      const deps = makeDeps({ existing: [], entitlements: {} });
+      const res = await handleCreateOrganization(req(), soloEnv, "req_t", ACTOR, deps);
+      expect(res.status).toBe(201);
+    });
+
+    it("blocks a second org with 403 even on a multi-org plan", async () => {
+      const deps = makeDeps({
+        existing: [org("00000000-0000-0000-0000-0000000000a1", "2026-01-01T00:00:00Z")],
+        entitlements: { [MULTI]: allowed(MULTI, "boolean", null), [LIMIT]: allowed(LIMIT, "quantity", 5) },
+      });
+      const res = await handleCreateOrganization(req(), soloEnv, "req_t", ACTOR, deps);
+      expect(res.status).toBe(403);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("forbidden");
+      expect(JSON.stringify(body)).toContain("solo_profile");
+    });
+  });
+
   it("links an allowed additional org as a child and fans out the parent plan (MO3)", async () => {
     const PARENT_HEX = "00000000-0000-0000-0000-0000000000a1";
     let capturedParentOrgId: string | null | undefined;
