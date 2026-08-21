@@ -16,6 +16,7 @@ import {
   type AssignPlanResult,
   type FanOutResult,
 } from "../billing-client.js";
+import { isSoloMode } from "../solo-mode.js";
 
 /** Plan code assigned to every organization at bootstrap. Stable contract with
  * billing-worker's plan catalog (plan-catalog.ts DEFAULT_PLAN_CODE). */
@@ -70,6 +71,12 @@ type GateOutcome =
  * parent is the account's earliest-created org (resolved through
  * `effectiveBillingOrgId`). Fails closed (503) on any service/repo error.
  *
+ * Under the M0/Solo profile the account is capped at its one personal org, so an
+ * additional org is denied outright — before (and independent of) the billing
+ * entitlement checks, since an upgraded Solo account would otherwise pass them.
+ * The bootstrap org stays allowed: that is the path auto-provisioning and the
+ * console's onboarding fallback both use. See ../solo-mode.ts.
+ *
  * Returns `allow` (bootstrap/standalone), `allow_child` (additional org → link
  * to the billing parent and fan out its plan, MO3), or `block` (deny/error).
  */
@@ -94,6 +101,23 @@ async function gateAdditionalOrg(
   }
   const existing = orgsRes.value;
   if (existing.length === 0) return { kind: "allow" }; // first/bootstrap org — always allowed
+
+  // Solo profile: the user IS the tenant — one org per account, full stop. This
+  // is the enforcement the api-edge used to approximate by 404-ing the whole
+  // verb; here it can distinguish the bootstrap (allowed above) from a second
+  // org, and it holds even for an account whose plan grants `feature.multi_org`.
+  if (isSoloMode(env)) {
+    return {
+      kind: "block",
+      response: errorResponse(
+        "forbidden",
+        "This account cannot create additional organizations",
+        403,
+        requestId,
+        { reason: "solo_profile" },
+      ),
+    };
+  }
 
   const entitlementFn = deps?.checkEntitlement ?? checkBillingEntitlement;
   const billingBinding = env.BILLING_WORKER;
