@@ -2,9 +2,9 @@ import { EMAIL_RE, normalizeEmail } from "@site/contracts/audience";
 import type { ConfirmSubscriptionResponse, SubscribeResponse, UnsubscribeResponse } from "@site/contracts/audience";
 import { newId, ID_PREFIX } from "@site/shared/ids";
 import type { RequestContext } from "../context.js";
-import { randomToken, sha256Hex } from "../crypto.js";
+import { randomToken, sha256Hex } from "@site/shared/crypto";
 import { errorResponse, json, readJsonObject, validationError } from "../http.js";
-import { hashConfirmToken, mintUnsubscribeToken, verifyUnsubscribeToken } from "../tokens.js";
+import { hashConfirmToken, mintUnsubscribeToken, verifyUnsubscribeToken } from "@site/shared/tokens";
 import { verifyTurnstile } from "../turnstile.js";
 
 const SOURCE_RE = /^[a-z0-9][a-z0-9/_-]{0,79}$/;

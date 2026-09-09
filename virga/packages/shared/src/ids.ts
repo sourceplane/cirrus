@@ -6,10 +6,6 @@
 // at a boundary and nothing to get wrong; the prefix names the kind so a
 // subscriber id can never be mistaken for an issue id in a log line.
 
-// Both Workers and Node ≥ 19 expose the Web Crypto API as a global; this
-// package compiles against neither lib, so the one method it uses is declared.
-declare const crypto: { randomUUID(): string };
-
 const PUBLIC_ID_RE = /^[a-z]{2,8}_[0-9a-f]{32}$/;
 
 /** Mint a fresh `<prefix>_<32 hex>` id from the platform's CSPRNG. */

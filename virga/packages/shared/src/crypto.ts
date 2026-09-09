@@ -1,3 +1,4 @@
+// Web Crypto only — the same code runs in Workers and in Node (CLI, tests).
 // The little cryptography the edge needs, on Web Crypto only.
 
 const encoder = new TextEncoder();

@@ -3,7 +3,7 @@
 // to a person. When no salt is configured the fingerprint still works — it
 // is just stable across salt rotations, which only matters for abuse.
 
-import { sha256Hex } from "./crypto.js";
+import { sha256Hex } from "@site/shared/crypto";
 import type { Env } from "./env.js";
 
 export async function fingerprint(request: Request, env: Env, day: string): Promise<string> {

@@ -10,7 +10,7 @@ and a CLI — not a multi-tenant console.
 
 | Field | Value |
 |-------|-------|
-| Status | **In progress** — VG0–VG2 shipped; VG3–VG7 in order |
+| Status | **In progress** — VG0–VG3 shipped; VG4–VG7 in order |
 | Cluster | **VG** |
 | Owner(s) | `apps/*`, `packages/*`, `infra/*`, `tests/*`, `flows/*`, the spec pack |
 | Target branch | `main` |
@@ -48,7 +48,7 @@ on merge, and can be born by the same phase workflows.
 | VG0 | Genesis: workspace skeleton, identity, verify CI, spec pack | ✅ Shipped |
 | VG1 | Data plane: migrations + repositories on real SQLite | ✅ Shipped |
 | VG2 | site-api: the public Worker | ✅ Shipped |
-| VG3 | mail-worker: transactional mail + broadcasts | Draft |
+| VG3 | mail-worker: transactional mail + broadcasts | ✅ Shipped |
 | VG4 | web-site: content collections + the three site shapes | Draft |
 | VG5 | CLI: `virga` owner operations | Draft |
 | VG6 | Infra + CI: Terraform roots, db-migrate, wiring, intent, ci.yml | Draft |

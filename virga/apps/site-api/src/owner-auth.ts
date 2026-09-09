@@ -1,7 +1,7 @@
 // The owner is a bearer token (decision D3).
 
 import type { Env } from "./env.js";
-import { sha256Hex, timingSafeEqual } from "./crypto.js";
+import { sha256Hex, timingSafeEqual } from "@site/shared/crypto";
 import { errorResponse } from "./http.js";
 
 export type OwnerAuth =

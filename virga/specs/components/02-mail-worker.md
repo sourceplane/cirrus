@@ -1,6 +1,6 @@
 # 02 — mail-worker
 
-Status: Planned (VG3) · Owner: `apps/mail-worker`
+Status: Implemented (VG3) · Owner: `apps/mail-worker`
 
 Internal Worker (no public route; `workers_dev: false`) reached through
 site-api's `MAIL_WORKER` service binding. Renders templates, sends through the
@@ -36,4 +36,6 @@ Insert one `queued` delivery per confirmed subscriber (`ON CONFLICT DO
 NOTHING`), set the issue `sending`, then work queued rows in batches of
 `batchSize` (default 50): render with that subscriber's unsubscribe URL,
 send, mark `sent`/`failed` with the bounded error. When no queued rows remain
-the issue is `sent`. Re-running resumes; nothing is sent twice.
+the issue is `sent`. A run works at most 20 batches and reports
+`sending` with the remaining `queued` count; re-running resumes from the
+queued rows and nothing is sent twice.

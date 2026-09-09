@@ -1,5 +1,5 @@
 import { harness, bodyOf, TOKEN_SECRET } from "./harness";
-import { mintUnsubscribeToken } from "@site-api/tokens";
+import { mintUnsubscribeToken } from "@site/shared/tokens";
 
 describe("site-api: subscribers", () => {
   it("health reports ok with the database reachable", async () => {

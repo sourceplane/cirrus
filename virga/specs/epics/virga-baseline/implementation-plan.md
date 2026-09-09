@@ -29,7 +29,7 @@ Turnstile (optional), owner bearer gate, every route; `component.yaml`,
 `fetch` against real SQLite + a fake mail binding, and `wire:fixture`
 renders a config `wrangler deploy --dry-run` accepts.
 
-## VG3 — mail-worker
+## VG3 — mail-worker ✅
 
 Per `components/02-mail-worker.md`: templates, providers, `send`,
 `broadcast` with resumable deliveries; template + fixture; docs.
