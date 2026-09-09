@@ -95,9 +95,11 @@ operator asks for phase-at-a-time control.
 ## Step 3-alt — the phases, one at a time
 
 Notes that prevent confusion:
-- Phase 01's scaffold is the repo's FIRST commit and lands **directly on
-  `main`** (an empty repo cannot take a PR) — this is by design. The flow
-  pins `main` as the default branch itself.
+- Phase 01 seeds `main` with one commit (an empty repo cannot take a PR)
+  and lands the scaffold as **PR #1** on `orun/BASE-n-01-scaffold`, so
+  the bootstrap's first landing is tracked like every later one. The flow
+  pins `main` as the default branch itself. (With `--set track=false` the
+  scaffold is main's first commit, pushed directly.)
 - Phase 03 converges in about two minutes: D1 databases and KV
   namespaces are created, not provisioned.
 - Phase 04 performs TWO landings with a convergence between them. Let it
