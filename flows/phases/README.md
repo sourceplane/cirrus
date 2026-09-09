@@ -99,6 +99,18 @@ files.
 | `converge.sh` | wait for the main convergence run; auto-resume through transient failures |
 | `verify-endpoints.sh` | probe api-edge `/health` / console URLs, derived from `.rebrand/values.json` |
 | `create-secrets.sh` | the five brokered provider secrets; idempotent, self-heals orphans |
+| `track.sh` | the bootstrap's hand on the task plane (BT): `ensure-epic` / `ensure-milestone` / `ensure-task` find-or-create by identity (slug, name-within-epic, title-within-epic) over `orun task …`; `rollup` / `verdict` read progress. Never blocks a landing — an `orun` without the task-plane verbs, or a refused write, degrades to "untracked" once on stderr |
+
+## Tracking the bootstrap as work (BT)
+
+Each phase folder also carries `task-contract.yaml` (phase 04: one per
+landing) — the contract template `track.sh ensure-task` attaches to the
+landing's task through `orun task create --contract`. `gates: []` is a
+declaration: merge alone finishes the task, because the main convergence
+is the gate the flow *watches*, not one the plane observes as a PR check.
+The templates are flow machinery, never product content. The contract
+test lives in `flows/testing/track.test.sh` (a fake `orun`, no network).
+The whole design: `specs/epics/saas-baseline-tracking/`.
 
 ## Where the blueprints live
 
