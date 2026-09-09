@@ -1,0 +1,169 @@
+# Epic: saas-baseline-tracking (BT)
+
+**The bootstrap is work, so it lives where work lives.** Today the baseline
+builder takes a workspace from an empty repo to a live, documented product
+and leaves no trace of that programme in the workspace's own work surface:
+no epic, no phases, no tasks, and seven PRs on `phase/<n>-<epoch>` branches
+that bind to nothing. BT makes the bootstrap author itself into the task
+plane — one epic ("Infra baselining"), one milestone per phase, one task
+per landing — and names every landing's branch `orun/<KEY>-<phase>` so the
+platform's own observation drain turns each push, PR and merge into the
+task's evidence. Nothing is asserted; the ledger reads what the flows did.
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| Status | **Draft (plan)** — BT0 shipped in orun-cloud (the MCP writes); BT1–BT6 not started |
+| Cluster | **BT** (BT0–BT6) |
+| Owner(s) | `flows/common/` (a new `track.sh`, `land-pr.sh`, `push-main.sh`), every `flows/phases/*/workflow.yaml`, `flows/phases/00-all`, `flows/agent/BASELINE-TASK.md`, `flows/AGENT-PROMPT.md`; in orun-cloud: `packages/mcp/src/tools/tasks.ts` (BT0, shipped) |
+| Target branch | `main` |
+| Builds on | orun-cloud `orun-tasks` (the task plane: epics E1–E5, milestones TV2/W2, the `orun/<key>-<slug>` provenance grammar TK-2, the observation drain, the derived verdict TK-M) · orun-cloud `saas-baseline-registry` (the bootstrap door that runs this baseline's brief) · `flows/phases` (the eight phases and their shared machinery) |
+| End-state target | A bootstrap, run by the sandbox agent or headless from CI, shows up in the workspace as epic `infra-baselining` with eight phases and eight-plus tasks; every landing PR is on an `orun/BASE-n-<phase>` branch and carries the provenance manifest; each task folds `in_progress → in_review → done` from observed evidence alone, and the epic rollup is the progress report the agent posts |
+
+## Thesis
+
+Three facts, all already true in orun-cloud, make this cheap:
+
+1. **The plane binds by branch name.** `PROVENANCE_BRANCH_RE` is
+   `^orun/([A-Z][A-Z0-9]{1,5}-[A-Z]?[0-9]+)(?:-([a-z0-9-]+))?$`
+   (`packages/db/src/provenance/index.ts`). The tasks-worker drains the
+   normalized `scm.push` / `scm.pull_request.*` stream and, for any branch
+   that parses, records `branch_seen` / `pr_opened` / `pr_merged` on the
+   task with that key. Two more channels agree with it — a `Task: <KEY>`
+   trailer in the PR body and an `orun:task/<KEY>` label — and disagreement
+   binds nothing. Our landing branch just has to be spelled right.
+2. **The verdict is derived, never typed.** `branch_seen → in_progress`,
+   an open PR `→ in_review`, a merged PR `→ done` **only if the task's
+   contract declared its gates** (an explicit empty gate list means "merge
+   alone finishes it"; undeclared gates park the merge at `in_review`,
+   forever). So every bootstrap task must be born with a contract. There is
+   no status write to make, and none we could make: the status command
+   exists only for tracker-linked tasks.
+3. **The containers are native objects.** `POST …/tasks/epics`,
+   `POST …/tasks/epics/{ref}/milestones` (a milestone *is* a phase in the
+   plane's own vocabulary — ordered by `after`, carrying `exitCriteria`),
+   and `POST …/tasks` with `epic` / `milestone` / `brief` / `assignee`
+   resolved before the key is minted. The MCP roster lacked the two
+   container writes and the widened create; **BT0 added them** (orun-cloud:
+   `epic_create`, `milestone_create`, `task_create` with
+   `epic|milestone|brief|assignee|contract`).
+
+What is missing is entirely on this side: the flows never talk to the task
+plane, `land-pr.sh` names branches `phase/<suffix>-<epoch>`, phase 01 pushes
+its first commit straight to `main` (no PR, so no evidence), and the agent
+brief has no step that creates or reads the programme.
+
+## The shape
+
+```
+epic     infra-baselining            "Infra baselining — <Product name>"   owner: the bootstrap principal (`me`)
+  ├─ milestone  01 — scaffold        exit: repo pushed + workspace-linked
+  │    └─ task BASE-1  phase(01-scaffold): repo born            branch orun/BASE-1-01-scaffold
+  ├─ milestone  02 — foundation      exit: verify lanes green
+  │    └─ task BASE-2  phase(02-foundation): shared packages    branch orun/BASE-2-02-foundation
+  ├─ milestone  03 — infrastructure  exit: WIRING_* secrets published on stage+prod
+  │    └─ task BASE-3  phase(03-infrastructure): d1, kv, db-migrate
+  ├─ milestone  04 — workers         exit: convergence green, bindings restored
+  │    ├─ task BASE-4  phase(04-workers): worker fleet (feedback edges stripped)   orun/BASE-4-04-workers
+  │    └─ task BASE-5  phase(04-workers): restore service-binding feedback edges   orun/BASE-5-04-workers-restore
+  ├─ milestone  05 — edge            exit: /health 200 on stage+prod
+  ├─ milestone  06 — console         exit: console + edge live
+  ├─ milestone  07 — domain          (created only when phase 07 runs)
+  └─ milestone  08 — docs            exit: committed manifest matches probed reality
+       └─ task BASE-n  docs(deployment): record live deployment state         orun/BASE-n-08-docs
+```
+
+- **One epic per bootstrap**, slug `infra-baselining` by default
+  (`--set epicslug=` overrides). A taken slug is *adopted*, not suffixed:
+  `POST …/tasks/epics` answers 409 with the holder, and the flow — like the
+  MCP tool — takes that as "that one". Re-running a phase never makes a
+  second epic.
+- **One milestone per phase**, named `NN — <phase>` so it sorts and reads
+  like the folder. Exit criteria are the phase's verify assertions, copied
+  from `flows/phases/README.md`'s "verified by" column. Idempotent by name:
+  the flow lists the epic's milestones (`GET …/tasks/epics/{ref}`) and
+  creates only what is absent.
+- **One task per landing**, i.e. per `land-pr.sh` / `push-main.sh` call —
+  eight today, nine with phase 07. Keys are minted from the workspace
+  sequence with `mintPrefix: BASE` (`BASE-1`, `BASE-2`, …; the prefix is
+  ≤ 6 chars by the key grammar). The task's `titleMirror` is the landing's
+  PR title verbatim (`phase(03-infrastructure): d1, kv, db-migrate`), which
+  is what makes find-or-create idempotent: `GET …/tasks?epic=<slug>` and
+  match on title. Every task is born with a contract:
+  `goal` = the phase README's one-liner, `affects` = the components in the
+  phase's `blueprint.yaml`, `doneWhen` = the milestone's exit criteria,
+  `gates: []` with `gatesDefined: true` — the merge's main run is the gate
+  the flow *watches* (converge), not one the plane can observe as a PR
+  check, so the task must be allowed to reach `done` on the merge. `brief`
+  = the phase README's first paragraph. `assignee: me` (the run's own
+  principal, so "My agents" shows the bootstrapper at work).
+- **The branch is the binding.** `land-pr.sh` names the branch
+  `orun/<KEY>-<suffix>` (the suffix is already `[a-z0-9-]`), writes
+  `Task: <KEY>` as the PR body's trailer and the provenance manifest block
+  (`<!-- orun:manifest {"version":1,"task":"BASE-3","epic":"infra-baselining"} -->`)
+  so `orun pr check` and the compliance evaluator read the same lineage,
+  and adds the `orun:task/<KEY>` label when the token can. Three channels,
+  one key — they agree by construction.
+- **Phase 01 becomes a landing.** An empty repo cannot take a PR, which is
+  why the scaffold pushes to `main` directly today. BT4 creates the repo
+  with an initial commit (`gh repo create --add-readme`, or an empty
+  `README.md` commit when the repo was pre-created) and lands the scaffold
+  as the first PR from `orun/BASE-1-01-scaffold`. `main` pinned as default,
+  the workflow-scope caveat and the deferred-workflows fallback all carry
+  over unchanged; the scaffold merely arrives by the same door as every
+  later phase — and the epic is born *before* it, so the first thing the
+  workspace sees is the plan, then the commits.
+- **The flow is the writer; the agent reads (and may pre-write).** The
+  phase workflows own creation over REST, so headless CI runs track
+  themselves with nobody in the loop. The sandbox agent, which has the MCP
+  roster, is told to lay out the epic and its phases *first* (BT0's three
+  tools) so the console shows the programme in minute one, then run the
+  umbrella — whose find-or-create adopts what the agent made. Progress
+  updates in the brief become `task_get infra-baselining` (the rollup: N/M
+  done, the running phase's rung and evidence) instead of prose.
+
+## Decisions locked
+
+1. **Derived, not asserted.** No flow ever writes a status. Done means the
+   plane saw the merge; the contract's empty gate list is the one authored
+   fact that lets it say so.
+2. **Milestone = phase, task = landing.** Phases are the human unit and
+   carry exit criteria; landings are what a PR binds to. Phase 04's two
+   PRs are two tasks in one milestone, never one task with two branches.
+3. **Idempotent by identity, not by memory.** Epic by slug, milestone by
+   name-within-epic, task by title-within-epic. No tracking file is written
+   into the product (product-only content stays product-only); the run's
+   working dir may cache what it resolved.
+4. **REST from the flows, MCP for the agent.** The flows already call the
+   platform over the CLI; the task plane is reached with `curl` against
+   the same API the CLI uses, bearer from `ORUN_TOKEN` / `ORUN_TOKEN_FILE`
+   (read on every call — the file rotates). No new binary dependency.
+5. **Tracking never blocks a landing.** If the task plane is unreachable
+   or the principal lacks `task.write`, `track.sh` says so once and
+   `land-pr.sh` falls back to today's `phase/<suffix>-<epoch>` branch. A
+   bootstrap that ships but is untracked beats one that stops for a ledger.
+
+## Read order
+
+1. This README — the shape and the decisions.
+2. [`implementation-plan.md`](./implementation-plan.md) — BT0–BT6, file by
+   file, with "done when".
+3. [`risks-and-open-questions.md`](./risks-and-open-questions.md) — the
+   human gates (the orun binary's MCP release, the API base URL in the
+   sandbox) and the open leans.
+4. In orun-cloud: `specs/epics/orun-tasks/` (`design.md` §3.4 binding,
+   `epics-and-docs.md`, `tasks-view.md` §5 native authoring) and
+   `packages/mcp/src/tools/tasks.ts` (BT0).
+
+## Milestones at a glance
+
+| # | Ships | Where | Depends on |
+|---|---|---|---|
+| BT0 | `epic_create`, `milestone_create`, `task_create` widened (epic/milestone/brief/assignee/contract) on the MCP roster; 31 → 33 | orun-cloud `packages/mcp` | — (✅ shipped) |
+| BT1 | `flows/common/track.sh`: `ensure-epic`, `ensure-milestone`, `ensure-task`, `rollup` over REST; idempotent; degrades loudly | cirrus | BT0 semantics (the same routes) |
+| BT2 | `land-pr.sh` / `push-main.sh` take a task key: `orun/<KEY>-<suffix>` branch, `Task:` trailer, manifest block, label; fallback unchanged | cirrus | BT1 |
+| BT3 | Every phase's `land` step ensures its milestone + task, then lands on the task's branch; the umbrella ensures the epic + all milestones up front | cirrus | BT1, BT2 |
+| BT4 | Phase 01 lands as a PR (repo born with an initial commit) | cirrus | BT3 |
+| BT5 | The agent brief: lay out the programme over MCP first, report progress from the rollup, name the epic in the completion report | cirrus | BT0, BT3 |
+| BT6 | Verification: a rehearsal bootstrap whose epic rollup reads 8/8 done; `flows/testing` gains a track.sh contract test against a stub | cirrus | BT3–BT5 |
