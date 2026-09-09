@@ -12,6 +12,39 @@ state="${FAKE_ORUN_STATE:?FAKE_ORUN_STATE}"
 if [ "${FAKE_ORUN_OLD:-}" = "1" ] && [ "${1:-}" = "task" ] && [ "${2:-}" = "epic" ]; then
   echo "Error: unknown command \"epic\" for \"orun task\"" >&2; exit 1
 fi
+# `pr open`: the pen's gesture, locally — checks the grammar branch out from
+# HEAD, pushes it to origin (a real git push; the test's remote is a bare
+# repo), and answers with the pen's --json shape. FAKE_ORUN_PEN_REFUSE=1
+# emulates GitHub refusing the PR: pushed, compareUrl, not opened.
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "open" ]; then
+  if [ "${3:-}" = "--help" ]; then echo "  --branch-slug string   slug half of the branch verbatim"; exit 0; fi
+  python3 - "$state" "$@" <<'PY'
+import json,sys
+st=json.load(open(sys.argv[1])); st["calls"].append(sys.argv[2:]); json.dump(st,open(sys.argv[1],"w"))
+PY
+  task="" slug="" epic="" title=""
+  args=("$@"); i=0
+  while [ $i -lt ${#args[@]} ]; do
+    case "${args[$i]}" in
+      --task) task="${args[$((i+1))]}"; i=$((i+2)) ;;
+      --branch-slug) slug="${args[$((i+1))]}"; i=$((i+2)) ;;
+      --epic) epic="${args[$((i+1))]}"; i=$((i+2)) ;;
+      --title) title="${args[$((i+1))]}"; i=$((i+2)) ;;
+      *) i=$((i+1)) ;;
+    esac
+  done
+  prose="$(cat)"
+  branch="orun/${task}-${slug}"
+  git checkout -qB "$branch" && git push -qu origin "$branch"
+  body="${prose}"$'\n\n'"<!-- orun:manifest {\"version\":1,\"task\":\"${task}\"${epic:+,\"epic\":\"${epic}\"}} -->"
+  printf '%s' "$body" > "${FAKE_ORUN_PEN_BODY:-/dev/null}"
+  if [ "${FAKE_ORUN_PEN_REFUSE:-}" = "1" ]; then
+    printf '{"branch":"%s","pushed":true,"opened":false,"compareUrl":"https://github.com/x/y/compare/main...%s"}\n' "$branch" "$branch"
+  else
+    printf '{"branch":"%s","pushed":true,"opened":true,"url":"https://github.com/x/y/pull/7","number":7}\n' "$branch"
+  fi
+  exit 0
+fi
 exec python3 - "$state" "$@" <<'PY'
 import json,sys
 state_path=sys.argv[1]; argv=sys.argv[2:]

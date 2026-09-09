@@ -95,7 +95,7 @@ files.
 |---|---|
 | `preflight.sh` | auth → authoritative integrations probe → 10m poll for the three connections → repo allow-list, self-healing via `orun cloud link` |
 | `apply-blueprint.sh` | apply one blueprint slice into the product repo, rebrand it (identity from `.rebrand/values.json`), archive phase provenance; enforces a clean tree; `dryrun` shows + reverts |
-| `land-pr.sh` | commit → branch → PR → wait for checks (passes when the repo has none yet) → merge (admin bypass when available) → back on main |
+| `land-pr.sh` | commit → branch → PR → wait for checks (passes when the repo has none yet) → merge (admin bypass when available) → back on main. With `--task KEY` (BT2) the branch, push and PR go through the pen — `orun pr open --task KEY --branch-slug <suffix>` — so the landing is `orun/<KEY>-<suffix>`, the commit carries the `Orun-Task` trailer, the body `Task: KEY` + the provenance manifest, and every push, PR and merge binds to the task; a pen that is missing or refuses degrades to the untracked path with one line |
 | `converge.sh` | wait for the main convergence run; auto-resume through transient failures |
 | `verify-endpoints.sh` | probe api-edge `/health` / console URLs, derived from `.rebrand/values.json` |
 | `create-secrets.sh` | the five brokered provider secrets; idempotent, self-heals orphans |
@@ -109,7 +109,8 @@ landing's task through `orun task create --contract`. `gates: []` is a
 declaration: merge alone finishes the task, because the main convergence
 is the gate the flow *watches*, not one the plane observes as a PR check.
 The templates are flow machinery, never product content. The contract
-test lives in `flows/testing/track.test.sh` (a fake `orun`, no network).
+tests live in `flows/testing/track.test.sh` and `land-pr.test.sh` (a fake
+`orun` and `gh`, bare-repo remotes, no network).
 The whole design: `specs/epics/saas-baseline-tracking/`.
 
 ## Where the blueprints live
