@@ -1,0 +1,9 @@
+{
+  "repoName": "launchpad",
+  "productName": "Launchpad",
+  "productDomain": "launchpad.app",
+  "pascalName": "Launchpad",
+  "brandSlug": "launchpad",
+  "cliBin": "launchpad",
+  "workersDevSubdomain": "your-workers-subdomain"
+}
