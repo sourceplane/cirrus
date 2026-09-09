@@ -45,6 +45,14 @@ Phase 01 takes the product identity once and writes it into the repo
 - `dryrun` — `"true"` previews the phase with zero side effects (the
   blueprint is applied in the working tree, shown, and reverted; no PR, no
   deploy, nothing pushed)
+- `track` (default `"true"`) — the phase tracks itself in the workspace's
+  task plane (BT): its `land` step ensures the epic's milestone for the
+  phase and a task for the landing (`track.sh ensure-task`), then lands
+  through the pen on `orun/<KEY>-<phase>` (`land-pr.sh --task`). `"false"`
+  lands an untracked `phase/…` branch as before.
+- `epicslug` (default `infra-baselining`) — the epic the tasks club under.
+  The umbrella's first step (`programme`) creates it with one milestone
+  per phase; a phase run on its own adopts it, or creates it on the way.
 
 ```bash
 orun workflow run flows/phases/03-infrastructure/workflow.yaml \
@@ -103,6 +111,10 @@ files.
 
 ## Tracking the bootstrap as work (BT)
 
+The umbrella lays the programme out first — epic + one milestone per
+phase (`00-all`'s `programme` step) — and ends its `verify` with the
+epic's rollup (a landing not yet folded to `done` is a warning naming the
+epic, never a failed bootstrap: the observation drain runs on a cron).
 Each phase folder also carries `task-contract.yaml` (phase 04: one per
 landing) — the contract template `track.sh ensure-task` attaches to the
 landing's task through `orun task create --contract`. `gates: []` is a
