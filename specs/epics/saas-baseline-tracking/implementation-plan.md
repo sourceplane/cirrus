@@ -1,9 +1,12 @@
 # saas-baseline-tracking — Implementation Plan
 
-Status: Normative for the BT cluster. As-built record in
-`IMPLEMENTATION-STATUS.md` (created when BT1 lands); decisions and human
-gates in `risks-and-open-questions.md`. Milestone IDs BT0–BT6, ordered so
-each is independently landable and every later one builds on the previous.
+Status: Normative for the BT cluster's cirrus leg and the umbrella order.
+As-built record in `IMPLEMENTATION-STATUS.md` (created when BT1 lands);
+decisions and human gates in `risks-and-open-questions.md`. Three repos:
+**BT0** (orun-cloud, shipped) → **BT-O1–BT-O4** (orun,
+`specs/orun-baseline-tracking/implementation-plan.md`) → **BT1–BT6** (here).
+Each milestone is independently landable; the dependency edges are named
+per milestone.
 
 Two invariants hold across the whole cluster:
 
@@ -31,71 +34,84 @@ Two invariants hold across the whole cluster:
   pins moved; CLI README roster note updated.
 
 **Done when** `pnpm --filter @saas/mcp test` and `@saas/mcp-tests` are
-green (they are), and the `orun` binary that the sandbox runs serves the
-new manifest (**human gate — see risks**: the binary vendors
-`tool-manifest.json`; until it ships, the sandbox agent has the REST path
-via `track.sh`, and the console shows the same objects).
+green (they are). Serving the new manifest from the binary the sandbox
+runs is orun's **BT-O3**, not this milestone's.
 
-## BT1 — `flows/common/track.sh`
+## BT1 — `flows/common/track.sh` (needs orun BT-O1 + BT-O2)
 
 **Scope**
 
-- A sourceable-or-executable script in the `ghrest.sh` style: `curl` +
-  `python3` only, never `jq`. Base URL `${ORUN_CLOUD_API:-${ORUN_BACKEND_URL:-https://api.orunbase.com}}`;
-  bearer resolved **per call** from `ORUN_TOKEN`, else the contents of
-  `ORUN_TOKEN_FILE` (the sandbox rotates it; a cached copy dies in 15
-  minutes). Workspace from `$ws` (set by `ctx.sh`). Every request carries
-  `Idempotency-Key` derived from its identity (`bt:<ws>:<phase>:<title>`)
-  so a retried step replays rather than double-creates.
+- A script in the `ghrest.sh` style, but with one client: `orun`. Every
+  subcommand shells to `orun task …` with `--json` and parses with
+  `python3` (never `jq`); the workspace is `$ws` (set by `ctx.sh`) via
+  `--workspace`; the credential is whatever the CLI already resolves
+  (`ORUN_TOKEN`, `ORUN_TOKEN_FILE`, or the login session) — nothing is read
+  or exported here. Idempotency keys ride the CLI's own (`mcp_`-style
+  auto keys are the binary's; a retried *step* re-runs the find half first,
+  so a replay never reaches a second create).
 - Subcommands, each printing ONE line to stdout (the id/key) and prose to
   stderr:
 
   | command | does | idempotent by |
   |---|---|---|
-  | `ensure-epic <slug> <name> [description]` | `POST /v1/organizations/<ws>/tasks/epics`; on 409 takes `details.existing` | slug |
-  | `ensure-milestone <epic> <name> <exit-criteria…>` | `GET …/tasks/epics/<epic>` → match `milestones[].name`; else `POST …/tasks/epics/<epic>/milestones` with `after` = the previous phase's `mls_…` (or `null` for `01`) | name within epic |
-  | `ensure-task <epic> <milestone> <title> <goal> <affects-csv> <done-when…>` | `GET …/tasks?epic=<epic>` → match `titleMirror`; else `POST …/tasks` `{mintPrefix:"BASE", titleMirror, brief, epic, milestone, assignee:"me"}` then `PUT …/tasks/<id>/contract` `{contract:{goal, affects, doneWhen, gates:[], gatesDefined:true}}`; prints the KEY | title within epic |
-  | `rollup <epic>` | `GET …/tasks/epics/<epic>/rollup` → `N/M done`, per-milestone rungs — the line the agent posts | — |
-  | `verdict <key>` | `GET …/tasks?epic=…` → id → `GET …/tasks/<id>/verdict` → `rung — reason` | — |
+  | `ensure-epic <slug> <name> [description]` | `orun task epic create --slug … --name … --json`; a taken slug is adopted (the CLI prints `reusing`) | slug |
+  | `ensure-milestone <epic> <name> <exit-criteria…>` | `orun task epic show <epic> --json` → match `milestones[].name`; else `orun task milestone create --epic … --name … --after <previous phase's mls_…>` (`--first` for `01`) | name within epic |
+  | `ensure-task <epic> <milestone> <title> <contract-file>` | `orun task list --epic <epic> --json` → match `titleMirror`; else `orun task create --prefix BASE --title … --brief … --epic … --milestone … --assignee me --contract <file> --json`; prints the KEY | title within epic |
+  | `rollup <epic>` | `orun task epic show <epic> --json` → `N/M done`, per-milestone rungs — the line the agent posts | — |
+  | `verdict <key>` | `orun task show <key> --json` → `rung — reason` | — |
 
-- Degradation: any HTTP ≥ 400 other than the 409 adopt path, or no token,
-  prints `track: <what> refused (<code>) — landing untracked; grant
-  task.write to the run's principal / check ORUN_CLOUD_API` to stderr and
-  exits 0 with an empty stdout. Callers treat empty as "no key".
-- `$W/tracking.json` cache `{epic, milestones:{"01":"mls_…"}, tasks:{"<title>":"BASE-3"}}`
-  written after each ensure; read first, verified against the plane only
-  when the cached ref 404s.
+- Contract templates live in the baseline, one per landing:
+  `flows/phases/NN-*/task-contract.yaml` (`goal`, `affects` = the phase's
+  blueprint components, `doneWhen` = the milestone's exit criteria,
+  `gates: []`, `gatesDefined: true`). The scaffold phase's blueprint split
+  (`tooling/blueprint/split-phases.py`) does not touch them; they are
+  flow machinery, never product content.
+- Degradation: a non-zero `orun` exit other than the adopt path, or a
+  binary older than the BT-O1/O2 release (`orun task epic --help` fails),
+  prints `track: <what> unavailable (<reason>) — landing untracked; upgrade
+  orun to ≥ <release> / grant task.write to the run's principal` to stderr
+  and exits 0 with an empty stdout. Callers treat empty as "no key".
+- `$W/tracking.json` cache `{epic, milestones:{"01":"mls_…"}, tasks:{"<title>":"BASE-3"}, refused: null|"<reason>"}`
+  written after each ensure; read first, re-verified against the plane
+  only when the cached ref 404s.
 
-**Done when** `bash -n` clean; a stub-server test under `flows/testing/`
-(python `http.server` answering the five routes) shows: first run creates
-epic + milestone + task and prints `BASE-1`; second run creates nothing
-and prints the same key; a 403 prints the refusal and an empty line.
+**Done when** `bash -n` clean; a contract test under `flows/testing/` with
+a fake `orun` on `PATH` (a shell script answering the five subcommands
+from fixtures) shows: first run creates epic + milestone + task and prints
+`BASE-1`; second run creates nothing and prints the same key; an old
+binary prints the refusal and an empty line.
 
-## BT2 — `land-pr.sh` / `push-main.sh` land on the task's branch
+## BT2 — `land-pr.sh` / `push-main.sh` land through the pen (needs orun BT-O4)
 
 **Scope**
 
-- `land-pr.sh [--no-wait] [--task KEY] <out> <suffix> <title> [body]`
-  (also honours `ORUN_TASK_KEY` from the environment). With a key:
-  `branch="orun/${KEY}-${suffix}"` (the suffix is validated against
-  `[a-z0-9-]+` — every current suffix already is); the PR body becomes
-  `<body>\n\nTask: <KEY>\n\n<!-- orun:manifest {"version":1,"task":"<KEY>","epic":"<slug>"} -->`;
-  after `ghr_pr_create`, best-effort `POST …/issues/<n>/labels ["orun:task/<KEY>"]`
-  (needs `issues: write`; failure is silent — the branch already binds).
-  Without a key: today's `phase/<suffix>-<epoch>` and body, byte-identical.
-- The direct-merge fallback (PR creation refused) keeps the `orun/…`
-  branch name so the push still records `branch_seen`; the merge commit's
-  message carries the `Task:` trailer so the lineage survives in git even
-  when the plane saw no PR.
+- `land-pr.sh [--no-wait] [--task KEY] [--epic SLUG] <out> <suffix> <title> [body]`
+  (also honours `ORUN_TASK_KEY` / `ORUN_EPIC_SLUG` from the environment).
+  With a key: after the commit, `orun pr open --task "$KEY" --branch-slug
+  "$suffix" --epic "$epic" --title "$title" --body-file - --json` replaces
+  the `git checkout -qb` / `git push` / `ghr_pr_create` trio: the pen
+  checks out `orun/<KEY>-<suffix>`, pushes, renders `Task: <KEY>` and the
+  manifest block into the body, opens the PR and returns its `number`.
+  The merge, the checks wait and the return to `main` stay exactly as
+  today, on that number. Best-effort
+  `ghr_pr_label <n> orun:task/<KEY>` after open (needs `issues: write`;
+  failure is silent — the branch already binds).
+- Without a key: today's `phase/<suffix>-<epoch>` path, byte-identical.
+- The pen's refusal (no `pull_requests` grant: it pushes and returns the
+  compare URL) maps onto today's direct-merge fallback: the `orun/…`
+  branch is already pushed (so `branch_seen` is recorded), and the merge
+  commit's message carries the `Task:` trailer so the lineage survives in
+  git even when the plane saw no PR.
 - `push-main.sh <suffix> <title> [body]` (phase 08) gains the same
-  `--task` / `ORUN_TASK_KEY` handling on its PR path; its direct-push path
-  is unchanged (a PR-less push cannot bind and should not pretend to).
+  `--task` / `--epic` handling on its PR path; its direct-push path is
+  unchanged (a PR-less push cannot bind and should not pretend to).
 - `ghrest.sh`: one new function `ghr_pr_label PR_NUMBER LABEL`.
 
 **Done when** a landing with `ORUN_TASK_KEY=BASE-3` opens a PR from
-`orun/BASE-3-03-infrastructure` whose body has the trailer and manifest,
-and a landing without a key is diff-identical to today's (checked by the
-existing dry-run path plus a `git log` assertion in the BT6 rehearsal).
+`orun/BASE-3-03-infrastructure` whose body has the trailer and manifest
+(`orun pr check` passes on the branch), and a landing without a key is
+diff-identical to today's (checked by the existing dry-run path plus a
+`git log` assertion in the BT6 rehearsal).
 
 ## BT3 — The phases ensure their task, the umbrella ensures the programme
 
@@ -172,6 +188,11 @@ scaffold's post-merge tree is byte-identical to today's direct push
   epic (it is the bootstrap's audit trail) rather than archive it.
 - The umbrella command in the brief gains `--set track=true` explicitly so
   a future default flip cannot silently untrack an agent-run bootstrap.
+- **The manifest rides the epic.** After phase 08, the brief runs
+  `orun spec push --epic infra-baselining ai/context/deployment.md
+  ai/context/operations.md` from the product checkout (committed files,
+  idempotent by content hash), so the epic carries the deployment record
+  beside its tasks and `task_get infra-baselining` answers with it.
 
 **Done when** a sandbox bootstrap's transcript shows the epic created
 before the umbrella starts, every progress update quotes the rollup, and
