@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --paper: 40 20% 98%;
+    --card: 0 0% 100%;
+    --ink: 220 15% 12%;
+    --muted: 220 8% 45%;
+    --line: 220 12% 88%;
+    --accent: 20 90% 52%;
+    --accent-ink: 0 0% 100%;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: 220 15% 8%;
+      --card: 220 14% 11%;
+      --ink: 40 20% 95%;
+      --muted: 220 8% 62%;
+      --line: 220 10% 20%;
+      --accent: 20 95% 60%;
+      --accent-ink: 220 15% 8%;
+    }
+  }
+  html { @apply bg-paper text-ink antialiased; }
+  body { @apply font-sans; }
+  a { @apply underline-offset-4; }
+}
+
+.prose { @apply text-[1.05rem] leading-relaxed; }
+.prose h1 { @apply mb-4 mt-8 text-3xl font-semibold tracking-tight; }
+.prose h2 { @apply mb-3 mt-8 text-2xl font-semibold tracking-tight; }
+.prose h3 { @apply mb-2 mt-6 text-xl font-semibold; }
+.prose p { @apply my-4; }
+.prose ul { @apply my-4 list-disc pl-6; }
+.prose ol { @apply my-4 list-decimal pl-6; }
+.prose li { @apply my-1; }
+.prose a { @apply text-accent underline; }
+.prose blockquote { @apply my-6 border-l-4 border-line pl-4 italic text-muted; }
+.prose pre { @apply my-6 overflow-x-auto rounded-md border border-line bg-card p-4 font-mono text-sm; }
+.prose code { @apply rounded-sm bg-card px-1 py-0.5 font-mono text-[0.9em]; }
+.prose pre code { @apply bg-transparent p-0; }
+.prose img { @apply my-6 max-w-full rounded-md; }
+.prose hr { @apply my-8 border-line; }
+.prose table { @apply my-6 w-full text-sm; }
+.prose th, .prose td { @apply border-b border-line px-2 py-2 text-left; }

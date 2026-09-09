@@ -1,0 +1,4 @@
+# Immutable caching for content-hashed build assets (the hash is in the
+# filename, so a content change is a new URL).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -37,7 +37,7 @@ Per `components/02-mail-worker.md`: templates, providers, `send`,
 both providers, and a broadcast with a mixed sent/failed outcome that
 resumes correctly.
 
-## VG4 — web-site
+## VG4 — web-site ✅
 
 Per `components/03-web-site.md`: content loader with validation, routes,
 islands, RSS/sitemap/robots, sample content for all three shapes,
