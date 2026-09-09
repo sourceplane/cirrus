@@ -87,7 +87,10 @@ orun workflow run 'github:sourceplane/cirrus@<TAG>//flows/phases/00-all/workflow
 ```
 
 It retries each phase itself, probes the credential's write access in
-minute two, and ends with an independent verification. Expect 60–75
+minute two, lays the bootstrap out as tracked work first (epic
+`infra-baselining`, one milestone per phase, one task per landing on an
+`orun/BASE-n-<phase>` branch — `--set track=false` opts out), and ends
+with an independent verification that prints the epic's rollup. Expect 60–75
 minutes; the output names the exact operator action if it stops. If it
 completes, skip to Step 4. Use the per-phase commands below ONLY if the
 operator asks for phase-at-a-time control.
@@ -159,5 +162,12 @@ done
 
 ## Report back
 
-Per phase: pass/fail and duration. Then the four URL results and the
-contents of `product/ai/context/deployment.md`.
+Per phase: pass/fail, duration and the task key the flows printed
+(`track: task BASE-n created …`). Then the epic's rollup from the verify
+step, the four URL results, and the contents of
+`product/ai/context/deployment.md`. Optionally push that manifest onto
+the epic so it lives beside the tasks:
+
+```bash
+cd product && orun spec push --epic infra-baselining ai/context/deployment.md ai/context/operations.md
+```
