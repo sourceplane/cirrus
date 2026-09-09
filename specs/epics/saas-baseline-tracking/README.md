@@ -14,7 +14,7 @@ task's evidence. Nothing is asserted; the ledger reads what the flows did.
 
 | Field | Value |
 |-------|-------|
-| Status | **Draft (plan)** — BT0 shipped in orun-cloud (the MCP writes, [PR #1374](https://github.com/sourceplane/orun-cloud/pull/1374)); BT-O1–BT-O4 (orun) and BT1–BT6 (here) not started |
+| Status | **In progress** — BT0 (orun-cloud), BT-O1–BT-O4 (orun) and BT1–BT5 (here) ✅ shipped; BT6 partial (CI contract tests in; the live rehearsal is a human gate). As-built: [`IMPLEMENTATION-STATUS.md`](./IMPLEMENTATION-STATUS.md) |
 | Cluster | **BT** — three repos, one cluster: **BT0** orun-cloud · **BT-O1–BT-O4** orun (`specs/orun-baseline-tracking/`) · **BT1–BT6** cirrus (this folder) |
 | Owner(s) | here: `flows/common/` (a new `track.sh`, `land-pr.sh`, `push-main.sh`), every `flows/phases/*/workflow.yaml`, `flows/phases/00-all`, `flows/agent/BASELINE-TASK.md`, `flows/AGENT-PROMPT.md` · orun-cloud: `packages/mcp/src/tools/tasks.ts` (BT0, shipped) · orun: `cmd/orun/tasks.go`, `cmd/orun/pr.go`, `internal/remotestate`, `internal/platformmcp` + the vendored manifest |
 | Target branch | `main` |
