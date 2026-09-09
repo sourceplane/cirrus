@@ -1,6 +1,6 @@
 # 01 — site-api
 
-Status: Planned (VG2) · Owner: `apps/site-api`
+Status: Implemented (VG2) · Owner: `apps/site-api`
 
 The only publicly routable Worker. Every visitor write path and every owner
 read path terminates here; it holds no provider credential except the D1 and
@@ -31,8 +31,9 @@ KV bindings and the `OWNER_TOKEN` secret.
 
 ## Invariants
 
-- Error envelope: `{ error: { code, message, details, requestId } }`; every
-  response carries `x-request-id`.
+- Success bodies are the contract shapes; errors wear the envelope
+  `{ error: { code, message, details, requestId } }`. Every response carries
+  `x-request-id` and `Server-Timing`.
 - Owner auth: `Authorization: Bearer <OWNER_TOKEN>`, compared in constant
   time; a missing secret makes every owner route 503, never open.
 - Rate limits: KV token bucket per fingerprint per route family; fail-open

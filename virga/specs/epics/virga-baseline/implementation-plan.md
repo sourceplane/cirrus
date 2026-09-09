@@ -19,7 +19,7 @@ suite round-tripping every method, including conflict and toggle paths.
 **Done when** `tests/db` proves apply, idempotence, manifest parity, and
 every repository behaviour in `design.md`.
 
-## VG2 — site-api
+## VG2 — site-api ✅
 
 The public Worker per `components/01-site-api.md`: router, request ids,
 error envelope, timings, KV rate limiter (fail-open), CORS, fingerprint,

@@ -71,6 +71,7 @@ Inherited from Cirrus: `{ error: { code, message, details, requestId } }`,
 | family | limit / window |
 |---|---|
 | subscribe | 5 / 10 min |
+| tokens (confirm, unsubscribe) | 20 / 10 min |
 | forms | 5 / 10 min |
 | reactions | 60 / min |
 | views | 120 / min |
