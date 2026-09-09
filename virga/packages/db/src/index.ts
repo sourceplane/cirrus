@@ -2,3 +2,5 @@ export type { BoundedContext, MigrationEntry, MigrationManifest } from "./types.
 export { BOUNDED_CONTEXTS } from "./types.js";
 export { manifest } from "./manifest.js";
 export { parseJsonColumn, parseNullableJsonColumn, parseBooleanColumn } from "./json.js";
+export { encodeCursor, decodeCursor, pageLimit, paginate } from "./cursor.js";
+export type { CursorPosition } from "./cursor.js";

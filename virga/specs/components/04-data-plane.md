@@ -1,6 +1,6 @@
 # 04 — data plane
 
-Status: Partial (VG0 seam + control migration) · Owner: `packages/db`, `infra/*`
+Status: Implemented (VG0 seam, VG1 schema + repositories) · Owner: `packages/db`, `infra/*`
 
 ## Seam
 

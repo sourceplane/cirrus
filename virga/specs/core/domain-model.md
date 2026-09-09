@@ -18,12 +18,13 @@ column, on the wire and in the CLI.
 | source | TEXT NULL | page slug, form key, `cli`, `import` |
 | tags | TEXT | JSON array |
 | confirm_token_hash | TEXT NULL | SHA-256 hex of the plaintext in the mail |
-| unsubscribe_token_hash | TEXT NULL | idem |
 | created_at, confirmed_at, unsubscribed_at, updated_at | TEXT | ISO-8601 |
 
 Rules: subscribing an existing address re-sends the confirmation when
 pending, is a no-op when confirmed, and revives an unsubscribed address as
-pending. Tokens are single-purpose and rotated on every issue.
+pending. Confirm tokens are single-purpose and rotated on every subscribe;
+unsubscribe tokens are not stored at all — they are `HMAC(TOKEN_SECRET, id)`
+minted by the mail-worker and verified by site-api (see D4).
 
 ## forms — what visitors typed and sent
 

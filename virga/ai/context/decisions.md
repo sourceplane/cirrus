@@ -17,11 +17,15 @@ to a person and a visitor's upvote quietly expires with the salt. This is a
 deliberate trade: "one upvote per person forever" would need accounts, and
 accounts are the thing Virga does not have.
 
-## D4 — Tokens are hashed at rest, single-purpose, carried in URLs (2026-09-09)
+## D4 — Confirm tokens are hashed at rest; unsubscribe tokens are derived (2026-09-09)
 
-Confirm and unsubscribe tokens are 32 random bytes, stored as SHA-256 hex,
-compared by hash. The plaintext exists only in the mail. There is no login,
-so there is nothing else for a token to unlock.
+Confirm tokens are 32 random bytes, stored as SHA-256 hex, compared by hash,
+cleared on use; the plaintext exists only in the mail. Unsubscribe tokens
+are `base64url(id + "." + HMAC-SHA256(TOKEN_SECRET, id))`: mail-worker mints
+one per recipient when it renders an issue, site-api verifies by
+recomputing. Nothing about unsubscribing is stored, so a broadcast never has
+to read a secret column, and one shared `TOKEN_SECRET` (seeded on both
+Workers) is the only material involved.
 
 ## D3 — The owner is a bearer token, not a user (2026-09-09)
 

@@ -24,13 +24,16 @@
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1",
       "^@site/db$": "<rootDir>/../../packages/db/src/index.ts",
       "^@site/db/manifest$": "<rootDir>/../../packages/db/src/manifest.ts",
       "^@site/db/types$": "<rootDir>/../../packages/db/src/types.ts",
       "^@site/db/json$": "<rootDir>/../../packages/db/src/json.ts",
+      "^@site/db/cursor$": "<rootDir>/../../packages/db/src/cursor.ts",
       "^@site/db/(.*)$": "<rootDir>/../../packages/db/src/$1/index.ts",
       "^@site/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
       "^@site/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",
@@ -38,8 +41,16 @@
       "^@site/testing/(.*)$": "<rootDir>/../../packages/testing/src/$1.ts"
     },
     "transform": {
-      "^.+\\.ts$": ["ts-jest", { "useESM": true, "diagnostics": false }]
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "useESM": true,
+          "diagnostics": false
+        }
+      ]
     },
-    "testMatch": ["<rootDir>/src/**/*.test.ts"]
+    "testMatch": [
+      "<rootDir>/src/**/*.test.ts"
+    ]
   }
 }

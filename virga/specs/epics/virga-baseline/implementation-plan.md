@@ -11,7 +11,7 @@ on `node:sqlite`, `verify.yml`, the spec pack, `ai/`, `agents/`.
 **Done when** the pipeline is green and no file outside the provenance note
 presents the tree as Cirrus.
 
-## VG1 — Data plane
+## VG1 — Data plane ✅
 
 Migrations `010_audience`, `020_forms`, `030_engagement`, `040_newsletter`
 and one repository per context (`@site/db/audience` …), with the SQLite

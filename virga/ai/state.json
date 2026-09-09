@@ -1,12 +1,15 @@
 {
   "goal": "Cloudflare-only single-owner website baseline (site-api + mail-worker + web-site on Workers, D1, KV, Email Service)",
-  "active_milestone": "VG0",
-  "current_task": "VG0",
+  "active_milestone": "VG2",
+  "current_task": "VG2",
   "last_verified": "2026-09-09T00:00:00Z",
   "repo_health": "green",
   "next_focus": "Work the epic specs/epics/virga-baseline in order: VG1 data plane, VG2 site-api, VG3 mail-worker, VG4 web-site, VG5 CLI, VG6 infra+CI, VG7 baseline machinery.",
   "deferred": [],
-  "completed": [],
+  "completed": [
+    "VG0",
+    "VG1"
+  ],
   "task_agent": "",
   "waiting_for_input": "false",
   "notes": []
