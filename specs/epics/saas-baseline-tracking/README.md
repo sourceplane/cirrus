@@ -14,7 +14,7 @@ task's evidence. Nothing is asserted; the ledger reads what the flows did.
 
 | Field | Value |
 |-------|-------|
-| Status | **Draft (plan)** — BT0 shipped in orun-cloud (the MCP writes); BT1–BT6 not started |
+| Status | **Draft (plan)** — BT0 shipped in orun-cloud (the MCP writes, [PR #1374](https://github.com/sourceplane/orun-cloud/pull/1374)); BT1–BT6 not started |
 | Cluster | **BT** (BT0–BT6) |
 | Owner(s) | `flows/common/` (a new `track.sh`, `land-pr.sh`, `push-main.sh`), every `flows/phases/*/workflow.yaml`, `flows/phases/00-all`, `flows/agent/BASELINE-TASK.md`, `flows/AGENT-PROMPT.md`; in orun-cloud: `packages/mcp/src/tools/tasks.ts` (BT0, shipped) |
 | Target branch | `main` |
