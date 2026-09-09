@@ -19,9 +19,10 @@
 # handle" and land untracked, exactly as before BT.
 #
 # Workspace: $ws (exported by ctx.sh) or TRACK_WORKSPACE. Cache:
-# $TRACK_WORKDIR/tracking.json (default: the run's shared workdir, anchored
-# above .orun/wfruns like ctx.sh) — read first, re-verified against the
-# plane only when a cached handle is stale.
+# $TRACK_WORKDIR/tracking.json — default ${XDG_CACHE_HOME:-~/.cache}/
+# orun-bootstrap/<workspace>/, never the baseline or product tree (product
+# content stays product-only; a baseline checkout stays clean). Read
+# first, re-verified against the plane only when a cached handle is stale.
 set -euo pipefail
 
 verb="${1:-}"; shift || true
@@ -29,8 +30,9 @@ ws="${ws:-${TRACK_WORKSPACE:-}}"
 
 # ── the run's cache ──────────────────────────────────────────────────────
 if [ -z "${TRACK_WORKDIR:-}" ]; then
-  case "$PWD" in */.orun/wfruns/*) TRACK_WORKDIR="${PWD%%/.orun/wfruns/*}" ;; *) TRACK_WORKDIR="$PWD" ;; esac
+  TRACK_WORKDIR="${XDG_CACHE_HOME:-$HOME/.cache}/orun-bootstrap/${ws:-no-workspace}"
 fi
+mkdir -p "$TRACK_WORKDIR"
 cache="$TRACK_WORKDIR/tracking.json"
 [ -f "$cache" ] || printf '{"epic":null,"milestones":{},"tasks":{},"refused":null}\n' > "$cache"
 
