@@ -1,0 +1,9 @@
+{
+  "repoName": "subtally",
+  "productName": "Subtally",
+  "productDomain": "subtally.app",
+  "pascalName": "Subtally",
+  "brandSlug": "subtally",
+  "cliBin": "subtally",
+  "workersDevSubdomain": "your-workers-subdomain"
+}

@@ -21,7 +21,8 @@
       "@saas/db/config": ["../../packages/db/src/config/index.ts"],
       "@saas/db/webhooks": ["../../packages/db/src/webhooks/index.ts"],
       "@saas/db/metering": ["../../packages/db/src/metering/index.ts"],
-      "@saas/db/billing": ["../../packages/db/src/billing/index.ts"]
+      "@saas/db/billing": ["../../packages/db/src/billing/index.ts"],
+      "@saas/db/integrations": ["../../packages/db/src/integrations/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],
