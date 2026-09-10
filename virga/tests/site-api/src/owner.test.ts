@@ -1,4 +1,5 @@
 import { harness, bodyOf, OWNER_TOKEN } from "./harness";
+import { htmlToText } from "@site-api/handlers/owner";
 
 async function seed(h: ReturnType<typeof harness>) {
   for (const e of ["a", "b", "c"]) await h.call("POST", "/v1/subscribers", { body: { email: `${e}@example.com`, source: "home" }, ip: `10.0.0.${e.charCodeAt(0)}` });
@@ -76,5 +77,43 @@ describe("site-api: owner routes", () => {
     expect((await h.owner("POST", "/v1/owner/issues/iss_00000000000000000000000000000000/send")).status).toBe(404);
     const list = await h.owner("GET", "/v1/owner/issues");
     expect((await bodyOf<{ items: unknown[] }>(list)).items).toHaveLength(1);
+  });
+});
+
+describe("site-api: htmlToText (the derived plain-text alternative)", () => {
+  it("leaves nothing tag-shaped, stripping to a fixed point", () => {
+    // One pass can emit markup it was meant to remove, so the strip repeats
+    // until the string stops changing. The invariant that matters is that no
+    // `<...>` survives, whatever the input nesting looks like.
+    for (const input of [
+      "<scr<b>ipt>alert(1)</scr<b>ipt>",
+      "<<div>>hello<</div>>",
+      "<p>plain</p>",
+      "<a href='x' onclick='y'>link</a>",
+    ]) {
+      expect(htmlToText(input)).not.toMatch(/<[^>]*>/);
+    }
+    expect(htmlToText("<<div>>hello<</div>>")).toBe(">hello");
+    // A bare `<` with no closing `>` is text, not a tag, and survives intact.
+    expect(htmlToText("Hi <3, that is not a tag")).toBe("Hi <3, that is not a tag");
+  });
+
+  it("decodes each entity exactly once, so escaped text stays text", () => {
+    // The author escaped this on purpose: readers should see the characters
+    // `<b>`, not a tag. Chained replaces decoded it twice and produced markup.
+    expect(htmlToText("<p>&amp;lt;b&amp;gt; is how you write a bold tag</p>")).toBe(
+      "&lt;b&gt; is how you write a bold tag",
+    );
+    expect(htmlToText("<p>Tom &amp; Jerry &lt;3 &quot;quotes&quot; &#39;and&#39;&nbsp;more</p>")).toBe(
+      "Tom & Jerry <3 \"quotes\" 'and' more",
+    );
+    // An entity the map does not know is left alone rather than half-decoded.
+    expect(htmlToText("<p>5 &deg; &amp;deg;</p>")).toBe("5 &deg; &deg;");
+  });
+
+  it("keeps block structure and collapses the whitespace it creates", () => {
+    expect(htmlToText("<h1>Title</h1><p>One</p><p>Two</p>")).toBe("Title\nOne\nTwo");
+    expect(htmlToText("<p>a</p><br><br><br><p>b</p>")).toBe("a\n\nb");
+    expect(htmlToText("<ul><li>x</li><li>y</li></ul>")).toBe("x\ny");
   });
 });

@@ -105,17 +105,45 @@ export async function handleListIssues(ctx: RequestContext, request: Request): P
   return json(body);
 }
 
-/** A plain-text alternative derived from HTML when the owner gave none. */
+/** The entities the issue templates emit, decoded in ONE pass (see below). */
+const HTML_ENTITIES: Record<string, string> = {
+  "&nbsp;": " ",
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
+
+/**
+ * A plain-text alternative derived from HTML when the owner gave none.
+ *
+ * Two things here are deliberate, and both were bugs before:
+ *
+ * 1. **Tags are stripped to a fixed point.** One pass is not enough: removing
+ *    the inner tag of `<scr<b>ipt>` leaves `<script>` behind, so the output of
+ *    a single `replace` can contain markup the pass was meant to remove.
+ *    Repeating until the string stops changing terminates (every replacement
+ *    shortens it) and leaves nothing tag-shaped.
+ *
+ * 2. **Entities are decoded in ONE pass.** Chained replaces feed each other:
+ *    `&amp;lt;` becomes `&lt;` under the first and then `<` under the second,
+ *    so text the author escaped ON PURPOSE — `&amp;lt;b&amp;gt;`, meaning the
+ *    reader should see the characters `<b>` — silently turned into markup. A
+ *    single regex with a lookup consumes each entity exactly once, so a
+ *    decoded `&` is never re-scanned.
+ */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<\s*(br|\/p|\/div|\/h[1-6]|\/li|\/tr)\s*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+  let text = html.replace(/<\s*(br|\/p|\/div|\/h[1-6]|\/li|\/tr)\s*>/gi, "\n");
+  let previous: string;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]*>/g, "");
+  } while (text !== previous);
+
+  text = text.replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITIES[entity] ?? entity);
+
+  return text
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
