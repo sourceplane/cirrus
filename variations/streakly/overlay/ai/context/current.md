@@ -1,7 +1,6 @@
 # Current Context
 
-Streakly is a user-scoped product born from the Cirrus baseline (Solo
-profile). The product bounded context is `habits` (`apps/habits-worker`,
+Streakly is a single-user product on the Solo profile. The product bounded context is `habits` (`apps/habits-worker`,
 `packages/db/src/habits`, migration `200_habits_core`), reached through the
 api-edge `habits-facade` and surfaced by the console at `/today`, `/habits`
 and `/review`. There is no public surface: every route requires a session.

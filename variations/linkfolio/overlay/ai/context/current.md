@@ -1,7 +1,6 @@
 # Current Context
 
-Linkfolio is a user-scoped product born from the Cirrus baseline (Solo
-profile). The product bounded context is `pages` (`apps/pages-worker`,
+Linkfolio is a single-user product on the Solo profile. The product bounded context is `pages` (`apps/pages-worker`,
 `packages/db/src/pages`, migration `200_pages_core`), reached through the
 api-edge `pages-facade` and surfaced by the console at `/page` (editor,
 appearance, analytics) and the public `/p/:handle`.

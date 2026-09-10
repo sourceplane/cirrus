@@ -1,9 +1,9 @@
 # Streakly
 
-A **habit and streak tracker**, built on the Cirrus Cloudflare-only SaaS
-baseline in its single-user (Solo) profile. Habits with a cadence, a tap to
-check one off, streaks that follow the rules a person actually expects, and a
-weekly review.
+A **habit and streak tracker**, a Cloudflare-only SaaS running the single-user
+(Solo) profile: identity, billing, email and audit underneath, one focused
+product on top. Habits with a cadence, a tap to check one off, streaks that
+follow the rules a person actually expects, and a weekly review.
 
 There are no organizations, teams or seats — and no public surface at all:
 **the person is the tenant, and the tracker is private.**
@@ -21,7 +21,8 @@ There are no organizations, teams or seats — and no public surface at all:
 
 Everything else — identity (magic link + OAuth), the invisible personal
 workspace, per-user billing (Polar), notifications, config, audit, the console
-shell, CI and deploy-time wiring — is the Cirrus baseline, unchanged. See
+shell, CI and deploy-time wiring — is the shared platform underneath, and no
+product code touches it. See
 [`specs/`](specs/README.md) and
 [`specs/epics/streakly`](specs/epics/streakly/README.md).
 

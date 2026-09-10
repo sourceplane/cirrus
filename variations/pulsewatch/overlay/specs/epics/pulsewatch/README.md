@@ -8,7 +8,7 @@
 | Cluster | **PW** |
 | Owner(s) | monitors-worker, api-edge (`monitors-facade`), packages/{db,contracts,sdk}, web-console-next |
 | Target branch | `main` |
-| Builds on | Cirrus Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
+| Builds on | the Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
 | Decisions locked | user-scoped (`/v1/me/...`, no org in any path); two consecutive failures open an incident, the first success resolves it; the public status page never exposes a URL; the probe is injected and refuses private addresses; a private status page 404s |
 
 ## Thesis
@@ -22,7 +22,7 @@ the incident rules and the page a user reads at 3am.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| E1 | Foundation — born from Cirrus, Solo on, credential-free checks CI | ✅ Shipped |
+| E1 | Foundation — platform in place, Solo profile on, credential-free checks CI green | ✅ Shipped |
 | E2 | Domain worker + data — `monitors-worker` with its cron, migration `200_monitors_core`, `@saas/db/monitors`, `@saas/contracts/monitors`, incident + SQLite + router/scheduler tests | ✅ Shipped |
 | E3 | Edge + SDK — `monitors-facade` (public status read, session everywhere else), `client.monitors`, facade tests | ✅ Shipped |
 | E4 | Console — Monitors, monitor detail with "check now", Incidents, Status page settings, public status page | ✅ Shipped |

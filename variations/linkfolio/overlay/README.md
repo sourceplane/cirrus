@@ -1,9 +1,9 @@
 # Linkfolio
 
-A creator **link-in-bio page and storefront**, built on the Cirrus
-Cloudflare-only SaaS baseline in its single-user (Solo) profile. One public page
-per creator — links, section headers, digital products and a tip jar — with
-click analytics behind it.
+A creator **link-in-bio page and storefront**, a Cloudflare-only SaaS running
+the single-user (Solo) profile: identity, billing, email and audit underneath,
+one focused product on top. One public page per creator — links, section
+headers, digital products and a tip jar — with click analytics behind it.
 
 There are no organizations, teams or seats: **a creator account is the tenant.**
 
@@ -20,7 +20,8 @@ There are no organizations, teams or seats: **a creator account is the tenant.**
 
 Everything else — identity (magic link + OAuth), the invisible personal
 workspace, per-user billing (Polar), notifications, config, audit, the console
-shell, CI and deploy-time wiring — is the Cirrus baseline, unchanged. See
+shell, CI and deploy-time wiring — is the shared platform underneath, and no
+product code touches it. See
 [`specs/`](specs/README.md) for the architecture and
 [`specs/epics/linkfolio`](specs/epics/linkfolio/README.md) for the work plan.
 

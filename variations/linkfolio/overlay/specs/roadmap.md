@@ -6,6 +6,5 @@ Status: Normative direction
 |---------|------|--------|--------------|
 | **LF** | [`epics/linkfolio/`](./epics/linkfolio/) | In progress | The creator page: E1 foundation · E2 worker + data · E3 edge + SDK · E4 console · E5 monetisation & notifications · E6 launch readiness |
 
-The baseline's own clusters (auth, console UX, performance, billing) are
-inherited from Cirrus and tracked there; this repo carries only its product
-work.
+The platform clusters underneath (auth, console UX, performance, billing)
+are tracked with the platform; this register carries only the product work.

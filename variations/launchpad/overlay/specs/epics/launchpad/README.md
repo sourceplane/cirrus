@@ -8,7 +8,7 @@
 | Cluster | **LP** |
 | Owner(s) | launches-worker, api-edge (`launches-facade`), packages/{db,contracts,sdk}, web-console-next |
 | Target branch | `main` |
-| Builds on | Cirrus Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
+| Builds on | the Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
 | Decisions locked | user-scoped (`/v1/me/...`, no org in any path); public reads need no session; one upvote per user; drafts invisible until launched; a maker profile is required to launch |
 
 ## Thesis
@@ -22,7 +22,7 @@ substrate (auth, billing, email, audit) inherited from the baseline.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| E1 | Foundation — born from Cirrus, Solo on, credential-free checks CI | ✅ Shipped |
+| E1 | Foundation — platform in place, Solo profile on, credential-free checks CI green | ✅ Shipped |
 | E2 | Domain worker + data — `launches-worker`, migration `200_launches_core`, `@saas/db/launches`, `@saas/contracts/launches`, SQLite + router tests | ✅ Shipped |
 | E3 | Edge + SDK — `launches-facade` (public reads, session writes), `client.launches`, facade tests | ✅ Shipped |
 | E4 | Console — My launches / Submit / Edit / Maker profile; public Explore, product page, maker page; Solo nav + tabs | ✅ Shipped |

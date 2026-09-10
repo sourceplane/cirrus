@@ -8,7 +8,7 @@
 | Cluster | **SK** |
 | Owner(s) | habits-worker, api-edge (`habits-facade`), packages/{db,contracts,sdk}, web-console-next |
 | Target branch | `main` |
-| Builds on | Cirrus Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
+| Builds on | the Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
 | Decisions locked | user-scoped and fully private (no public route); dates are the client's local calendar dates; a check-in is idempotent per (habit, date); archive keeps history, delete does not; the streak definition lives in one pure module |
 
 ## Thesis
@@ -23,7 +23,7 @@ streak rules and the board.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| E1 | Foundation — born from Cirrus, Solo on, credential-free checks CI | ✅ Shipped |
+| E1 | Foundation — platform in place, Solo profile on, credential-free checks CI green | ✅ Shipped |
 | E2 | Domain worker + data — `habits-worker`, migration `200_habits_core`, `@saas/db/habits`, `@saas/contracts/habits`, streak math + SQLite + router tests | ✅ Shipped |
 | E3 | Edge + SDK — `habits-facade` (session on every route), `client.habits`, facade tests | ✅ Shipped |
 | E4 | Console — Today board, Habits management, Weekly review | ✅ Shipped |

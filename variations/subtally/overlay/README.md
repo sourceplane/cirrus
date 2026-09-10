@@ -1,8 +1,9 @@
 # Subtally
 
-A **subscription and recurring-expense tracker**, built on the Cirrus
-Cloudflare-only SaaS baseline in its single-user (Solo) profile. Add what you
-pay for, see what it costs per month and per year, and know what renews next.
+A **subscription and recurring-expense tracker**, a Cloudflare-only SaaS
+running the single-user (Solo) profile: identity, billing, email and audit
+underneath, one focused product on top. Add what you pay for, see what it
+costs per month and per year, and know what renews next.
 
 There are no organizations, teams or seats — and no public surface at all:
 **the person is the tenant, and the list is private.**
@@ -20,7 +21,8 @@ There are no organizations, teams or seats — and no public surface at all:
 
 Everything else — identity (magic link + OAuth), the invisible personal
 workspace, per-user billing (Polar), notifications, config, audit, the console
-shell, CI and deploy-time wiring — is the Cirrus baseline, unchanged. See
+shell, CI and deploy-time wiring — is the shared platform underneath, and no
+product code touches it. See
 [`specs/`](specs/README.md) and
 [`specs/epics/subtally`](specs/epics/subtally/README.md).
 

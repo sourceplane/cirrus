@@ -1,9 +1,10 @@
 # Pulsewatch
 
-An **uptime monitor with a public status page**, built on the Cirrus
-Cloudflare-only SaaS baseline in its single-user (Solo) profile. Point it at
-your endpoints, and it checks them on a schedule, opens an incident when
-something is actually down, and gives your users one page to look at.
+An **uptime monitor with a public status page**, a Cloudflare-only SaaS
+running the single-user (Solo) profile: identity, billing, email and audit
+underneath, one focused product on top. Point it at your endpoints, and it
+checks them on a schedule, opens an incident when something is actually down,
+and gives your users one page to look at.
 
 There are no organizations, teams or seats: **a developer account is the
 tenant.**
@@ -23,7 +24,8 @@ tenant.**
 
 Everything else — identity (magic link + OAuth), the invisible personal
 workspace, per-user billing (Polar), notifications, config, audit, the console
-shell, CI and deploy-time wiring — is the Cirrus baseline, unchanged. See
+shell, CI and deploy-time wiring — is the shared platform underneath, and no
+product code touches it. See
 [`specs/`](specs/README.md) and
 [`specs/epics/pulsewatch`](specs/epics/pulsewatch/README.md).
 

@@ -8,7 +8,7 @@
 | Cluster | **ST** |
 | Owner(s) | subscriptions-worker, api-edge (`subscriptions-facade`), packages/{db,contracts,sdk}, web-console-next |
 | Target branch | `main` |
-| Builds on | Cirrus Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
+| Builds on | the Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
 | Decisions locked | user-scoped and fully private (no public route); renewals derived from an anchor date, never stored; totals reported per currency, never converted; paused and cancelled rows keep their history but leave the totals |
 
 ## Thesis
@@ -23,7 +23,7 @@ product work is the money and date arithmetic.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| E1 | Foundation — born from Cirrus, Solo on, credential-free checks CI | ✅ Shipped |
+| E1 | Foundation — platform in place, Solo profile on, credential-free checks CI green | ✅ Shipped |
 | E2 | Domain worker + data — `subscriptions-worker`, migration `200_subscriptions_core`, `@saas/db/subscriptions`, `@saas/contracts/subscriptions`, renewal math + SQLite + router tests | ✅ Shipped |
 | E3 | Edge + SDK — `subscriptions-facade` (session on every route), `client.subscriptions`, facade tests | ✅ Shipped |
 | E4 | Console — Overview (totals + upcoming), Subscriptions list/CRUD, Categories | ✅ Shipped |

@@ -1,7 +1,6 @@
 # Current Context
 
-Subtally is a user-scoped product born from the Cirrus baseline (Solo
-profile). The product bounded context is `subscriptions`
+Subtally is a single-user product on the Solo profile. The product bounded context is `subscriptions`
 (`apps/subscriptions-worker`, `packages/db/src/subscriptions`, migration
 `200_subscriptions_core`), reached through the api-edge
 `subscriptions-facade` and surfaced by the console at `/overview`,

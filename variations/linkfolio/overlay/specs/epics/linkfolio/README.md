@@ -8,7 +8,7 @@
 | Cluster | **LF** |
 | Owner(s) | pages-worker, api-edge (`pages-facade`), packages/{db,contracts,sdk}, web-console-next |
 | Target branch | `main` |
-| Builds on | Cirrus Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
+| Builds on | the Solo profile (`specs/profiles/solo-m0.md`), identity, billing, notifications |
 | Decisions locked | user-scoped (`/v1/me/page...`, no org in any path); the public page AND its click endpoint are anonymous; an unpublished page 404s; a block's kind is fixed once created; reorder demands a complete permutation |
 
 ## Thesis
@@ -22,7 +22,7 @@ is the page itself.
 
 | ID | Milestone | Status |
 |----|-----------|--------|
-| E1 | Foundation — born from Cirrus, Solo on, credential-free checks CI | ✅ Shipped |
+| E1 | Foundation — platform in place, Solo profile on, credential-free checks CI green | ✅ Shipped |
 | E2 | Domain worker + data — `pages-worker`, migration `200_pages_core`, `@saas/db/pages`, `@saas/contracts/pages`, SQLite + router tests | ✅ Shipped |
 | E3 | Edge + SDK — `pages-facade` (anonymous visitor traffic, session-only owner routes), `client.pages`, facade tests | ✅ Shipped |
 | E4 | Console — editor (page + blocks + reorder), Appearance, Analytics, public page | ✅ Shipped |

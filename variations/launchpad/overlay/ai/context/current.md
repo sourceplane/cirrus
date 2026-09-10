@@ -1,7 +1,6 @@
 # Current Context
 
-Launchpad is a user-scoped product born from the Cirrus baseline (Solo
-profile). The product bounded context is `launches` (`apps/launches-worker`,
+Launchpad is a single-user product on the Solo profile. The product bounded context is `launches` (`apps/launches-worker`,
 `packages/db/src/launches`, migration `200_launches_core`), reached through
 the api-edge `launches-facade` and surfaced by the console under `/launches`,
 `/profile` and the public `/explore` and `/makers/:handle` routes.

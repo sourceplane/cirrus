@@ -1,10 +1,10 @@
 # Launchpad
 
-A Product Hunt-style **launch directory**, built on the Cirrus Cloudflare-only
-SaaS baseline in its single-user (Solo) profile. Makers sign in, submit a
-product, and launch it into a public directory where everyone can upvote and
-comment; daily and weekly leaderboards rank launches and every maker has a
-public profile.
+A Product Hunt-style **launch directory**, a Cloudflare-only SaaS running the
+single-user (Solo) profile: identity, billing, email and audit underneath, one
+focused product on top. Makers sign in, submit a product, and launch it into a
+public directory where everyone can upvote and comment; daily and weekly
+leaderboards rank launches and every maker has a public profile.
 
 There are no organizations, teams or seats: **a maker account is the tenant.**
 
@@ -21,7 +21,8 @@ There are no organizations, teams or seats: **a maker account is the tenant.**
 
 Everything else — identity (magic link + OAuth), the invisible personal
 workspace, per-user billing (Polar), notifications, config, audit, the console
-shell, CI and deploy-time wiring — is the Cirrus baseline, unchanged. See
+shell, CI and deploy-time wiring — is the shared platform underneath, and no
+product code touches it. See
 [`specs/`](specs/README.md) for the architecture and
 [`specs/epics/launchpad`](specs/epics/launchpad/README.md) for the work plan.
 

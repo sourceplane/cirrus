@@ -1,7 +1,6 @@
 # Current Context
 
-Pulsewatch is a user-scoped product born from the Cirrus baseline (Solo
-profile). The product bounded context is `monitors` (`apps/monitors-worker`,
+Pulsewatch is a single-user product on the Solo profile. The product bounded context is `monitors` (`apps/monitors-worker`,
 `packages/db/src/monitors`, migration `200_monitors_core`), reached through the
 api-edge `monitors-facade` and surfaced by the console at `/monitors`,
 `/incidents` and `/status-page`, plus the public `/status/:handle`.
