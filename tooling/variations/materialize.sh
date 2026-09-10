@@ -49,13 +49,13 @@ fi
 
 echo "materialize: copying product-only baseline files → $out"
 git -C "$baseline" ls-files | grep -Ev "$EXCLUDE_RE" > "$out/.materialize-files"
-rsync -a --files-from="$out/.materialize-files" "$baseline/" "$out/"
+tar -C "$baseline" -cf - -T "$out/.materialize-files" | tar -C "$out" -xf -
 rm -f "$out/.materialize-files"
 
 for ov in "$baseline/variations/_common/overlay" "$vdir/overlay"; do
   if [ -d "$ov" ]; then
     echo "materialize: applying overlay ${ov#$baseline/}"
-    rsync -a "$ov/" "$out/"
+    cp -R "$ov/." "$out/"
   fi
 done
 if [ -f "$vdir/delete.txt" ]; then
@@ -93,5 +93,12 @@ if $verify; then
   echo "materialize: verifying (install, wire fixtures, typecheck, test)"
   pnpm install --frozen-lockfile --prefer-offline
   pnpm -r --if-present run wire:fixture
-  pnpm exec turbo run typecheck test --concurrency=4
+  # Build, typecheck, then test as separate turbo invocations: mixing them in
+  # one run lets ts-jest race a sibling package's emit (observed as spurious
+  # "Cannot find module '@saas/db'" failures under concurrency).
+  pnpm exec turbo run build --concurrency=4
+  pnpm exec turbo run typecheck --concurrency=4
+  # Concurrency 2: every suite is ts-jest (a TypeScript program per worker) and
+  # a wider fan-out oversubscribes the machine into spurious resolution errors.
+  pnpm exec turbo run test --concurrency=2
 fi

@@ -1,0 +1,9 @@
+{
+  "repoName": "linkfolio",
+  "productName": "Linkfolio",
+  "productDomain": "linkfolio.app",
+  "pascalName": "Linkfolio",
+  "brandSlug": "linkfolio",
+  "cliBin": "linkfolio",
+  "workersDevSubdomain": "your-workers-subdomain"
+}

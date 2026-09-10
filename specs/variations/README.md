@@ -82,3 +82,39 @@ per row, milestones as sub-issues):
 
 The build order across variations is 1 → 5; E1–E4 are the MVP slice built
 first in every repo, E5–E6 follow.
+
+## Status
+
+All five variations are built through **E4** (the MVP slice: domain worker and
+data, edge and SDK, console), each verified with `build`, `typecheck` and the
+full test suite in its own working copy. Each lives here as an overlay under
+`variations/<name>/`, which
+[`tooling/variations/materialize.sh`](../../tooling/variations/materialize.sh)
+turns into a standalone, rebranded repo:
+
+```bash
+tooling/variations/materialize.sh <name> ~/sourceplane/<name> --verify
+```
+
+| # | Variation | Bounded context | Worker routes | Public surface | Product tests |
+|---|---|---|---|---|---|
+| 1 | `launchpad` | `launches` | `/v1/me/products*`, `/v1/me/profile`, `/v1/launches*`, `/v1/makers/*` | feed, product page, maker page | router + SQLite + facade + console model |
+| 2 | `linkfolio` | `pages` | `/v1/me/page*`, `/v1/p/:handle`, click | the creator page | as above, plus click analytics |
+| 3 | `streakly` | `habits` | `/v1/me/habits*`, `/v1/me/today`, `/v1/me/review` | none (private) | as above, plus the streak rules |
+| 4 | `subtally` | `subscriptions` | `/v1/me/subscriptions*` (+ summary, upcoming) | none (private) | as above, plus renewal arithmetic |
+| 5 | `pulsewatch` | `monitors` | `/v1/me/monitors*`, `/v1/me/incidents`, `/v1/me/status-page`, `/v1/status/:handle` | the status page | as above, plus incidents and the scheduler |
+
+E5 (per-user pro entitlement and product emails) and E6 (launch readiness) are
+planned in every variation's own `specs/epics/<name>/`.
+
+### Repos
+
+The five product repos do not exist yet: creating a repository is refused for
+this session's GitHub app installation (403 on `POST /orgs/sourceplane/repos`).
+Until they are created by hand, each variation's epic is tracked as an issue on
+this repository — [#25](https://github.com/sourceplane/cirrus/issues/25),
+[#26](https://github.com/sourceplane/cirrus/issues/26),
+[#27](https://github.com/sourceplane/cirrus/issues/27),
+[#28](https://github.com/sourceplane/cirrus/issues/28),
+[#29](https://github.com/sourceplane/cirrus/issues/29) — and the overlay is
+ready to materialize and push the moment a repo exists.

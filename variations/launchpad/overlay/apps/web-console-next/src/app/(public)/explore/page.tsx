@@ -69,7 +69,7 @@ export default function ExplorePage() {
           title={range === "today" ? "Nothing launched today — yet" : "No launches in this window"}
           description="Be the first: submit your product and it appears here the moment you launch."
           primaryAction={{ label: token ? "Submit a launch" : "Sign in to submit", href: token ? "/launches/new" : "/login" }}
-          secondaryAction={range === "today" ? { label: "See all time", href: "/explore?range=all" } : undefined}
+          {...(range === "today" ? { secondaryAction: { label: "See all time", href: "/explore?range=all" } } : {})}
         />
       ) : (
         <ol className="space-y-3">

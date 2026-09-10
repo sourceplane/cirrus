@@ -30,5 +30,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Render offline wrangler fixtures
         run: pnpm -r --if-present run wire:fixture
+      # Build, typecheck, then test as separate invocations. The test lane runs
+      # at concurrency 2: every suite is ts-jest (a full TypeScript program per
+      # worker), and a wider fan-out oversubscribes the runner badly enough that
+      # module resolution intermittently fails.
+      - run: pnpm exec turbo run build --concurrency=4
       - run: pnpm exec turbo run typecheck --concurrency=4
-      - run: pnpm exec turbo run test --concurrency=4
+      - run: pnpm exec turbo run test --concurrency=2

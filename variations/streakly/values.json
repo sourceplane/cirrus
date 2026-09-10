@@ -1,0 +1,9 @@
+{
+  "repoName": "streakly",
+  "productName": "Streakly",
+  "productDomain": "streakly.app",
+  "pascalName": "Streakly",
+  "brandSlug": "streakly",
+  "cliBin": "streakly",
+  "workersDevSubdomain": "your-workers-subdomain"
+}
