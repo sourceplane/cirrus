@@ -30,6 +30,7 @@ to `conflict`.
 ## Infrastructure
 
 `cloudflare-d1` (one database per environment, adoption at plan time),
-`cloudflare-kv` (rate-limit namespace), `cloudflare-domain` (parked until the
-zone exists), `db-migrate`. Outputs travel as lease-published `WIRING_*`
+`cloudflare-kv` (the rate-limiter namespace, same adoption),
+`cloudflare-domain` (parked until the zone exists; a clean v4 root, so a v5
+bump is a deliberate two-phase migration), `db-migrate`. Outputs travel as lease-published `WIRING_*`
 secrets and are rendered into Worker configs at deploy time.

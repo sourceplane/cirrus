@@ -27,10 +27,14 @@ section from verified live state._
 
 ## Status
 
-- **VG0 (genesis)**: the workspace skeleton — tooling, `packages/{shared,
-  contracts,db,testing}`, the control migration, `tests/db` on a real SQLite
-  engine, the spec pack. `verify.yml` is the merge gate until bootstrap.
-- Everything else is tracked in
+- **The workspace is complete and verified locally**: three deployables, five
+  packages, the four Terraform/migration components, and per-component test
+  suites. `pnpm typecheck && pnpm lint && pnpm test && pnpm build` is green,
+  and both Workers render a deployable config from their committed fixture.
+- **Nothing is deployed yet.** No Virga product has been bootstrapped, so this
+  repo claims no live environment: `ci.yml` stays gated behind the `ORUN_CI`
+  repository variable and `verify.yml` is the merge gate until then.
+- Milestone-by-milestone status:
   [`specs/epics/virga-baseline/`](specs/epics/virga-baseline/README.md).
 
 ## Prerequisites
@@ -64,7 +68,7 @@ packages/shared           Generic helpers (ids, errors) — no domain logic
 packages/testing          Test fixtures + a real-SQLite D1 binding
 
 infra/terraform/cloudflare-d1      D1 database provisioning (stage/prod)
-infra/terraform/cloudflare-kv      site-api rate-limit / idempotency KV namespace
+infra/terraform/cloudflare-kv      site-api rate-limiter KV namespace
 infra/terraform/cloudflare-domain  Zone adoption + site custom domain
 infra/db-migrate                   Database migration runner component
 

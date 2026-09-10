@@ -51,7 +51,7 @@ Per `components/05-cli.md`.
 **Done when** `tests/cli` exercises every command against a stubbed
 site-api and the bundled bin runs.
 
-## VG6 — Infra + CI
+## VG6 — Infra + CI ✅
 
 Terraform roots (d1, kv, domain-parked), `db-migrate`, `intent.yaml`,
 `ci.yml`, every component's `secretEnv` on `lumen/virga/<env>`, wiring

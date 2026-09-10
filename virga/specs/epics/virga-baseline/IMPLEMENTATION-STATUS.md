@@ -8,11 +8,12 @@
 | VG3 mail-worker | ✅ Shipped | 2026-09-09 | Templates (escaped), local-debug + cloudflare-email providers, `/v1/mail/send`, resumable `/v1/mail/broadcast` with per-recipient HMAC unsubscribe links; crypto/tokens moved to `@site/shared`; 10 tests. |
 | VG4 web-site | ✅ Shipped | 2026-09-09 | Next.js 15 + opennextjs/cloudflare; `content/{posts,projects,launches,pages}` with a validating loader; `site.config.ts`; static routes + RSS/sitemap/robots; islands (subscribe, contact, upvote, view beacon, ranked launches); sample content for all three shapes; 9 tests. |
 | VG5 CLI | ✅ Shipped | 2026-09-10 | `virga` health/stats/subscribers/submissions/issues over the owner routes; table and `--json` output; typed exit codes; zero runtime dependencies, esbuild bundle; 5 suites of command coverage. |
-| VG6 Infra + CI | — | | |
+| VG6 Infra + CI | ✅ Shipped | 2026-09-10 | `cloudflare-d1` (+adoption), `cloudflare-kv` (rate limiter, +adoption), `cloudflare-domain` (parked, clean v4 root), `db-migrate`; `intent.yaml` with an unresolvable workspace placeholder; `ci.yml` gated on `ORUN_CI`; every component on the `lumen/virga/<env>` secret rung. |
 | VG7 Baseline machinery | — | | |
 
 ## Verification record
 
+- VG6: 17 component manifests parse; three Terraform roots structurally valid; both Workers `wrangler deploy --dry-run --env prod` from fixture-rendered configs.
 - VG5: `tests/cli` 5 tests against a stubbed site-api; `dist/cli.js` runs under Node and exits 4 on an unreachable API.
 - VG4: `next build` prerenders every content route (SSG), `opennextjs-cloudflare build` emits the Worker + 968 KiB of assets, `wrangler deploy --dry-run` accepts it; `/` carries the `Virga` smoke marker; `tests/web-site` 2 suites / 9 tests.
 - VG3: `tests/mail-worker` 3 suites / 10 tests; dry-run deploy from the fixture (52 KiB bundle).
