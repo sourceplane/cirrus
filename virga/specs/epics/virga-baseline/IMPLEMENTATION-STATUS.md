@@ -9,10 +9,11 @@
 | VG4 web-site | ✅ Shipped | 2026-09-09 | Next.js 15 + opennextjs/cloudflare; `content/{posts,projects,launches,pages}` with a validating loader; `site.config.ts`; static routes + RSS/sitemap/robots; islands (subscribe, contact, upvote, view beacon, ranked launches); sample content for all three shapes; 9 tests. |
 | VG5 CLI | ✅ Shipped | 2026-09-10 | `virga` health/stats/subscribers/submissions/issues over the owner routes; table and `--json` output; typed exit codes; zero runtime dependencies, esbuild bundle; 5 suites of command coverage. |
 | VG6 Infra + CI | ✅ Shipped | 2026-09-10 | `cloudflare-d1` (+adoption), `cloudflare-kv` (rate limiter, +adoption), `cloudflare-domain` (parked, clean v4 root), `db-migrate`; `intent.yaml` with an unresolvable workspace placeholder; `ci.yml` gated on `ORUN_CI`; every component on the `lumen/virga/<env>` secret rung. |
-| VG7 Baseline machinery | — | | |
+| VG7 Baseline machinery | ✅ Shipped | 2026-09-10 | `blueprint.yaml` card, `repo-blueprint.yaml` (22 modules, 7 phases) + the split tool, the eight phase workflows and the umbrella, `flows/common` (incl. Virga's `verify-endpoints.sh` and docs renderer), a purpose-built rebrand tool, `BOOTSTRAP.md`, the operating contract and the deployment placeholder. |
 
 ## Verification record
 
+- VG7: the rebrand rehearsal instantiates `acme-blog` from the tracked tree — 324 replacements across 90 files, zero baseline-identity leftovers, `--verify` clean, and the instance passes its own pipeline (110 tests + build). The first rehearsal FAILED and found a real bug: `tests/cli` went through the repo-slug rename while `packages/cli` went through the CLI-bin rename, so any instance whose `cliBin` differs from its `repoName` failed its own CLI suite. Both now share the CLI-bin rule. Phase blueprints regenerate byte-identically from `repo-blueprint.yaml`; all nine workflows and every manifest parse.
 - VG6: 17 component manifests parse; three Terraform roots structurally valid; both Workers `wrangler deploy --dry-run --env prod` from fixture-rendered configs.
 - VG5: `tests/cli` 5 tests against a stubbed site-api; `dist/cli.js` runs under Node and exits 4 on an unreachable API.
 - VG4: `next build` prerenders every content route (SSG), `opennextjs-cloudflare build` emits the Worker + 968 KiB of assets, `wrangler deploy --dry-run` accepts it; `/` carries the `Virga` smoke marker; `tests/web-site` 2 suites / 9 tests.

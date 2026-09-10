@@ -29,7 +29,7 @@ export interface CommandContext {
   readFile: (path: string) => Promise<string>;
 }
 
-export const USAGE = `virga — owner operations for a Virga site
+export const USAGE = `virga — Virga owner operations (there is no console)
 
 Usage: virga <command> [options]
 

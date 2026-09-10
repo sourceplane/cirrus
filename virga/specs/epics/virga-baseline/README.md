@@ -10,7 +10,7 @@ and a CLI — not a multi-tenant console.
 
 | Field | Value |
 |-------|-------|
-| Status | **In progress** — VG0–VG6 shipped; VG7 last |
+| Status | **In progress** — **All milestones shipped** (VG0–VG7); the baseline is complete and verified locally, and has not yet been bootstrapped |
 | Cluster | **VG** |
 | Owner(s) | `apps/*`, `packages/*`, `infra/*`, `tests/*`, `flows/*`, the spec pack |
 | Target branch | `main` |
@@ -52,4 +52,4 @@ on merge, and can be born by the same phase workflows.
 | VG4 | web-site: content collections + the three site shapes | ✅ Shipped |
 | VG5 | CLI: `virga` owner operations | ✅ Shipped |
 | VG6 | Infra + CI: Terraform roots, db-migrate, wiring, intent, ci.yml | ✅ Shipped |
-| VG7 | Baseline machinery: blueprint card, repo blueprint, flows, BOOTSTRAP, docs close-out | Draft |
+| VG7 | Baseline machinery: blueprint card, repo blueprint, flows, BOOTSTRAP, docs close-out | ✅ Shipped |

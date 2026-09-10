@@ -37,6 +37,15 @@ section from verified live state._
 - Milestone-by-milestone status:
   [`specs/epics/virga-baseline/`](specs/epics/virga-baseline/README.md).
 
+## Instantiating sites
+
+This baseline births new sites through the phased bootstrap
+(**[BOOTSTRAP.md](BOOTSTRAP.md)** → [flows/phases/](flows/phases/README.md)):
+eight idempotent workflows — scaffold, foundation, infrastructure, mail, api,
+site, optional domain, docs — each landing a verified slice. Sites receive
+**product-only content** (source, infra, CI, their own docs); none of this
+baseline's machinery ships.
+
 ## Prerequisites
 
 - Node.js >= 22.5 (`node:sqlite` backs the test suites; CI and components run on Node 22)

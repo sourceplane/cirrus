@@ -59,7 +59,7 @@ verified for both Workers, README layout matches the tree.
 **Done when** every Worker dry-run deploys from its fixture and the
 composition types/parameters are the ones Cirrus proved.
 
-## VG7 — Baseline machinery
+## VG7 — Baseline machinery ✅
 
 `blueprint.yaml`, `repo-blueprint.yaml`, `flows/` re-targeted (01 scaffold …
 08 docs, `00-all`, common, agent brief), `BOOTSTRAP.md`, docs close-out,

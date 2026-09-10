@@ -4,7 +4,7 @@ Status: Normative direction. Sequencing is the Orchestrator's call.
 
 | Cluster | Epic | Status | What it owns |
 |---------|------|--------|--------------|
-| **VG** | [`epics/virga-baseline/`](./epics/virga-baseline/) | In progress | VG0 genesis · VG1 data plane · VG2 site-api · VG3 mail-worker · VG4 web-site · VG5 CLI · VG6 infra + CI · VG7 baseline machinery |
+| **VG** | [`epics/virga-baseline/`](./epics/virga-baseline/) | ✅ Shipped | VG0 genesis · VG1 data plane · VG2 site-api · VG3 mail-worker · VG4 web-site · VG5 CLI · VG6 infra + CI · VG7 baseline machinery |
 
 ## Sequencing notes
 
