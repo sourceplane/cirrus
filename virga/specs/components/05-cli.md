@@ -1,6 +1,6 @@
 # 05 — cli
 
-Status: Planned (VG5) · Owner: `packages/cli`
+Status: Implemented (VG5) · Owner: `packages/cli`
 
 The owner's console is a terminal. `virga` speaks the owner contract and
 nothing else.
@@ -15,7 +15,8 @@ nothing else.
 | `virga submissions mark <id> <status>` | `PATCH /v1/owner/submissions/:id` |
 | `virga issues list` | `GET /v1/owner/issues` |
 | `virga issues create --slug --subject --html <file> [--text <file>]` | `POST /v1/owner/issues` |
-| `virga issues send <id> [--yes]` | `POST /v1/owner/issues/:id/send` |
+| `virga issues show <id>` | `GET /v1/owner/issues/:id` (with delivery counts) |
+| `virga issues send <id> --yes` | `POST /v1/owner/issues/:id/send` — without `--yes` it reports the recipient count and stops |
 
 Config: `VIRGA_API_URL`, `VIRGA_OWNER_TOKEN` (or `--api-url`, `--token`).
 Exit codes: 0 ok · 1 API error · 2 usage · 3 unauthenticated · 4 network.

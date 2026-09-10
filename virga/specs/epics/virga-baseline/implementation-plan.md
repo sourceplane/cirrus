@@ -45,7 +45,7 @@ islands, RSS/sitemap/robots, sample content for all three shapes,
 **Done when** the sample content builds for Workers, `tests/web-site`
 covers the loader and the ranking merge, and `/` renders the site name.
 
-## VG5 — CLI
+## VG5 — CLI ✅
 
 Per `components/05-cli.md`.
 **Done when** `tests/cli` exercises every command against a stubbed
