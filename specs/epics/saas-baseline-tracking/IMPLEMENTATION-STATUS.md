@@ -55,3 +55,22 @@ in `implementation-plan.md` (and, for the binary, orun's
 - **The rehearsal.** One real bootstrap with `track=true` whose epic
   rollup reads `8/8 done`, recorded here with the task keys, the
   observation ids, and the tracking overhead (expected: seconds).
+
+## Agent brief v2 — one command, four kinds of line
+
+Three live bootstraps showed the brief itself causing the mistakes: told
+about a token endpoint the agent read and printed the token file; told to
+"install gh if missing" it installed an npm package of that name; told to
+pick the CI watch mode it reasoned about App grants; and every run spent
+8–28 tool calls "checking the environment" before the build. The brief is
+now 65 lines: ask three questions, run `flows/agent/workflow.yaml` with the
+three values, relay `UPDATE:` / `ACTION REQUIRED:` / `FAILED:` / `DONE`
+lines, post the summary. `flows/agent/build.sh` reads the workspace,
+repository, checkout and credentials from the environment the platform
+prepared, checks the binary floor, installs `gh` only if absent, runs the
+umbrella with tracking on, and composes the summary. The umbrella's `watch`
+defaults to `auto` (CI on main → watch; no workflow files → one
+`ACTION REQUIRED` naming the App's Workflows grant, never agent-driven
+deploys), every phase completion prints `umbrella: ✓ <phase> complete`, and
+`verify` attaches the deployment record to the epic. Contract test:
+`flows/testing/agent-build.test.sh` (in the `flows-tests` lane).
