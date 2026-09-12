@@ -1,0 +1,290 @@
+apiVersion: orun.dev/v1
+kind: Blueprint
+metadata:
+  name: virga-baseline
+  description: >-
+    Virga as a Blueprint of itself — instantiate a new single-owner website
+    repo (launch directory, newsletter, portfolio) from the Virga baseline.
+    The module graph below is the copy ordering; the `rebrand` hook applies
+    the instance-identity rename map from the templated
+    `.rebrand/values.json`. See BOOTSTRAP.md for the operator checklist no
+    script can perform (Cloudflare account, workspace, domain).
+
+# ── INPUTS ────────────────────────────────────────────────────────────────
+# The instance-identity contract, consumed by tooling/rebrand/rebrand.mjs.
+# Org-owned identity (the GitHub org `sourceplane`, the orun state backend,
+# the `sourceplane.io` apiVersion) is intentionally NOT an input — the
+# rebrand tool protects it.
+inputs:
+  repoName:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+    required: true
+    description: Repo slug (e.g. acme-blog) — intent metadata.name, D1 database names, worker resource prefixes.
+  productName:
+    type: string
+    required: true
+    description: Human display name (e.g. "Acme Blog") — the site's name and the deploy smoke marker.
+  productDomain:
+    type: string
+    required: true
+    description: Product domain (e.g. acme.blog) — BASE_DOMAIN, custom domains, the mail sending subdomain.
+  brandSlug:
+    type: string
+    default: ""
+    description: Cloudflare worker resource prefix (default repoName).
+  cliBin:
+    type: string
+    default: ""
+    description: CLI binary name + env-var prefix source (default repoName).
+  workersDevSubdomain:
+    type: string
+    default: "your-workers-subdomain"
+    description: workers.dev subdomain, used by the site build and the deploy smokes.
+  orunWorkspace:
+    type: string
+    default: ""
+    description: >-
+      Orun Cloud workspace ID (ws_…) for this instance's remote state. The
+      rebrand tool treats the state backend as org-owned and leaves it alone,
+      so without this the instance would inherit the BASELINE's workspace
+      placeholder. Left empty, the scaffold writes a placeholder that fails
+      loudly rather than silently cross-tenanting.
+
+# ── SOURCES ───────────────────────────────────────────────────────────────
+sources:
+  - name: baseline
+    kind: dir
+    path: .
+
+# Derived build output the baseline must never carry into an instance.
+ignore:
+  - dist
+  - coverage
+  - .turbo
+  - .next
+  - .open-next
+  - .wrangler
+  # Locally-rendered, gitignored artifacts: `orun new` snapshots the working
+  # tree, not the git index, so without these it would copy whatever the
+  # operator happens to have built — and an instance would ship with the
+  # BASELINE's resolved binding IDs baked in.
+  - apps/site-api/wrangler.jsonc
+  - apps/mail-worker/wrangler.jsonc
+  - "*.tsbuildinfo"
+
+# ── MODULES ───────────────────────────────────────────────────────────────
+# One module per component, with dependsOn edges transcribed from the
+# component manifests (declared dependsOn + service bindings + wiring
+# components + workspace package deps + tests-follow-subject).
+modules:
+  # -- shared packages --
+  - name: tsconfig
+    mode: copy
+    source: baseline
+    from: tooling/tsconfig
+    to: tooling/tsconfig
+  - name: eslint
+    mode: copy
+    source: baseline
+    from: tooling/eslint
+    to: tooling/eslint
+  - name: wire
+    mode: copy
+    source: baseline
+    from: tooling/wire
+    to: tooling/wire
+  - name: migrations-tooling
+    mode: copy
+    source: baseline
+    from: tooling/migrations
+    to: tooling/migrations
+  - name: shared
+    mode: copy
+    source: baseline
+    from: packages/shared
+    to: packages/shared
+    dependsOn: [eslint, tsconfig]
+  - name: contracts
+    mode: copy
+    source: baseline
+    from: packages/contracts
+    to: packages/contracts
+    dependsOn: [eslint, tsconfig]
+  - name: db
+    mode: copy
+    source: baseline
+    from: packages/db
+    to: packages/db
+    dependsOn: [eslint, tsconfig, migrations-tooling]
+  - name: testing
+    mode: copy
+    source: baseline
+    from: packages/testing
+    to: packages/testing
+    dependsOn: [contracts, db]
+  - name: cli
+    mode: copy
+    source: baseline
+    from: packages/cli
+    to: packages/cli
+    dependsOn: [contracts]
+  - name: db-tests
+    mode: copy
+    source: baseline
+    from: tests/db
+    to: tests/db
+    dependsOn: [db, testing]
+  - name: cli-tests
+    mode: copy
+    source: baseline
+    from: tests/cli
+    to: tests/cli
+    dependsOn: [cli, contracts]
+
+  # -- infrastructure --
+  - name: cloudflare-d1
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-d1
+    to: infra/terraform/cloudflare-d1
+  - name: cloudflare-kv
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-kv
+    to: infra/terraform/cloudflare-kv
+  - name: db-migrate
+    mode: copy
+    source: baseline
+    from: infra/db-migrate
+    to: infra/db-migrate
+    dependsOn: [cloudflare-d1, db]
+  - name: cloudflare-domain
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-domain
+    to: infra/terraform/cloudflare-domain
+    dependsOn: [web-site]
+
+  # -- workers --
+  - name: mail-worker
+    mode: copy
+    source: baseline
+    from: apps/mail-worker
+    to: apps/mail-worker
+    dependsOn: [cloudflare-d1, contracts, db, shared, db-migrate]
+  - name: mail-worker-tests
+    mode: copy
+    source: baseline
+    from: tests/mail-worker
+    to: tests/mail-worker
+    dependsOn: [mail-worker, contracts, db, testing]
+  - name: site-api
+    mode: copy
+    source: baseline
+    from: apps/site-api
+    to: apps/site-api
+    dependsOn: [cloudflare-d1, cloudflare-kv, contracts, db, shared, db-migrate, mail-worker]
+  - name: site-api-tests
+    mode: copy
+    source: baseline
+    from: tests/site-api
+    to: tests/site-api
+    dependsOn: [site-api, contracts, db, testing]
+
+  # -- site --
+  - name: web-site
+    mode: copy
+    source: baseline
+    from: apps/web-site
+    to: apps/web-site
+    dependsOn: [contracts, site-api]
+  - name: web-site-tests
+    mode: copy
+    source: baseline
+    from: tests/web-site
+    to: tests/web-site
+    dependsOn: [web-site, contracts]
+
+  # -- the repo root: intent, CI, flows, agent state, specs, docs --
+  - name: root
+    mode: copy
+    source: baseline
+    from: .
+    to: .
+    include:
+      - package.json
+      - pnpm-workspace.yaml
+      - turbo.json
+      - kiox.yaml
+      - kiox.lock
+      - .gitignore
+      - README.md
+      - BOOTSTRAP.md
+      - intent.yaml
+      - blueprint.yaml
+      - repo-blueprint.yaml
+      - .github/
+      - agents/
+      - ai/
+      - specs/
+      - flows/
+      - tooling/blueprint/
+      - tooling/rebrand/
+
+# ── PHASES ────────────────────────────────────────────────────────────────
+# The bootstrap applies these slices in order; each phase is one landing.
+# `tooling/blueprint/split-phases.py` derives flows/phases/<NN>/blueprint.yaml
+# from this list (cross-phase dependsOn edges are pruned, because ordering is
+# enforced by running the phases in sequence into the same tree).
+phases:
+  - name: foundation
+    modules: [tsconfig, eslint, wire, migrations-tooling, shared, contracts, db, testing, cli, db-tests, cli-tests]
+  - name: infrastructure
+    modules: [cloudflare-d1, cloudflare-kv, db-migrate]
+  - name: mail
+    modules: [mail-worker, mail-worker-tests]
+  - name: api
+    modules: [site-api, site-api-tests]
+  - name: site
+    modules: [web-site, web-site-tests]
+  - name: domain
+    modules: [cloudflare-domain]
+  - name: workspace
+    modules: [root]
+
+# ── HOOKS ─────────────────────────────────────────────────────────────────
+# Run once, against the COMPLETE tree, after the last phase: the rebrand
+# enumerates files via `git ls-files`, so it needs a git index.
+hooks:
+  postInstantiate:
+    - id: git-init
+      run: [git, init, -q]
+    - id: git-stage
+      run: [git, add, -A]
+    - id: rebrand
+      run: [node, tooling/rebrand/rebrand.mjs, --values, .rebrand/values.json, --allow-dirty]
+    - id: orun-workspace
+      run:
+        - node
+        - -e
+        - |
+          const fs = require("fs");
+          const values = JSON.parse(fs.readFileSync(".rebrand/values.json", "utf8"));
+          const ws = String(values.orunWorkspace || "").trim() || "ws_SET_ME";
+          const before = fs.readFileSync("intent.yaml", "utf8");
+          const after = before.replace(/^(\s*workspace:\s*).*$/m, "$1" + ws);
+          if (after === before) {
+            console.error("orun-workspace: no `workspace:` line in intent.yaml — refusing to guess");
+            process.exit(1);
+          }
+          fs.writeFileSync("intent.yaml", after);
+          console.log(
+            ws === "ws_SET_ME"
+              ? "orun-workspace: wrote placeholder ws_SET_ME — set your Orun Cloud workspace before enabling remote state"
+              : "orun-workspace: intent.yaml workspace -> " + ws,
+          );
+    - id: git-restage
+      run: [git, add, -A]
+    - id: rebrand-verify
+      run: [node, tooling/rebrand/rebrand.mjs, --verify]

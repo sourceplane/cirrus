@@ -1,0 +1,4 @@
+{
+  "cloudflare-d1/stage": { "d1_database_id": "00000000-0000-4000-8000-00000000d1a1", "d1_database_name": "virga-stage" },
+  "cloudflare-d1/prod": { "d1_database_id": "00000000-0000-4000-8000-00000000d1b2", "d1_database_name": "virga-prod" }
+}

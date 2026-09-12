@@ -1,0 +1,147 @@
+apiVersion: orun.dev/v1
+kind: Blueprint
+metadata:
+  name: virga-baseline-foundation
+  description: Phase 1/7 (foundation) of virga-baseline. Cross-phase dependsOn edges are pruned; ordering
+    is enforced by running the phases in sequence into the same --out.
+inputs:
+  repoName:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    required: true
+    description: "Repo slug (e.g. acme-blog) \u2014 intent metadata.name, D1 database names, worker resource\
+      \ prefixes."
+  productName:
+    type: string
+    required: true
+    description: "Human display name (e.g. \"Acme Blog\") \u2014 the site's name and the deploy smoke\
+      \ marker."
+  productDomain:
+    type: string
+    required: true
+    description: "Product domain (e.g. acme.blog) \u2014 BASE_DOMAIN, custom domains, the mail sending\
+      \ subdomain."
+  brandSlug:
+    type: string
+    default: ''
+    description: Cloudflare worker resource prefix (default repoName).
+  cliBin:
+    type: string
+    default: ''
+    description: CLI binary name + env-var prefix source (default repoName).
+  workersDevSubdomain:
+    type: string
+    default: your-workers-subdomain
+    description: workers.dev subdomain, used by the site build and the deploy smokes.
+  orunWorkspace:
+    type: string
+    default: ''
+    description: "Orun Cloud workspace ID (ws_\u2026) for this instance's remote state. The rebrand tool\
+      \ treats the state backend as org-owned and leaves it alone, so without this the instance would\
+      \ inherit the BASELINE's workspace placeholder. Left empty, the scaffold writes a placeholder that\
+      \ fails loudly rather than silently cross-tenanting."
+sources:
+- name: baseline
+  kind: dir
+  path: ../../..
+ignore:
+- dist
+- coverage
+- .turbo
+- .next
+- .open-next
+- .wrangler
+- apps/site-api/wrangler.jsonc
+- apps/mail-worker/wrangler.jsonc
+- '*.tsbuildinfo'
+modules:
+- name: tsconfig
+  mode: copy
+  source: baseline
+  from: tooling/tsconfig
+  to: tooling/tsconfig
+- name: eslint
+  mode: copy
+  source: baseline
+  from: tooling/eslint
+  to: tooling/eslint
+- name: wire
+  mode: copy
+  source: baseline
+  from: tooling/wire
+  to: tooling/wire
+- name: migrations-tooling
+  mode: copy
+  source: baseline
+  from: tooling/migrations
+  to: tooling/migrations
+- name: shared
+  mode: copy
+  source: baseline
+  from: packages/shared
+  to: packages/shared
+  dependsOn:
+  - eslint
+  - tsconfig
+- name: contracts
+  mode: copy
+  source: baseline
+  from: packages/contracts
+  to: packages/contracts
+  dependsOn:
+  - eslint
+  - tsconfig
+- name: db
+  mode: copy
+  source: baseline
+  from: packages/db
+  to: packages/db
+  dependsOn:
+  - eslint
+  - tsconfig
+  - migrations-tooling
+- name: testing
+  mode: copy
+  source: baseline
+  from: packages/testing
+  to: packages/testing
+  dependsOn:
+  - contracts
+  - db
+- name: cli
+  mode: copy
+  source: baseline
+  from: packages/cli
+  to: packages/cli
+  dependsOn:
+  - contracts
+- name: db-tests
+  mode: copy
+  source: baseline
+  from: tests/db
+  to: tests/db
+  dependsOn:
+  - db
+  - testing
+- name: cli-tests
+  mode: copy
+  source: baseline
+  from: tests/cli
+  to: tests/cli
+  dependsOn:
+  - cli
+  - contracts
+phases:
+- name: foundation
+  modules:
+  - tsconfig
+  - eslint
+  - wire
+  - migrations-tooling
+  - shared
+  - contracts
+  - db
+  - testing
+  - cli
+  - db-tests
+  - cli-tests

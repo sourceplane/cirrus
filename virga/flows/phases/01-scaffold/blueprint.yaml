@@ -1,0 +1,126 @@
+apiVersion: orun.dev/v1
+kind: Blueprint
+metadata:
+  name: virga-baseline-workspace
+  description: Phase 7/7 (workspace) of virga-baseline. Cross-phase dependsOn edges are pruned; ordering
+    is enforced by running the phases in sequence into the same --out.
+inputs:
+  repoName:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    required: true
+    description: "Repo slug (e.g. acme-blog) \u2014 intent metadata.name, D1 database names, worker resource\
+      \ prefixes."
+  productName:
+    type: string
+    required: true
+    description: "Human display name (e.g. \"Acme Blog\") \u2014 the site's name and the deploy smoke\
+      \ marker."
+  productDomain:
+    type: string
+    required: true
+    description: "Product domain (e.g. acme.blog) \u2014 BASE_DOMAIN, custom domains, the mail sending\
+      \ subdomain."
+  brandSlug:
+    type: string
+    default: ''
+    description: Cloudflare worker resource prefix (default repoName).
+  cliBin:
+    type: string
+    default: ''
+    description: CLI binary name + env-var prefix source (default repoName).
+  workersDevSubdomain:
+    type: string
+    default: your-workers-subdomain
+    description: workers.dev subdomain, used by the site build and the deploy smokes.
+  orunWorkspace:
+    type: string
+    default: ''
+    description: "Orun Cloud workspace ID (ws_\u2026) for this instance's remote state. The rebrand tool\
+      \ treats the state backend as org-owned and leaves it alone, so without this the instance would\
+      \ inherit the BASELINE's workspace placeholder. Left empty, the scaffold writes a placeholder that\
+      \ fails loudly rather than silently cross-tenanting."
+sources:
+- name: baseline
+  kind: dir
+  path: ../../..
+ignore:
+- dist
+- coverage
+- .turbo
+- .next
+- .open-next
+- .wrangler
+- apps/site-api/wrangler.jsonc
+- apps/mail-worker/wrangler.jsonc
+- '*.tsbuildinfo'
+modules:
+- name: root
+  mode: copy
+  source: baseline
+  from: .
+  to: .
+  include:
+  - package.json
+  - pnpm-workspace.yaml
+  - turbo.json
+  - kiox.yaml
+  - kiox.lock
+  - .gitignore
+  - README.md
+  - BOOTSTRAP.md
+  - intent.yaml
+  - blueprint.yaml
+  - repo-blueprint.yaml
+  - .github/
+  - agents/
+  - ai/
+  - specs/
+  - flows/
+  - tooling/blueprint/
+  - tooling/rebrand/
+phases:
+- name: workspace
+  modules:
+  - root
+hooks:
+  postInstantiate:
+  - id: git-init
+    run:
+    - git
+    - init
+    - -q
+  - id: git-stage
+    run:
+    - git
+    - add
+    - -A
+  - id: rebrand
+    run:
+    - node
+    - tooling/rebrand/rebrand.mjs
+    - --values
+    - .rebrand/values.json
+    - --allow-dirty
+  - id: orun-workspace
+    run:
+    - node
+    - -e
+    - "const fs = require(\"fs\");\nconst values = JSON.parse(fs.readFileSync(\".rebrand/values.json\"\
+      , \"utf8\"));\nconst ws = String(values.orunWorkspace || \"\").trim() || \"ws_SET_ME\";\nconst before\
+      \ = fs.readFileSync(\"intent.yaml\", \"utf8\");\nconst after = before.replace(/^(\\s*workspace:\\\
+      s*).*$/m, \"$1\" + ws);\nif (after === before) {\n  console.error(\"orun-workspace: no `workspace:`\
+      \ line in intent.yaml \u2014 refusing to guess\");\n  process.exit(1);\n}\nfs.writeFileSync(\"intent.yaml\"\
+      , after);\nconsole.log(\n  ws === \"ws_SET_ME\"\n    ? \"orun-workspace: wrote placeholder ws_SET_ME\
+      \ \u2014 set your Orun Cloud workspace before enabling remote state\"\n    : \"orun-workspace: intent.yaml\
+      \ workspace -> \" + ws,\n);\n"
+  - id: git-restage
+    run:
+    - git
+    - add
+    - -A
+  - id: rebrand-verify
+    run:
+    - node
+    - tooling/rebrand/rebrand.mjs
+    - --verify

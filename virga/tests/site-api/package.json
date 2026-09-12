@@ -1,0 +1,52 @@
+{
+  "name": "@site/site-api-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250508.0",
+    "@site/eslint-config": "workspace:*",
+    "@site/tsconfig": "workspace:*",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.4",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@site/contracts": "workspace:*",
+    "@site/db": "workspace:*",
+    "@site/shared": "workspace:*",
+    "@site/testing": "workspace:*"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "extensionsToTreatAsEsm": [".ts"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1",
+      "^@site/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
+      "^@site/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",
+      "^@site/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+      "^@site/shared/(.*)$": "<rootDir>/../../packages/shared/src/$1.ts",
+      "^@site/db$": "<rootDir>/../../packages/db/src/index.ts",
+      "^@site/db/manifest$": "<rootDir>/../../packages/db/src/manifest.ts",
+      "^@site/db/types$": "<rootDir>/../../packages/db/src/types.ts",
+      "^@site/db/json$": "<rootDir>/../../packages/db/src/json.ts",
+      "^@site/db/cursor$": "<rootDir>/../../packages/db/src/cursor.ts",
+      "^@site/db/(.*)$": "<rootDir>/../../packages/db/src/$1/index.ts",
+      "^@site/testing$": "<rootDir>/../../packages/testing/src/index.ts",
+      "^@site/testing/(.*)$": "<rootDir>/../../packages/testing/src/$1.ts",
+      "^@site-api/(.*)$": "<rootDir>/../../apps/site-api/src/$1.ts"
+    },
+    "transform": {
+      "^.+\\.ts$": ["ts-jest", { "useESM": true, "diagnostics": false }]
+    },
+    "testMatch": ["<rootDir>/src/**/*.test.ts"]
+  }
+}

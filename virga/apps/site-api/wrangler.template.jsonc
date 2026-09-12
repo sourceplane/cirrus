@@ -1,0 +1,84 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
+// committed wiring.fixture.json for offline dry-runs (wire-fixture).
+//
+// Secrets (never in this file): OWNER_TOKEN, TOKEN_SECRET, FINGERPRINT_SALT,
+// TURNSTILE_SECRET (optional). Seed with `wrangler secret put` or `orun secrets set`.
+{
+  "name": "virga-site-api",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": {
+    "ENVIRONMENT": "local",
+    "SITE_NAME": "Virga",
+    "SITE_URL": "http://localhost:3000",
+    "SITE_ORIGINS": "http://localhost:3000"
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "http://localhost:3000",
+        "SITE_ORIGINS": "http://localhost:3000"
+      }
+    },
+    "stage": {
+      "vars": {
+        "ENVIRONMENT": "stage",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "https://stage.virga.site",
+        "SITE_ORIGINS": "https://stage.virga.site,https://virga-web-site-stage.your-workers-subdomain.workers.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "SITE_DB",
+          "database_name": "virga-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT_KV",
+          "id": "@@wiring(cloudflare-kv/stage:kv_namespace_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MAIL_WORKER",
+          "service": "virga-mail-worker-stage"
+        }
+      ]
+    },
+    "prod": {
+      "vars": {
+        "ENVIRONMENT": "prod",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "https://virga.site",
+        "SITE_ORIGINS": "https://virga.site,https://www.virga.site,https://virga-web-site-prod.your-workers-subdomain.workers.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "SITE_DB",
+          "database_name": "virga-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT_KV",
+          "id": "@@wiring(cloudflare-kv/prod:kv_namespace_id)@@"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MAIL_WORKER",
+          "service": "virga-mail-worker-prod"
+        }
+      ]
+    }
+  }
+}

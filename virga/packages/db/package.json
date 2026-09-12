@@ -1,0 +1,36 @@
+{
+  "name": "@site/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./manifest": "./src/manifest.ts",
+    "./types": "./src/types.ts",
+    "./d1": "./src/d1/index.ts",
+    "./json": "./src/json.ts",
+    "./runner": "./src/runner/index.ts",
+    "./cursor": "./src/cursor.ts",
+    "./audience": "./src/audience/index.ts",
+    "./forms": "./src/forms/index.ts",
+    "./engagement": "./src/engagement/index.ts",
+    "./newsletter": "./src/newsletter/index.ts"
+  },
+  "bin": {
+    "db-migrate": "./dist/runner/cli.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && cp -r src/migrations dist/",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "migrate:plan": "pnpm run build && node dist/runner/cli.js plan",
+    "migrate:apply": "pnpm run build && node dist/runner/cli.js apply"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@site/eslint-config": "workspace:*",
+    "@site/tsconfig": "workspace:*",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.3"
+  }
+}

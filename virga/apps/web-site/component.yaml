@@ -1,0 +1,67 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: web-site
+  description: Next.js 15 + opennextjs/cloudflare delivery of the Virga site (per-environment, Workers + Static Assets)
+spec:
+  type: cloudflare-workers-assets-turbo
+  lifecycle: production
+  owner: platform
+  domain: site-ui
+  path: apps/web-site
+  # The deploy smoke health-checks site-api, so it must be live first.
+  dependsOn:
+    - component: site-api
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+
+    workspaceDir: ../..
+    appDir: .
+
+    turboFilter: "@site/web-site"
+    wranglerConfig: wrangler.jsonc
+
+    # @opennextjs/cloudflare emits a Worker entrypoint plus a static-assets
+    # directory bound via ASSETS — both deploy in one `wrangler deploy`.
+    workerEntrypoint: .open-next/worker.js
+    assetsDir: .open-next/assets
+
+    # Per-env worker name: virga-web-site-{dev,stage,prod}.
+    workerName: virga-web-site
+    environmentAwareWorkerName: true
+
+    # The account's workers.dev subdomain; exported to the smoke step as
+    # ${WORKERS_DEV_SUBDOMAIN} and used to build ${DEPLOYED_URL}.
+    workersDevSubdomain: your-workers-subdomain
+
+    environmentBuildVar: NEXT_PUBLIC_DEPLOY_ENV
+
+    installCommand: pnpm install --frozen-lockfile
+    # The site is built with the site-api origin of the environment it
+    # deploys to; the islands call it from the browser.
+    buildCommand: NEXT_PUBLIC_SITE_API_URL="https://virga-site-api-${ORUN_ENVIRONMENT}.${WORKERS_DEV_SUBDOMAIN}.workers.dev" pnpm exec turbo run build --filter=@site/web-site
+
+    # Smoke: the home page carries the site name and site-api is healthy.
+    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Virga' && health=$(curl -sf \"https://virga-site-api-${ORUN_ENVIRONMENT}.${WORKERS_DEV_SUBDOMAIN}.workers.dev/health\") && echo \"${health}\" | grep -q ok"
+  labels:
+    team: platform
+    layer: delivery
+    surface: web-site
+    runtime: cloudflare
