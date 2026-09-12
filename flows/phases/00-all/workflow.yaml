@@ -56,8 +56,8 @@ inputs:
     description: '"true" also runs phase 07 (needs the Cloudflare zone to exist) before the docs phase.'
   watch:
     type: string
-    default: "true"
-    description: Passed to every phase — '"false"' skips convergence WATCHING (env cannot see Actions); runs must then be verified out-of-band.
+    default: "auto"
+    description: '"auto" watches the product''s own CI when its workflow files are on main and STOPS with the operator action (the App''s Workflows grant) when they are not; "true"/"false" force it — "false" skips convergence WATCHING (env cannot see Actions) and runs must then be verified out-of-band.'
   dryrun:
     type: string
     default: "false"
@@ -159,6 +159,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -168,6 +169,21 @@ steps:
             fi
           done
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
+          return 1
+        }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
           return 1
         }
         run_phase 01-scaffold 2 \
@@ -217,6 +233,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -226,6 +243,21 @@ steps:
             fi
           done
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
+          return 1
+        }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
           return 1
         }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
@@ -280,6 +312,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -291,8 +324,24 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
-        run_phase 02-foundation 3 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 02-foundation 3 --set "watch=$w"
     timeout: 60m
   - name: infrastructure
     needs: [foundation]
@@ -336,6 +385,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -347,8 +397,24 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
-        run_phase 03-infrastructure 3 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 03-infrastructure 3 --set "watch=$w"
     timeout: 120m
   - name: workers
     needs: [infrastructure]
@@ -392,6 +458,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -403,8 +470,24 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
-        run_phase 04-workers 3 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 04-workers 3 --set "watch=$w"
     timeout: 180m
   - name: edge
     needs: [workers]
@@ -448,6 +531,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -459,8 +543,24 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
-        run_phase 05-edge 3 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 05-edge 3 --set "watch=$w"
     timeout: 60m
   - name: console
     needs: [edge]
@@ -504,6 +604,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -515,8 +616,24 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
-        run_phase 06-console 3 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 06-console 3 --set "watch=$w"
     timeout: 90m
   - name: domain
     needs: [console]
@@ -560,6 +677,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -571,9 +689,25 @@ steps:
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
           return 1
         }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
+          return 1
+        }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
         [ "{{ inputs.domain }}" = "true" ] || { echo "domain=false: skipping phase 07 (run it later once the zone exists, then re-run the docs phase)"; exit 0; }
-        run_phase 07-domain 2 --set "watch={{ inputs.watch }}"
+        w="$(resolve_watch)"
+        run_phase 07-domain 2 --set "watch=$w"
     timeout: 60m
   - name: docs
     needs: [domain]
@@ -617,6 +751,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -626,6 +761,21 @@ steps:
             fi
           done
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
+          return 1
+        }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
           return 1
         }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
@@ -673,6 +823,7 @@ steps:
                 --set "workspace={{ inputs.workspace }}" --set "out=$out" \
                 --set "dryrun={{ inputs.dryrun }}" --set "track={{ inputs.track }}" \
                 --set "epicslug={{ inputs.epicslug }}" "$@"; then
+              echo "umbrella: ✓ $name complete"
               return 0
             fi
             if [ "$i" -lt "$attempts" ]; then
@@ -682,6 +833,21 @@ steps:
             fi
           done
           echo "umbrella: phase $name FAILED after $attempts attempt(s) — see its last error above (the flows print the exact operator action when one is needed)" >&2
+          return 1
+        }
+        # watch=auto: the product's own CI is the engine whenever its workflow
+        # files landed on main; when the scaffold could not push them (the
+        # App lacks the Workflows grant) this STOPS with the operator action
+        # instead of degrading into agent-driven deploys — a build that waits
+        # on a grant is recoverable, a half-run one by hand is not.
+        resolve_watch() {
+          local w="{{ inputs.watch }}"
+          [ "$w" = auto ] || { echo "$w"; return 0; }
+          if git -C "$out" fetch -q origin main 2>/dev/null \
+             && git -C "$out" ls-tree -r --name-only origin/main 2>/dev/null | grep -q '^\.github/workflows/'; then
+            echo true; return 0
+          fi
+          echo "ACTION REQUIRED: the product repository {{ inputs.githuborg }}/{{ inputs.reponame }} has no CI workflow files on main, so the build cannot run its deploys through GitHub. The GitHub App needs the 'Workflows: Read & write' permission on that repository (GitHub → Settings → Installed GitHub Apps → Orun). Grant it, then run the same build again — finished phases are skipped." >&2
           return 1
         }
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: umbrella stops after the scaffold preview — later phases need a real product tree"; exit 0; }
@@ -718,6 +884,16 @@ steps:
             esac
           else
             echo "epic {{ inputs.epicslug }}: untracked (tracking degraded earlier — see the programme step's note)"
+          fi
+          # The deployment record rides the epic — the docs the console and the
+          # next agent read, beside the tasks. Committed files, idempotent by
+          # content hash; a refusal is a note, never a failed bootstrap.
+          if [ -f ai/context/deployment.md ]; then
+            if orun spec push --epic "{{ inputs.epicslug }}" --workspace "{{ inputs.workspace }}" ai/context/deployment.md ai/context/operations.md >/dev/null 2>&1; then
+              echo "epic {{ inputs.epicslug }}: deployment record attached (deployment.md, operations.md)"
+            else
+              echo "note: could not attach the deployment record to the epic — the docs are on main regardless"
+            fi
           fi
         fi
         echo ""
