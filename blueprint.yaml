@@ -1,12 +1,25 @@
-# The cirrus blueprint card: what the console's Blueprints page renders and
-# the platform's bootstrap door consumes (epic saas-blueprints-onboarding).
+# The cirrus blueprint card: the CONTRACT the platform's bootstrap door reads
+# and the console renders, screen for screen (epic saas-bootstrap-console, BC1).
+#
+# Everything the console shows about this baseline comes from this file. Adding
+# a provider to `requires` grows a row in the Providers step; adding a key to
+# `secrets` grows a row in the Secrets step. Neither needs a console change.
+#
+# The division of labour with the registry is strict, and it is the whole point
+# of BC: the registry (orun-cloud `infra/baselines-registry/baselines.yaml`)
+# owns identity and commerce — id, visibility, tier, the pinned tag, the brief
+# and umbrella paths. This file owns the build contract. NEITHER RESTATES THE
+# OTHER. That is why there is no `tag` here: this file is fetched *at* the tag
+# the registry pins, so a tag here could only ever be a second, rotting copy —
+# as it was, reading `baseline-v1` against a live `baseline-v4` for three
+# releases before anything noticed.
 apiVersion: orun.io/v1
 kind: Blueprint
 metadata:
   name: cirrus
   displayName: Cirrus — Cloudflare-only SaaS baseline
   description: >
-    Multi-tenant SaaS on Cloudflare alone: 13 bounded-context Workers behind
+    Multi-tenant SaaS on Cloudflare alone: 12 bounded-context Workers behind
     one edge API, a Next.js console, D1 + KV data plane, migrations, and CI
     that converges on merge. One provider, one consent, one token. Live on
     stage+prod in ~50-65 minutes.
@@ -14,14 +27,39 @@ metadata:
 spec:
   source:
     repo: sourceplane/cirrus
-    tag: baseline-v1           # bumped by the baseline release process
+    # No `tag`. See the header: the registry pins it, this file is fetched at it.
+
+  # ── What the operator reads first (the flow's step 1) ───────────────────
+  overview:
+    lede: >
+      A multi-tenant SaaS on Cloudflare alone. One provider, one consent,
+      one token.
+    architecture:
+      - layer: Edge
+        items: [api-edge, web-console-next]
+      - layer: Services
+        items: ["12 bounded-context Workers"]
+      - layer: Data
+        items: [D1, KV]
+      - layer: Delivery
+        items: [GitHub Actions, db-migrate]
+    outcome:
+      - Live on stage and prod
+      - Migrations apply on merge
+      - Its own CI from the first phase
+
   requires:
     # Cloudflare is the only provider connection a bootstrap needs — that is
     # the whole point of this baseline. GitHub arrives as the App
     # installation plus the repo link, not as a connection row.
     integrations: [github, cloudflare]
     apiKeyRole: admin          # secret writes need the admin floor
-  inputs:                      # collected via cockpit intake (AG-UI)
+
+  inputs:
+    # `askedBy` is the console/agent division of labour: `console` inputs gate
+    # the flow and are validated against `pattern` before Continue; `agent`
+    # inputs are NAMED on the review step and asked for in the session, because
+    # they only matter once the build is running.
     - key: reponame
       label: Repo name
       pattern: "^[a-z][a-z0-9-]{1,38}$"
@@ -35,6 +73,49 @@ spec:
     - key: subdomain
       label: workers.dev subdomain
       askedBy: agent
+
+  # ── PREVIEW ONLY. `flows/common/create-secrets.sh` creates these. ────────
+  # Transcribed from that script's own table (and its `create` calls), so the
+  # conformance test compares this list to the script rather than to a copy of
+  # itself. The console renders them read-only: they are minted from the
+  # workspace's connections at build time, so no credential is ever typed,
+  # shown or stored in the console. Keys that already exist are kept.
+  secrets:
+    - key: CLOUDFLARE_API_TOKEN
+      provider: cloudflare
+      template: workers-deploy
+      why: Workers + KV deploys
+    - key: CLOUDFLARE_D1_TOKEN
+      provider: cloudflare
+      template: d1-edit
+      why: D1 — the deploy token deliberately cannot touch it
+    - key: CLOUDFLARE_ACCOUNT_ID
+      provider: cloudflare
+      template: account-id
+      why: Connection fact, not a secret
+      fact: true
+
+  # ── PREVIEW ONLY. `flows/common/track.sh`, driven by the umbrella, creates
+  # these. Idempotent by identity — epic by slug, milestone by name-within-epic
+  # — so a re-run finds what it made before. The console renders the programme
+  # so an operator can see the shape of the work before pressing Build.
+  programme:
+    epicSlug: infra-baselining         # = 00-all's `epicslug` input default
+    epicName: "Infra baselining — {productname}"
+    milestones:
+      - name: 01-scaffold
+      - name: 02-foundation
+      - name: 03-infrastructure
+      - name: 04-workers
+      - name: 05-edge
+      - name: 06-console
+      # The umbrella only ensures this one when its `domain` input is "true"
+      # (it needs the Cloudflare zone to already exist). Declared with its
+      # condition rather than silently listed, so the console can say so.
+      - name: 07-domain
+        when: domain
+      - name: 08-docs
+
   bootstrap:
     umbrella: flows/phases/00-all/workflow.yaml
     agentBrief: flows/agent/BASELINE-TASK.md
