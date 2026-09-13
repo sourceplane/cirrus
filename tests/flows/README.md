@@ -33,6 +33,13 @@ A quick-check component that runs the two contract tests under
   how a stale tag survived three releases and four tests in this directory.
   Needs PyYAML alongside python3.
 
+> **Where these actually run in CI.** Not here. This component's
+> `quick-check` profile runs setup, install and a package-structure check and
+> no tests — observed on a live lane reporting `4 passed, 0 failed` with no
+> test among them. The suite runs as the `flows-contract` job in
+> `.github/workflows/ci.yml`, which is what can fail a pull request. This
+> component stays for `pnpm --filter @saas/flows-tests test` locally.
+
 `bash`, `python3`, `git` — no network, no credential. Run locally with
 `pnpm --filter @saas/flows-tests test` or the scripts directly. This
 component is the baseline's own and never ships to a product.
