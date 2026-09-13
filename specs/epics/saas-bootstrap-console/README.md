@@ -20,7 +20,7 @@ why `spec.source.tag` is deleted rather than corrected.
 | Field | Value |
 |-------|-------|
 | Status | **Draft (not started)** |
-| Cluster | **BC** — two repos: **BC1–BC3** cirrus and the other baseline repos (this folder) · **BC-K1–BC-K5** orun-cloud (the door and the console) |
+| Cluster | **BC** — two repos: **BC1–BC3** cirrus and the other baseline repos (this folder) · **BC-K1–BC-K5** orun-cloud (`specs/epics/saas-bootstrap-console/`, which carries the door, the flow, the build page, the draft and the contract in its own `design.md`) |
 | Owner(s) | here: `blueprint.yaml`, `flows/testing/`, `tests/flows` · then `sourceplane/lumen`, `sourceplane/stratus` · orun-cloud: `apps/agents-worker/src/{blueprints.ts,handlers/blueprints.ts}`, `apps/web-console-next/src/components/baselines/*`, `apps/integrations-worker` (read-only) |
 | Target branch | `main` |
 | Builds on | `saas-baseline-tracking` (BT) — the programme this flow previews is the one `track.sh` and the umbrella already create · orun-cloud `saas-baseline-registry` (the declared catalogue at `infra/baselines-registry/baselines.yaml`, and its tag preflight) · `saas-blueprints-onboarding` BP3 (today's three-step flow, which BC replaces in place) · `saas-integrations` IR0 (the served `IntegrationDescriptor` registry, which is where a provider id acquires meaning) |

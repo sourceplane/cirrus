@@ -6,7 +6,7 @@ Status: Normative for the BC cluster. Visual detail lives in
 `IMPLEMENTATION-STATUS.md`, created when BC1 lands.
 
 Two repos: **BC1–BC3** here and in the other baseline repos, **BC-K1–BC-K5** in
-orun-cloud. Each milestone is independently landable; edges are named per
+orun-cloud (`specs/epics/saas-bootstrap-console/implementation-plan.md`). Each milestone is independently landable; edges are named per
 milestone.
 
 Three invariants hold across the cluster:
