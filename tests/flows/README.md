@@ -23,6 +23,16 @@ A quick-check component that runs the two contract tests under
   transcript. Also checks that `land-pr.sh` refuses a non-directory first
   argument with a one-line diagnosis instead of a raw `cd` failure.
 
+- `manifest.test.sh` — `blueprint.yaml` against the flows that realize it:
+  `secrets` against `create-secrets.sh`'s own `create` calls, `programme`
+  against the umbrella's `ensure-milestone` calls (including the `07-domain`
+  condition and the `epicslug` default), `askedBy: console` inputs against
+  their patterns, declared paths against the tree, and `verify` placeholders
+  against the inputs. Refuses `spec.source.tag` outright. Every check compares
+  the manifest to a script, never to another copy of the same claim — that is
+  how a stale tag survived three releases and four tests in this directory.
+  Needs PyYAML alongside python3.
+
 `bash`, `python3`, `git` — no network, no credential. Run locally with
 `pnpm --filter @saas/flows-tests test` or the scripts directly. This
 component is the baseline's own and never ships to a product.

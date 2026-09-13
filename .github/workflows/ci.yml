@@ -98,10 +98,27 @@ jobs:
           # re-open it, so lanes wait out the race instead.
           retry_flag=""
           if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then retry_flag="--retry"; fi
+          # Remote state authenticates to the platform over OIDC, and the
+          # backend refuses a pull_request OIDC token BY DESIGN — a PR must
+          # never obtain deploy/state credentials. The refusal resource-hides
+          # as `not_found`, so every PR lane died at
+          #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+          #     Not found (code: not_found)
+          # BEFORE running a single test body. That is why tests/flows has
+          # never been able to fail a pull request: it never ran on one.
+          #
+          # So a PR runs with NO state flag. Per specs/core/repo.md the
+          # portable base command is `orun run --plan … --job …` and remote
+          # state is an additive opt-in, so omitting it keeps state local and
+          # the verify profile — build, typecheck, tests — is entirely offline.
+          # Push-to-main keeps it for coordination and the live run view.
+          # (Same shape as orun-cloud's ci.yml, which fixed this first.)
+          state_flag=""
+          if [ "${{ github.event_name }}" != "pull_request" ]; then state_flag="--remote-state"; fi
           orun run \
             --plan plan.json \
             --runner github-actions \
-            --remote-state \
+            $state_flag \
             --job "${{ matrix.job-id }}" \
             --exec-id "${{ github.run_id }}" \
             $retry_flag

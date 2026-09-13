@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Contract tests for the bootstrap flows' shared machinery (saas-baseline-tracking BT6): track.sh over a fake orun, land-pr.sh over a fake pen and gh, the agent runner build.sh over the same fakes, and a static read of the phase workflows for functions that reassign a step's path handles. bash + python3 + git, no network.",
+  "description": "Contract tests for the bootstrap flows' shared machinery (saas-baseline-tracking BT6): track.sh over a fake orun, land-pr.sh over a fake pen and gh, the agent runner build.sh over the same fakes, a static read of the phase workflows for functions that reassign a step's path handles, and blueprint.yaml checked against the flows that realize it. bash + python3 + git, no network.",
   "scripts": {
     "build": "node -e \"process.exit(0)\"",
     "typecheck": "node -e \"process.exit(0)\"",
-    "test": "bash ../../flows/testing/track.test.sh && bash ../../flows/testing/land-pr.test.sh && bash ../../flows/testing/agent-build.test.sh && bash ../../flows/testing/phase-vars.test.sh"
+    "test": "bash ../../flows/testing/track.test.sh && bash ../../flows/testing/land-pr.test.sh && bash ../../flows/testing/agent-build.test.sh && bash ../../flows/testing/phase-vars.test.sh && bash ../../flows/testing/manifest.test.sh"
   }
 }
