@@ -21,6 +21,35 @@ permissions:
   id-token: write
 
 jobs:
+  # The bootstrap flows' contract suite, run directly rather than through a
+  # component. Two reasons it does not ride `tests/flows`:
+  #
+  #   1. Its `quick-check` profile runs setup, install and a package-structure
+  #      check — and no tests. Verified on this very PR: the lane went green
+  #      having executed `4 passed, 0 failed` steps, none of which was a test.
+  #      Every turbo-package component in the repo uses that profile, so this
+  #      is not a mis-set component; changing it is a guess at a composition
+  #      published as an OCI artifact and not readable from this repo.
+  #   2. These scripts need bash, python3 and git and nothing else — no
+  #      workspace install, no network, no credential. A 20-second job that
+  #      certainly fails a pull request beats a two-minute one that certainly
+  #      does not.
+  #
+  # Until the composition grows a profile that runs a package's tests, THIS is
+  # the job that makes the suite able to fail a PR.
+  flows-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Contract tests (track, land-pr, agent-build, phase-vars, manifest)
+        run: |
+          set -euo pipefail
+          python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
+          for t in track land-pr agent-build phase-vars manifest; do
+            echo "── $t"
+            bash "flows/testing/$t.test.sh"
+          done
+
   plan:
     runs-on: ubuntu-latest
     outputs:
@@ -98,10 +127,27 @@ jobs:
           # re-open it, so lanes wait out the race instead.
           retry_flag=""
           if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then retry_flag="--retry"; fi
+          # Remote state authenticates to the platform over OIDC, and the
+          # backend refuses a pull_request OIDC token BY DESIGN — a PR must
+          # never obtain deploy/state credentials. The refusal resource-hides
+          # as `not_found`, so every PR lane died at
+          #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+          #     Not found (code: not_found)
+          # BEFORE running a single test body. That is why tests/flows has
+          # never been able to fail a pull request: it never ran on one.
+          #
+          # So a PR runs with NO state flag. Per specs/core/repo.md the
+          # portable base command is `orun run --plan … --job …` and remote
+          # state is an additive opt-in, so omitting it keeps state local and
+          # the verify profile — build, typecheck, tests — is entirely offline.
+          # Push-to-main keeps it for coordination and the live run view.
+          # (Same shape as orun-cloud's ci.yml, which fixed this first.)
+          state_flag=""
+          if [ "${{ github.event_name }}" != "pull_request" ]; then state_flag="--remote-state"; fi
           orun run \
             --plan plan.json \
             --runner github-actions \
-            --remote-state \
+            $state_flag \
             --job "${{ matrix.job-id }}" \
             --exec-id "${{ github.run_id }}" \
             $retry_flag
