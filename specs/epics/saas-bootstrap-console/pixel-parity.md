@@ -46,6 +46,30 @@ uses, so it must not leak onto prose.
 Radii: cards `12px` (`--radius`), controls `8px`, rows `11px`. The `11px` row
 radius is deliberate and already in use in `flow-parts.tsx`; keep it.
 
+### Where the reference is off the console's type ladder — the ladder wins
+
+Sizes are the one place the reference drifted from the console it was drawn
+against. `web-console-next` has a **nine-rung ladder** — 12 / 12.5 / 13 / 13.5
+/ 14 / 15 / 16 / 28 / 32 — with a test that fails the build on anything else
+(`tests/web-console-next/src/type-ladder.test.ts`), and two further rules:
+machine text (mono) stays at 12–13px, in one weight.
+
+Three reference values fall outside it, and BC-K2 shipped the ladder's:
+
+| Reference | Shipped | Why |
+|---|---|---|
+| rail mark `11px` | `12px` | the ladder's floor |
+| eyebrow `10.5px` | the console's `.kicker` | one eyebrow, defined once, not a local rule per surface |
+| mono chips `11.5px` | `12px` | machine text is held to 12–13px |
+
+A secret key was also drawn bold-mono; shipped in a single weight, because the
+ladder holds machine text to one register — being mono is already the
+distinction.
+
+This is the rule for anything else that disagrees: **the ladder is the living
+system and it is enforced; the reference is a drawing.** Everything else in the
+tables above is matched as written.
+
 ## Measurements
 
 | Element | Value |
