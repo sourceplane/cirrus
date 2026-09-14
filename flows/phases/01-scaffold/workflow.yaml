@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: phase-01-scaffold
 # Phase 1 of the paced bootstrap: birth the product repo from the workspace
-# blueprint (flows/phases/01-scaffold/blueprint.yaml — intent, CI, flows, tooling,
+# blueprint (repo-blueprint.yaml phase 01-scaffold — intent, CI, flows, tooling,
 # .rebrand/values.json), push it to GitHub, and link it to the workspace.
 # Every later phase reads the identity from the repo's own
 # .rebrand/values.json, so this is the only phase that takes identity inputs.
@@ -117,7 +117,7 @@ steps:
         # No --run-hooks: the blueprint's hook chain is replicated below
         # (git init/stage, rebrand, intent workspace rewrite) so the phased
         # path controls each piece.
-        orun new --blueprint "$L/flows/phases/01-scaffold/blueprint.yaml" --out "$out" \
+        orun new --blueprint "$L/repo-blueprint.yaml" --out "$out" --phase 01-scaffold \
           --set "repoName={{ inputs.reponame }}" \
           --set "productName={{ inputs.productname }}" \
           --set "productDomain={{ inputs.productdomain }}" \
@@ -227,8 +227,8 @@ steps:
         PYEOF
         # Belt-and-braces: nothing baseline-shaped ships, even if the
         # blueprint module list drifts.
-        rm -rf agents flows FORKING.md \
-          tooling/blueprint tooling/bootstrap tooling/fork tooling/rebrand tooling/migrations \
+        rm -rf agents flows FORKING.md tasks \
+          tooling/bootstrap tooling/fork tooling/rebrand tooling/migrations \
           ai/state.json ai/tasks ai/proposals ai/reports ai/deferred.md ai/waiting_for_input.md
         git add -A
         if [ "{{ inputs.dryrun }}" = "true" ]; then
@@ -279,7 +279,7 @@ steps:
         key=""
         if [ "{{ inputs.track }}" = "true" ] && [ -x "$L/flows/common/track.sh" ]; then
           export ws="{{ inputs.workspace }}"
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 01-scaffold "phase(01-scaffold): repo born" "$L/flows/phases/01-scaffold/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 01-scaffold "phase(01-scaffold): repo born" "$L/tasks/01-scaffold.TaskContract.yaml")"
         fi
         if [ -n "$key" ]; then
           if ! git rev-parse --verify -q HEAD >/dev/null; then

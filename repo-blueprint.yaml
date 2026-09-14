@@ -65,6 +65,32 @@ inputs:
       this the fork inherits the BASELINE's workspace and its CI would claim
       another tenant's workspace. Left empty, the scaffold writes a placeholder
       that fails loudly rather than silently cross-tenanting.
+  # ── BE1: the three facts the phases below need and the flows used to hold.
+  # They were workflow inputs (`githuborg`, `epicslug`, `domain` on
+  # flows/phases/*/workflow.yaml), which made them invisible to anything
+  # reading this file — including the console that has to render a form.
+  githubOrg:
+    type: string
+    pattern: "^[A-Za-z0-9][A-Za-z0-9-]*$"
+    required: true
+    description: GitHub org or user the product repo is created under.
+  epicSlug:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+    default: infra-baselining
+    description: >-
+      The epic this bootstrap tracks itself under. Every phase clubs its task
+      here, so a run that starts fresh and a run that resumes find the same
+      work — the epic is found by slug, which is why this is an input and not
+      a generated id.
+  domain:
+    type: boolean
+    default: false
+    description: >-
+      Whether to wire the product's custom domain (phase 07). It needs the
+      Cloudflare zone to already exist, so it is off unless asked for — the
+      condition the umbrella carried as a shell `[ = "true" ]` test and phase
+      07 now carries as its own `when:`.
 
 # ── SOURCES ───────────────────────────────────────────────────────────────
 # The baseline is this repo itself. Run `orun new` from the Cirrus repo root so
@@ -343,12 +369,20 @@ modules:
     from: packages/sdk
     to: packages/sdk
     dependsOn: [contracts]
+  # No dependsOn. It carried `[bootstrap]` until BE1 — a module that does not
+  # exist and never has, so orun would have refused this document
+  # (`dependsOn unknown module`). split-phases.py pruned every cross-phase
+  # edge to make each slice parse, and a pruned edge to a module in NO phase
+  # is indistinguishable from a pruned edge to one in an earlier phase, so
+  # the defect survived every run. packages/shared's only workspace deps are
+  # @saas/eslint-config and @saas/tsconfig, which this blueprint does not
+  # declare as edges for any package (see `contracts`, which has the same two
+  # and no dependsOn).
   - name: shared
     mode: copy
     source: baseline
     from: packages/shared
     to: packages/shared
-    dependsOn: [bootstrap]
   - name: testing
     mode: copy
     source: baseline
@@ -489,9 +523,32 @@ modules:
     from: README.md
     to: README.md
 
+  # ── The empty discovery roots, declared (BE1).
+  #    orun's repo-scale gate — and later `orun plan` in the product's own CI —
+  #    discovers apps/, infra/, packages/ and tests/, which by design are empty
+  #    until later phases fill them. A missing root is a hard gate failure, so
+  #    `flows/phases/01-scaffold/workflow.yaml` created them with a mkdir and a
+  #    touch immediately before calling `orun new`. That is a file the tree
+  #    needs in order to be valid, which is what a module is for: shell that
+  #    creates a required file is a module nobody wrote down.
+  - name: discovery-roots
+    mode: template
+    files:
+      apps/.gitkeep: ""
+      infra/.gitkeep: ""
+      packages/.gitkeep: ""
+      tests/.gitkeep: ""
+
   # ── Instance-identity values file (template) — consumed by the rebrand hook.
   #    This is the only place blueprint inputs touch the tree at scaffold time;
   #    everything else is a verbatim copy the hook rewrites.
+  #
+  #    It is also how a LATER phase recovers what the operator answered. orun
+  #    records the non-secret inputs in .orun/provenance.lock, but `.orun/` is
+  #    gitignored in the product, so it has never survived a container — this
+  #    file is committed, which is why every input a later phase needs must
+  #    appear here. githubOrg/epicSlug/domain are here for exactly that: a
+  #    phase run months later in a fresh container reads them back.
   - name: rebrand-values
     mode: template
     files:
@@ -506,93 +563,476 @@ modules:
           "apiBaseUrl": "{{ .apiBaseUrl }}"{{ end }},
           "workersDevSubdomain": "{{ .workersDevSubdomain }}"{{ if .salesEmail }},
           "salesEmail": "{{ .salesEmail }}"{{ end }},
-          "orunWorkspace": "{{ .orunWorkspace }}"
+          "orunWorkspace": "{{ .orunWorkspace }}",
+          "githubOrg": "{{ .githubOrg }}",
+          "epicSlug": "{{ .epicSlug }}",
+          "domain": {{ if .domain }}true{{ else }}false{{ end }}
         }
 
-
 # ── PHASES ────────────────────────────────────────────────────────────────
-# An operational overlay over the module DAG: named, ordered stages that impose
-# placement barriers (all of a phase placed before the next) — the fork tool's
-# batch structure (foundation → infra → workers → edge → console → domain),
-# now first-class. The DAG still orders modules within/across phases; a
-# dependency may never cross a phase barrier forward (orun validates this).
-# cloudflare-domain trails console because it wires the deployed console's
-# custom domain. Phases may carry their own hooks; per-phase verify gates +
-# manual approval + resumable runs are the planned follow-on — for a one-shot
-# instantiation the pnpm/rebrand hooks below run once at the end.
-phases:
-  - name: foundation
-    modules: [cli, contracts, contracts-tests, db, db-tests, notifications-client, notifications-client-tests, policy-engine, policy-engine-tests, sdk, shared, testing, webhook-verifier]
-  - name: infrastructure
-    modules: [cloudflare-d1, cloudflare-kv, db-migrate]
-  - name: workers
-    modules: [admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
-  - name: edge
-    modules: [api-edge, api-edge-tests]
-  - name: console
-    modules: [web-console-next, web-console-next-tests]
-  - name: domain
-    modules: [cloudflare-domain]
-  - name: workspace
-    description: Root manifests, tooling, compositions, and the rebrand values file.
-    modules: [ai-context, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
-
-# ── HOOKS ─────────────────────────────────────────────────────────────────
-# Declared, ecosystem-specific, run OUTSIDE the template sandbox and opt-in
-# (`orun new --run-hooks`). orun executes the declared argv; it names no
-# ecosystem itself (invariant 8). These assume a git checkout — the operator
-# runs `git init && git add -A && git commit` first (rebrand.mjs reads
-# `git ls-files` and insists on a clean tree; --allow-dirty relaxes the latter).
+# A phase is orun's own barrier over the module DAG — and, since BE1, the
+# whole of what a phase DOES. Each one declares what it is for a person
+# (`title`), what to budget (`expectedMinutes`), what must already be true
+# (`requires`), whether it runs at all (`when`), and the hooks that do its
+# work around placement: `pre` before, `post` after, `await` for what is
+# still converging when the hooks are done.
 #
-# The Cloudflare service-binding two-pass (tooling/bootstrap/cycle-break.mjs
-# --strip / --restore for the {billing,membership,events,notifications} cluster)
-# is a DEPLOY-time hook, not a scaffold step — see tooling/bootstrap/cycle-break.mjs — so it is not
-# listed here.
-hooks:
-  postInstantiate:
-    # rebrand.mjs enumerates the tree with `git ls-files`, so the scaffolded
-    # output must be a git repo with a populated index BEFORE it runs. Hooks
-    # execute inside `orun new`, so the operator has no window to `git init`
-    # first — doing it here is what makes `--run-hooks` a genuine one-shot
-    # instead of failing with "fatal: not a git repository".
-    #
-    # `git add -A` only stages; nothing is committed. The operator still makes
-    # the first commit, and reviews the rebrand diff before doing so.
-    - id: git-init
-      run: ["git", "init", "-q"]
-    - id: git-stage
-      run: ["git", "add", "-A"]
-    - id: rebrand
-      run: ["node", "tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
-    # Re-tenant the fork. rebrand.mjs classifies the orun state backend as
-    # org-owned and deliberately leaves it untouched, so intent.yaml would keep
-    # the BASELINE's `workspace:` — the fork's CI would then claim another
-    # tenant's workspace on every remote op. Hook argv is not templated, so the
-    # value travels through .rebrand/values.json, which IS a rendered template.
-    - id: orun-workspace
-      run:
-        - node
-        - -e
-        - |
-          const fs = require("fs");
-          const values = JSON.parse(fs.readFileSync(".rebrand/values.json", "utf8"));
-          const ws = String(values.orunWorkspace || "").trim() || "ws_SET_ME";
-          const before = fs.readFileSync("intent.yaml", "utf8");
-          const after = before.replace(/^(\s*workspace:\s*).*$/m, "$1" + ws);
-          if (after === before) {
-            console.error("orun-workspace: no `workspace:` line in intent.yaml — refusing to guess");
-            process.exit(1);
-          }
-          fs.writeFileSync("intent.yaml", after);
-          console.log(
-            ws === "ws_SET_ME"
-              ? "orun-workspace: wrote placeholder ws_SET_ME — set your Orun Cloud workspace before enabling remote state"
-              : "orun-workspace: intent.yaml workspace -> " + ws,
-          );
-    # Re-stage so `git ls-files` and `rebrand --verify` see the rewritten tree.
-    - id: git-restage
-      run: ["git", "add", "-A"]
-    - id: rebrand-verify
-      run: ["node", "tooling/rebrand/rebrand.mjs", "--verify"]
-    - id: pnpm-lockfile
-      run: ["pnpm", "install", "--lockfile-only"]
+# THE ORDER HERE IS THE EXECUTION ORDER, and the numbered names are the same
+# names the task plane's milestones carry. Before BE1 the two disagreed: this
+# file declared `workspace` LAST and `tooling/blueprint/split-phases.py`
+# re-mapped it to the folder `01-scaffold`, which runs FIRST. A mapping table
+# inside a script is a fact nothing checks, and this is what it was hiding —
+# `shared` declared `dependsOn: [bootstrap]`, a module that does not exist and
+# never has. orun refuses that (`dependsOn unknown module`). The splitter
+# never hit it because it PRUNED every cross-phase edge to make each slice
+# parse, and a pruned edge to a module that is in no phase looks exactly like
+# a pruned edge to a module in an earlier one.
+#
+# So the barrier law is what makes this reorder safe rather than cosmetic: a
+# dependency may never point forward across a phase boundary, and orun
+# refuses the blueprint if one does — where the splitter deleted the edge and
+# carried on.
+#
+# Two phases place NO modules. `04-workers-restore` and `08-docs` are hooks
+# and nothing else: the first re-adds the service bindings `04-workers` had to
+# strip, the second records the live deployment. They are phases because they
+# are separately landable units of the bootstrap with their own task and their
+# own PR — which is what a phase is here — not because they write files.
+phases:
+  - name: 01-scaffold
+    title: The repo is born
+    description: Root manifests, tooling, compositions, and the rebrand values file.
+    expectedMinutes: 2
+    modules: [ai-context, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): repo born"
+            prefix: BASE
+            contract: tasks/01-scaffold.TaskContract.yaml
+      # The identity chain, moved here from `hooks.postInstantiate`. It was
+      # global because a one-shot instantiation has only one end; in a phased
+      # bootstrap the end of 01-scaffold IS that moment — every later phase
+      # applies into a tree that is already a git repo and already branded.
+      #
+      # rebrand.mjs enumerates the tree with `git ls-files`, so the output has
+      # to be a git repo with a populated index BEFORE it runs. `git add -A`
+      # only stages; nothing is committed here. The landing makes the commit.
+      post:
+        - id: git-init
+          run: ["git", "init", "-q"]
+        - id: git-stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        # Re-tenant the fork. rebrand.mjs classifies the orun state backend as
+        # org-owned and deliberately leaves it untouched, so intent.yaml would
+        # keep the BASELINE's `workspace:` — the fork's CI would then claim
+        # another tenant's workspace on every remote op. Hook argv is not
+        # templated, so the value travels through .rebrand/values.json, which
+        # IS a rendered template.
+        - id: orun-workspace
+          run:
+            - node
+            - -e
+            - |
+              const fs = require("fs");
+              const values = JSON.parse(fs.readFileSync(".rebrand/values.json", "utf8"));
+              const ws = String(values.orunWorkspace || "").trim() || "ws_SET_ME";
+              const before = fs.readFileSync("intent.yaml", "utf8");
+              const after = before.replace(/^(\s*workspace:\s*).*$/m, "$1" + ws);
+              if (after === before) {
+                console.error("orun-workspace: no `workspace:` line in intent.yaml — refusing to guess");
+                process.exit(1);
+              }
+              fs.writeFileSync("intent.yaml", after);
+              console.log(
+                ws === "ws_SET_ME"
+                  ? "orun-workspace: wrote placeholder ws_SET_ME — set your Orun Cloud workspace before enabling remote state"
+                  : "orun-workspace: intent.yaml workspace -> " + ws,
+              );
+        # Re-stage so `git ls-files` and `rebrand --verify` see the rewritten tree.
+        - id: git-restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        # The repo has to exist before there is anywhere to land.
+        - id: repo
+          uses: orun.repo/ensure@v1
+          with:
+            owner: "{{ .inputs.githubOrg }}"
+            name: "{{ .inputs.repoName }}"
+            private: true
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): repo born"
+            wait: false
+
+  - name: 02-foundation
+    title: The shared packages
+    expectedMinutes: 9
+    modules: [cli, contracts, contracts-tests, db, db-tests, notifications-client, notifications-client-tests, policy-engine, policy-engine-tests, sdk, shared, testing, webhook-verifier]
+    requires:
+      phases: [01-scaffold]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): shared packages"
+            prefix: BASE
+            contract: tasks/02-foundation.TaskContract.yaml
+      post:
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): shared packages"
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+
+  - name: 03-infrastructure
+    title: The data infrastructure
+    expectedMinutes: 3
+    modules: [cloudflare-d1, cloudflare-kv, db-migrate]
+    # The first phase that DEPLOYS. `requires.probe` asks reality the question
+    # a lock file cannot answer: are the two provider connections live right
+    # now? `flows/phases/04-workers/README.md` carries the same knowledge as
+    # prose — "Lane fails resolving WIRING_*: phase 03 incomplete" — and prose
+    # cannot gate anything.
+    requires:
+      phases: [02-foundation]
+      probe:
+        - id: providers
+          uses: orun.doctor/check@v1
+          with:
+            providers: [github, cloudflare]
+            waitSeconds: 600
+            pollSeconds: 20
+    hooks:
+      # Brokered, one hook per template: `integrations/reconcile` mints from
+      # ONE connection with ONE scope template, and these three keys are three
+      # different scopes on purpose — the deploy token deliberately cannot
+      # touch D1. Collapsing them into one hook would be collapsing the scopes.
+      # Keys that already exist are kept.
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): d1, kv, db-migrate"
+            prefix: BASE
+            contract: tasks/03-infrastructure.TaskContract.yaml
+        - id: secret-workers-deploy
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_API_TOKEN]
+            template: workers-deploy
+        - id: secret-d1-edit
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_D1_TOKEN]
+            template: d1-edit
+        - id: secret-account-id
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_ACCOUNT_ID]
+            template: account-id
+      post:
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): d1, kv, db-migrate"
+            # This PR's db-migrate plan lane CANNOT pass on a fresh product:
+            # it resolves the database id from cloudflare-d1's job-output
+            # secret, which only exists after the merge's main run applies
+            # cloudflare-d1. The converge below is the real gate.
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+        - id: verify
+          uses: orun.secrets/exists@v1
+          with:
+            keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+
+  - name: 04-workers
+    title: The worker fleet
+    expectedMinutes: 31
+    modules: [admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
+    requires:
+      phases: [03-infrastructure]
+      probe:
+        - id: wiring
+          uses: orun.secrets/exists@v1
+          with:
+            keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): worker fleet (feedback edges stripped)"
+            prefix: BASE
+            contract: tasks/04-workers.TaskContract.yaml
+      post:
+        # The Cloudflare service-binding two-pass. The
+        # {billing,membership,events,notifications} cluster binds to itself,
+        # and a binding cannot name a worker that does not exist yet, so the
+        # first pass deploys without the feedback edges.
+        #
+        # These edges are NOT in the module DAG and there is no `cycleBreak:`
+        # here to defer — the cycle lives in the wrangler config a deploy
+        # reads, not in the placement order, so orun never sees it. That is
+        # why cycle-break.mjs survives BE1: it is not an ordering workaround
+        # orun's DAG could absorb, it is a deploy-time edit to a file.
+        - id: strip
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/cycle-break.mjs", "--strip"]
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): worker fleet (feedback edges stripped)"
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+
+  # The second pass, and a phase of its own rather than more hooks on the
+  # first. The restore can only run AFTER 04-workers has converged — a service
+  # binding may not name a worker that is not deployed — and `post` hooks all
+  # run before `await`, so "strip, land, converge, restore, land, converge"
+  # cannot be one phase's hook list. It is also, already, two landings with two
+  # PRs and two task contracts. Two units of work that land separately are two
+  # phases; that is the whole of what a phase is here.
+  - name: 04-workers-restore
+    title: The service bindings come back
+    expectedMinutes: 5
+    modules: []
+    requires:
+      phases: [04-workers]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: 04-workers
+            name: "phase(04-workers): restore service-binding feedback edges"
+            prefix: BASE
+            contract: tasks/04-workers-restore.TaskContract.yaml
+      post:
+        - id: restore
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/cycle-break.mjs", "--restore"]
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase(04-workers): restore service-binding feedback edges"
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 2
+
+  - name: 05-edge
+    title: The API edge
+    expectedMinutes: 5
+    modules: [api-edge, api-edge-tests]
+    requires:
+      phases: [04-workers-restore]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): api-edge"
+            prefix: BASE
+            contract: tasks/05-edge.TaskContract.yaml
+      post:
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): api-edge"
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+        - id: verify
+          uses: orun.http/probe@v1
+          with:
+            urls:
+              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+
+  - name: 06-console
+    title: The web console
+    expectedMinutes: 16
+    modules: [web-console-next, web-console-next-tests]
+    requires:
+      phases: [05-edge]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): web console"
+            prefix: BASE
+            contract: tasks/06-console.TaskContract.yaml
+      post:
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): web console"
+            wait: false
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+        - id: verify
+          uses: orun.http/probe@v1
+          with:
+            urls:
+              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-console-next-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-console-next-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"
+
+  # cloudflare-domain trails the console because it wires the DEPLOYED
+  # console's custom domain. `when:` is the condition the umbrella carried as
+  # `[ "{{ inputs.domain }}" = "true" ]` in shell — a phase that declares when
+  # it runs beats a caller remembering not to ask for it.
+  - name: 07-domain
+    title: The custom domain
+    expectedMinutes: 5
+    modules: [cloudflare-domain]
+    when: inputs.domain
+    requires:
+      phases: [06-console]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "phase({{ .phase.name }}): custom domain"
+            prefix: BASE
+            contract: tasks/07-domain.TaskContract.yaml
+      post:
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "phase({{ .phase.name }}): custom domain"
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          with:
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+
+  # Places nothing. It records what the other phases built, from PROBED facts
+  # rather than from what the blueprint intended — which is why it runs last
+  # and why its verify is the same probe 06-console ends on.
+  - name: 08-docs
+    title: The deployment, recorded
+    expectedMinutes: 1
+    modules: []
+    requires:
+      phases: [06-console]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "docs(deployment): record live deployment state"
+            prefix: BASE
+            contract: tasks/08-docs.TaskContract.yaml
+      post:
+        - id: render
+          run: ["bash", "{{ .baseline.dir }}/flows/common/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
+        - id: land
+          uses: orun.pr/land@v1
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "docs(deployment): record live deployment state"
+      await:
+        - id: verify
+          uses: orun.http/probe@v1
+          with:
+            urls:
+              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-console-next-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-console-next-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"

@@ -5,10 +5,16 @@
 # writeTree is additive, rebrand is a no-op on already-branded files, and the
 # phase provenance lock is archived like run-phases.sh does.
 #
-#   flows/common/apply-blueprint.sh <baseline-dir> <blueprint-file> <out> <workspace> [dryrun]
+#   flows/common/apply-blueprint.sh <baseline-dir> <blueprint-file> <out> <workspace> [dryrun] [phase]
 #
 # dryrun "true": apply + rebrand in the working tree, show what changed, then
 # revert everything (requires a clean tree, which is enforced regardless).
+#
+# phase (BE1): the phase to place, passed to `orun new --phase`. Every caller
+# now passes repo-blueprint.yaml plus a phase name, because the eight
+# per-phase blueprint slices are gone — there is one blueprint again, and the
+# phase is a selection on it rather than a separate document that had to have
+# its cross-phase edges pruned to parse. Empty places the whole blueprint.
 set -euo pipefail
 
 baseline="${1:?baseline dir}"
@@ -16,6 +22,7 @@ bp="${2:?blueprint file (relative to baseline)}"
 out="${3:?product repo dir}"
 ws="${4:?workspace id or slug}"
 dry="${5:-false}"
+phase="${6:-}"
 
 vals="$out/.rebrand/values.json"
 [ -f "$vals" ] || { echo "apply-blueprint: no $vals — run the scaffold phase (flows/phases/01-scaffold) first" >&2; exit 1; }
@@ -29,6 +36,17 @@ sets=(
   --set "workersDevSubdomain=$(getv workersDevSubdomain)"
   --set "orunWorkspace=$ws"
 )
+# githubOrg is REQUIRED by the blueprint (BE1: the phases' hooks name the repo
+# to land in). It is written into values.json by the scaffold phase, so a
+# later phase recovers it here — which is the whole reason that file is
+# committed while .orun/provenance.lock is not.
+org="$(getv githubOrg)"
+[ -n "$org" ] || { echo "apply-blueprint: no githubOrg in $vals — re-run the scaffold phase, or add it by hand" >&2; exit 1; }
+sets+=( --set "githubOrg=$org" )
+for k in epicSlug domain; do
+  v="$(getv "$k")"
+  [ -n "$v" ] && sets+=( --set "$k=$v" )
+done
 for k in pascalName brandSlug cliBin apiBaseUrl salesEmail; do
   v="$(getv "$k")"
   [ -n "$v" ] && sets+=( --set "$k=$v" )
@@ -109,9 +127,13 @@ PY
 fi
 
 
-orun new --blueprint "$baseline/$bp" --out "$out" "${sets[@]}"
+orun new --blueprint "$baseline/$bp" --out "$out" ${phase:+--phase "$phase"} "${sets[@]}"
+# Archive under the PHASE, not the blueprint file. Before BE1 each phase was
+# its own document, so `basename "$bp"` named the phase by accident; with one
+# blueprint every phase would overwrite the same provenance.repo-blueprint.lock
+# and the archive would record only the last phase that ran.
 if [ -f .orun/provenance.lock ]; then
-  cp .orun/provenance.lock ".orun/provenance.$(basename "$bp" .yaml).lock"
+  cp .orun/provenance.lock ".orun/provenance.${phase:-$(basename "$bp" .yaml)}.lock"
 fi
 
 # Rebrand the freshly written files (tracked via the index so the sweep sees

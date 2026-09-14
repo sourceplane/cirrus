@@ -172,7 +172,7 @@ steps:
         # repos get the branch→PR→merge path inside push-main.sh).
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 08-docs "docs(deployment): record live deployment state" "$L/flows/phases/08-docs/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 08-docs "docs(deployment): record live deployment state" "$L/tasks/08-docs.TaskContract.yaml")"
         fi
         "$L/flows/common/push-main.sh" ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} 08-docs "docs(deployment): record live deployment state" \
           "Rendered by flows/phases/08-docs: verified URLs, identity, secrets inventory (names only), integrations, provenance."

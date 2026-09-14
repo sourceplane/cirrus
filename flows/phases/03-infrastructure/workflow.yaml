@@ -145,7 +145,7 @@ steps:
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
-        "$L/flows/common/apply-blueprint.sh" "$L" flows/phases/03-infrastructure/blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}"
+        "$L/flows/common/apply-blueprint.sh" "$L" repo-blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}" 03-infrastructure
     timeout: 15m
   - name: land
     needs: [apply]
@@ -182,7 +182,7 @@ steps:
         # applies cloudflare-d1. The converge step right after is the real gate.
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 03-infrastructure "phase(03-infrastructure): d1, kv, db-migrate" "$L/flows/phases/03-infrastructure/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 03-infrastructure "phase(03-infrastructure): d1, kv, db-migrate" "$L/tasks/03-infrastructure.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" --no-wait ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 03-infrastructure "phase(03-infrastructure): d1, kv, db-migrate"
     timeout: 30m

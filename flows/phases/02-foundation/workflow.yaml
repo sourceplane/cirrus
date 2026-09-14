@@ -80,7 +80,7 @@ steps:
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
-        "$L/flows/common/apply-blueprint.sh" "$L" flows/phases/02-foundation/blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}"
+        "$L/flows/common/apply-blueprint.sh" "$L" repo-blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}" 02-foundation
     timeout: 15m
   - name: land
     needs: [apply]
@@ -116,7 +116,7 @@ steps:
         # the real gate. Waiting on the PR lanes just runs every build twice.
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 02-foundation "phase(02-foundation): shared packages" "$L/flows/phases/02-foundation/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 02-foundation "phase(02-foundation): shared packages" "$L/tasks/02-foundation.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" --no-wait ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 02-foundation "phase(02-foundation): shared packages"
     timeout: 30m

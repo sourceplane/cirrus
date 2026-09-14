@@ -112,7 +112,7 @@ steps:
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
-        "$L/flows/common/apply-blueprint.sh" "$L" flows/phases/04-workers/blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}"
+        "$L/flows/common/apply-blueprint.sh" "$L" repo-blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}" 04-workers
         [ "{{ inputs.dryrun }}" = "true" ] && exit 0
         cd "$P"
         node "$L/tooling/bootstrap/cycle-break.mjs" --strip
@@ -152,7 +152,7 @@ steps:
         # (measured: ~7m of PR deploys on vela). The converge step is the gate.
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 04-workers "phase(04-workers): worker fleet (feedback edges stripped)" "$L/flows/phases/04-workers/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 04-workers "phase(04-workers): worker fleet (feedback edges stripped)" "$L/tasks/04-workers.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" --no-wait ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 04-workers "phase(04-workers): worker fleet (feedback edges stripped)"
     timeout: 30m
@@ -222,7 +222,7 @@ steps:
         node "$L/tooling/bootstrap/cycle-break.mjs" --restore
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 04-workers "phase(04-workers): restore service-binding feedback edges" "$L/flows/phases/04-workers/task-contract-restore.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 04-workers "phase(04-workers): restore service-binding feedback edges" "$L/tasks/04-workers-restore.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" --no-wait ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 04-workers-restore "phase(04-workers): restore service-binding feedback edges"
         "$L/flows/common/converge.sh" '' 2

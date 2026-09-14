@@ -18,7 +18,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 calls() { python3 -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["calls"]))' "$FAKE_ORUN_STATE"; }
 # Objects on the plane (epics + milestones + tasks): what a re-run must not grow.
 creates() { python3 -c 'import json,sys;s=json.load(open(sys.argv[1]));print(len(s["epics"])+len(s["milestones"])+len(s["tasks"]))' "$FAKE_ORUN_STATE"; }
-contract="$root/flows/phases/03-infrastructure/task-contract.yaml"
+contract="$root/tasks/03-infrastructure.TaskContract.yaml"
 title="phase(03-infrastructure): d1, kv, db-migrate"
 
 echo "── 1. first run creates"
