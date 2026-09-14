@@ -603,6 +603,11 @@ phases:
     title: The repo is born
     description: Root manifests, tooling, compositions, and the rebrand values file.
     expectedMinutes: 2
+    narrate:
+      start:  "Creating the repository and writing its foundations — intent, CI, tooling, and the identity every later phase reads back. About {{ .meta.expectedMinutes }} minutes."
+      await:  "Waiting for the first push to settle on main."
+      done:   "{{ .inputs.repoName }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productName }}. That took {{ .meta.elapsed }}."
+      failed: "The repository did not get off the ground. The log above says where it stopped."
     modules: [ai-context, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
     hooks:
       pre:
@@ -666,12 +671,14 @@ phases:
         # The repo has to exist before there is anywhere to land.
         - id: repo
           uses: orun.repo/ensure@v1
+          narrate: "The repository exists at {{ .inputs.githubOrg }}/{{ .inputs.repoName }}."
           with:
             owner: "{{ .inputs.githubOrg }}"
             name: "{{ .inputs.repoName }}"
             private: true
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The first commit is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -682,6 +689,11 @@ phases:
   - name: 02-foundation
     title: The shared packages
     expectedMinutes: 9
+    narrate:
+      start:  "Now placing the thirteen packages every worker builds on — contracts, the database layer, the SDK, the policy engine. Usually about {{ .meta.expectedMinutes }} minutes."
+      await:  "The packages are on main. Waiting for CI to build them."
+      done:   "{{ .meta.files }} files across thirteen packages are on main and building, in {{ .meta.elapsed }}."
+      failed: "The shared packages did not build. The failing lane above names which one."
     modules: [cli, contracts, contracts-tests, db, db-tests, notifications-client, notifications-client-tests, policy-engine, policy-engine-tests, sdk, shared, testing, webhook-verifier]
     requires:
       phases: [01-scaffold]
@@ -699,6 +711,7 @@ phases:
       post:
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The packages PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -708,6 +721,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "The convergence run for {{ .phase.name }} came back green."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
@@ -715,6 +729,11 @@ phases:
   - name: 03-infrastructure
     title: The data infrastructure
     expectedMinutes: 3
+    narrate:
+      start:  "Now the data layer — a D1 database and a KV namespace per environment, then the migration runner. This is the first phase that touches Cloudflare."
+      await:  "Terraform is applying. D1 and KV create in seconds; the wait is the convergence run around them."
+      done:   "D1 and KV exist on stage and prod, and their ids are published as wiring secrets for the workers to read. {{ .meta.elapsed }}."
+      failed: "The data layer did not come up. The convergence log above carries the provider's own error."
     modules: [cloudflare-d1, cloudflare-kv, db-migrate]
     # The first phase that DEPLOYS. `requires.probe` asks reality the question
     # a lock file cannot answer: are the two provider connections live right
@@ -767,6 +786,7 @@ phases:
       post:
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The infrastructure PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -780,17 +800,24 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "Terraform applied and the convergence run came back green."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
         - id: verify
           uses: orun.secrets/exists@v1
+          narrate: "The wiring secrets the workers read are in the workspace."
           with:
             keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
 
   - name: 04-workers
     title: The worker fleet
     expectedMinutes: 31
+    narrate:
+      start:  "Now the twelve-worker fleet — the longest stretch of the build, usually about {{ .meta.expectedMinutes }} minutes. Four of the workers bind to each other, so this pass deploys them without those bindings."
+      await:  "Twelve workers are deploying across two environments. This is the slow part; nothing is stuck."
+      done:   "All twelve workers are live on stage and prod, minus the four feedback bindings the next phase puts back. {{ .meta.elapsed }}."
+      failed: "The fleet did not deploy. The convergence log above names the worker that stopped it."
     modules: [admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
     requires:
       phases: [03-infrastructure]
@@ -825,6 +852,7 @@ phases:
           run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/cycle-break.mjs", "--strip"]
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The fleet PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -834,6 +862,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "Twelve workers deployed and the convergence run came back green."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
@@ -848,6 +877,11 @@ phases:
   - name: 04-workers-restore
     title: The service bindings come back
     expectedMinutes: 5
+    narrate:
+      start:  "Now putting back the four service bindings that had to be stripped for the fleet to deploy at all — billing, membership, events and notifications can see each other again."
+      await:  "Redeploying the four workers with their bindings in place."
+      done:   "The four feedback bindings are live. The fleet is wired the way the blueprint describes it."
+      failed: "The bindings did not go back. The four workers are deployed but cannot call each other."
     modules: []
     requires:
       phases: [04-workers]
@@ -867,6 +901,7 @@ phases:
           run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/cycle-break.mjs", "--restore"]
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The bindings PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -876,6 +911,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "The four workers redeployed with their bindings."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 2
@@ -883,6 +919,11 @@ phases:
   - name: 05-edge
     title: The API edge
     expectedMinutes: 5
+    narrate:
+      start:  "Now the API edge — the single front door in front of all twelve services."
+      await:  "Waiting for the edge to deploy and answer /health on both environments. About {{ .meta.expectedMinutes }} minutes."
+      done:   "The edge is live on stage and prod, answering /health. {{ .meta.elapsed }}."
+      failed: "The edge did not come up. The deploy log above says why."
     modules: [api-edge, api-edge-tests]
     requires:
       phases: [04-workers-restore]
@@ -900,6 +941,7 @@ phases:
       post:
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The edge PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -909,11 +951,13 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "The edge deployed and the convergence run came back green."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
+          narrate: "Both /health endpoints answered."
           with:
             urls:
               - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
@@ -922,6 +966,11 @@ phases:
   - name: 06-console
     title: The web console
     expectedMinutes: 16
+    narrate:
+      start:  "Now the web console — the product UI. Console builds are heavy; budget about {{ .meta.expectedMinutes }} minutes."
+      await:  "The console is building. This is the second-longest wait of the build."
+      done:   "The console is live on stage and prod, talking to the edge. {{ .meta.elapsed }}."
+      failed: "The console did not build. The build log above carries the error."
     modules: [web-console-next, web-console-next-tests]
     requires:
       phases: [05-edge]
@@ -939,6 +988,7 @@ phases:
       post:
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The console PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -948,11 +998,13 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "The console deployed and the convergence run came back green."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
+          narrate: "Every console and edge URL answered."
           with:
             urls:
               - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
@@ -967,6 +1019,11 @@ phases:
   - name: 07-domain
     title: The custom domain
     expectedMinutes: 5
+    narrate:
+      start:  "Now wiring {{ .inputs.productDomain }} — DNS records and custom domains in front of the edge and the console."
+      await:  "Waiting for Cloudflare to attach the custom domains."
+      done:   "{{ .inputs.productDomain }} resolves to the console, and api.{{ .inputs.productDomain }} to the edge."
+      failed: "The domain did not attach. Check that the zone for {{ .inputs.productDomain }} exists in this Cloudflare account."
     modules: [cloudflare-domain]
     when: inputs.domain
     requires:
@@ -985,6 +1042,7 @@ phases:
       post:
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The domain PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -993,6 +1051,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
+          narrate: "Cloudflare applied the DNS and custom-domain records."
           with:
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
             resumeBudget: 3
@@ -1003,6 +1062,11 @@ phases:
   - name: 08-docs
     title: The deployment, recorded
     expectedMinutes: 1
+    narrate:
+      start:  "Now recording what was actually built — probing every URL and writing the deployment manifest into the repository."
+      await:  "Probing the live endpoints one last time."
+      done:   "ai/context/deployment.md now records the live deployment, written from probed facts rather than from what the blueprint intended."
+      failed: "The deployment record did not land. Everything built is still there; only the write-up is missing."
     modules: []
     requires:
       phases: [06-console]
@@ -1022,6 +1086,7 @@ phases:
           run: ["bash", "{{ .baseline.dir }}/flows/common/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
         - id: land
           uses: orun.pr/land@v1
+          narrate: "The deployment record is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
@@ -1030,6 +1095,7 @@ phases:
       await:
         - id: verify
           uses: orun.http/probe@v1
+          narrate: "Every live URL answered on the final probe."
           with:
             urls:
               - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
