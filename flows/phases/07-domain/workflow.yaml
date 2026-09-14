@@ -111,7 +111,7 @@ steps:
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
-        "$L/flows/common/apply-blueprint.sh" "$L" flows/phases/07-domain/blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}"
+        "$L/flows/common/apply-blueprint.sh" "$L" repo-blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}" 07-domain
     timeout: 15m
   - name: land
     needs: [apply]
@@ -144,7 +144,7 @@ steps:
         [ "{{ inputs.dryrun }}" = "true" ] && { echo "DRY RUN: skipping PR/merge"; exit 0; }
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 07-domain "phase(07-domain): custom domain" "$L/flows/phases/07-domain/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 07-domain "phase(07-domain): custom domain" "$L/tasks/07-domain.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 07-domain "phase(07-domain): custom domain"
     timeout: 30m

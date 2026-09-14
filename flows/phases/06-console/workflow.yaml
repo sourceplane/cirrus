@@ -110,7 +110,7 @@ steps:
           fi
         fi
         . "$L/flows/common/ctx.sh" "{{ inputs.workspace }}" "{{ inputs.repo }}" "{{ inputs.out }}"
-        "$L/flows/common/apply-blueprint.sh" "$L" flows/phases/06-console/blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}"
+        "$L/flows/common/apply-blueprint.sh" "$L" repo-blueprint.yaml "$P" "$ws" "{{ inputs.dryrun }}" 06-console
     timeout: 15m
   - name: land
     needs: [apply]
@@ -144,7 +144,7 @@ steps:
         # --no-wait: same single-deploy rationale as phase 04.
         key=""
         if [ "{{ inputs.track }}" = "true" ]; then
-          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 06-console "phase(06-console): web console" "$L/flows/phases/06-console/task-contract.yaml")"
+          key="$("$L/flows/common/track.sh" ensure-task "{{ inputs.epicslug }}" 06-console "phase(06-console): web console" "$L/tasks/06-console.TaskContract.yaml")"
         fi
         "$L/flows/common/land-pr.sh" --no-wait ${key:+--task "$key" --epic "{{ inputs.epicslug }}"} "$P" 06-console "phase(06-console): web console"
     timeout: 30m

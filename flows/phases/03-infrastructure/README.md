@@ -1,7 +1,7 @@
 # Phase 03 — infrastructure
 
 The first phase that **deploys**: lands the data plane
-(`flows/phases/03-infrastructure/blueprint.yaml`) and converges it against real
+(`repo-blueprint.yaml`, phase `03-infrastructure`) and converges it against real
 providers. Its terraform outputs are published as job-output secrets that
 every later phase consumes.
 

@@ -20,8 +20,11 @@ The phase number is the EXECUTION order — the root scaffold (phase 01,
 historically the "workspace" blueprint) must exist before anything else
 can build or deploy:
 
-Each phase folder is fully self-contained: `README.md` + `workflow.yaml`
-+ its `blueprint.yaml` (the slice it applies).
+Each phase folder carries `README.md` + `workflow.yaml`. What it APPLIES
+lives in one place for the whole baseline: `repo-blueprint.yaml`, which
+declares every phase by the same name as the folder. A phase is a
+selection on that document (`orun new --phase 03-infrastructure`), not a
+document of its own.
 
 | # | folder | lands | verified by |
 |---|--------|-------|-------------|
@@ -115,9 +118,11 @@ The umbrella lays the programme out first — epic + one milestone per
 phase (`00-all`'s `programme` step) — and ends its `verify` with the
 epic's rollup (a landing not yet folded to `done` is a warning naming the
 epic, never a failed bootstrap: the observation drain runs on a cron).
-Each phase folder also carries `task-contract.yaml` (phase 04: one per
-landing) — the contract template `track.sh ensure-task` attaches to the
-landing's task through `orun task create --contract`. `gates: []` is a
+The contract templates live in `tasks/` at the repo root, one per landing
+(`tasks/04-workers.TaskContract.yaml`, `tasks/04-workers-restore.TaskContract.yaml`)
+— attached to the landing's task through `orun task create --contract` by
+`track.sh ensure-task`, and named by `repo-blueprint.yaml`'s own
+`orun.task/ensure@v1` hooks as `contract:`. `gates: []` is a
 declaration: merge alone finishes the task, because the main convergence
 is the gate the flow *watches*, not one the plane observes as a PR check.
 The templates are flow machinery, never product content. The contract
@@ -125,17 +130,25 @@ tests live in `flows/testing/track.test.sh` and `land-pr.test.sh` (a fake
 `orun` and `gh`, bare-repo remotes, no network).
 The whole design: `specs/epics/saas-baseline-tracking/`.
 
-## Where the blueprints live
+## Where the blueprint lives
 
-Each phase folder carries its own `blueprint.yaml` — the slice it applies.
-They are derived from the baseline's monolithic `repo-blueprint.yaml`
-(Cirrus as a Blueprint of itself); regenerate them after editing it:
+There is one: `repo-blueprint.yaml` (Cirrus as a Blueprint of itself). It
+declares all nine phases natively, and a phase run is a selection on it:
 
 ```bash
-python3 tooling/blueprint/split-phases.py repo-blueprint.yaml flows/phases
+orun new --blueprint repo-blueprint.yaml --out <product> --phase 03-infrastructure
 ```
 
-The split prunes cross-phase `dependsOn` edges (ordering becomes the run
-sequence), keeps hooks on the scaffold phase only, and re-bases each
-blueprint's dir source relative to its own folder.
+Nothing is generated and nothing needs regenerating. Until BE1 the eight
+folders each carried a `blueprint.yaml` slice derived by
+`tooling/blueprint/split-phases.py`, and the derivation had to PRUNE every
+cross-phase `dependsOn` edge, because a slice that names a module in
+another slice does not parse.
+
+The prune is what is really gone. orun's phase overlay enforces the same
+barrier by REFUSING a dependency that points forward across it, and a
+refusal and a deletion are not the same thing — the splitter was deleting
+`shared`'s `dependsOn: [bootstrap]`, an edge to a module that does not
+exist and never has, for as long as it ran. A pruned edge to a module in
+no phase looks exactly like a pruned edge to a module in an earlier one.
 
