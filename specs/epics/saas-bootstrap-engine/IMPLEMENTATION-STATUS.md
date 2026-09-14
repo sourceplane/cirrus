@@ -6,7 +6,7 @@ shipped and every place it departed from the spec.
 | Milestone | Status | Landed |
 |---|---|---|
 | **BE1** | ✅ Shipped | `repo-blueprint.yaml` v3: nine native phases, hooks, the slices and the splitter deleted |
-| BE2 | 🗓️ Planned | the narration contract (needs BE-O6 — shipped) |
+| **BE2** | ✅ Shipped | the narration contract: 57 authored lines, every reference conformance-checked |
 | BE3 | 🗓️ Planned | inputs v3, `askedBy` deleted (needs orun-cloud BE-K1) |
 | BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3, BE-O5 ✅, BE-O8 ✅) |
 | BE5 | 🗓️ Planned | CI tiers 0–2 |
@@ -165,3 +165,74 @@ Recorded in `risks-and-open-questions.md` as 7 and 8:
   needs. BE1 verified itself through `--status --json`, which derives without
   probing; BE5 decides whether the CLI grows a way to reach the substitute
   runner seam that already exists.
+
+
+## BE2 — the narration contract
+
+### What shipped
+
+**Fifty-seven authored lines.** Four on every phase (`start`, `await`, `done`,
+`failed`) and twenty-one on the hooks whose completion an operator would want
+to see — the repo being created, each landing, each convergence, each probe.
+
+They are templates over the engine's own state, which BE-O10 made true rather
+than merely declared. A `done` line can say how long it took because `.meta`
+carries `elapsed`; a `start` line can say what to budget because it carries
+`expectedMinutes`; `07-domain` can name the domain it is wiring because
+`.inputs` is in scope. The YAML supplies the prose, the engine supplies the
+numbers, and neither can lie about the other.
+
+An operator reading a cirrus build now sees:
+
+```
+→ 05-edge · Now the API edge — the single front door in front of all twelve services.
+  ⋯ Waiting for the edge to deploy and answer /health on both environments. About 5 minutes.
+  · The edge PR is merged into main.
+  · The edge deployed and the convergence run came back green.
+  · Both /health endpoints answered.
+✓ 05-edge · The edge is live on stage and prod, answering /health. 4m12s.
+```
+
+Every word of that is in `repo-blueprint.yaml`, reviewed in a pull request and
+byte-identical on the next run. That is the whole difference from a model
+paraphrasing a transcript.
+
+### One departure: where the checks live
+
+The plan put the narration checks in `manifest.test.sh`. They are in
+`phases.test.sh` instead, and the reason is the same one that makes them worth
+having: `manifest.test.sh` compares `blueprint*.yaml` — the **console
+manifest** — against the flows that realize it. Narration lives in
+`repo-blueprint.yaml`, which that test does not read. Putting them there would
+have meant opening a second file in a test named after the first.
+
+### Four checks, each proven to fail
+
+`phases.test.sh` grew the conformance rules, and each was verified by breaking
+the real file and watching it fail:
+
+| Rule | What a violation looks like |
+|---|---|
+| Every phase declares all four keys | `phase 06-console declares no narrate.await` |
+| Every `await` hook declares one | `await hook converge declares no narrate — a wait with no words reads as a stalled build` |
+| No state word in prose | `narrate.done asserts 'complete' — state is the truth and narration is the caption` |
+| Every reference resolves | `narrate.done names .inputs.nope, which is not a declared input` |
+
+The fourth is the one with teeth, because it checks against **what the engine
+emits at that moment**, not merely against a list of field names. `.meta`
+carries `files` and `expectedMinutes` on `start`, `await` and `failed`, and
+additionally `elapsed` and `next` on `done` — a phase has not run to a close
+before `done`, so a `start` line naming `elapsed` would render empty at exactly
+the moment it was written for. The test refuses it:
+
+```
+phase 01-scaffold narrate.start names .meta.elapsed;
+the start event carries ['expectedMinutes', 'files']
+```
+
+### Verification
+
+`orun new --status` against the real blueprint parses every line — orun
+refuses an uncompilable narration template and a state word at parse time
+(BE-O10), so a passing `--status` is itself a conformance check. All seven
+contract tests pass.

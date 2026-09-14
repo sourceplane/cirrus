@@ -24,7 +24,7 @@ root="$(cd "$here/../.." && pwd)"
 
 echo "── repo-blueprint.yaml phases against what the bootstrap runs"
 python3 - "$root" <<'PY'
-import pathlib, sys
+import pathlib, re, sys
 
 try:
     import yaml
@@ -129,6 +129,106 @@ for d in sorted((root / "flows" / "phases").glob("*/workflow.yaml")):
         bad(f"flows/phases/{folder} runs, and repo-blueprint.yaml declares no "
             f"phase by that name")
 
+# ── narration: authored here, printed from state (BE2) ────────────────────
+#
+# The plan put these checks in manifest.test.sh. They are here instead, and
+# the reason is the same one that makes the checks worth having: that test
+# compares `blueprint*.yaml` — the CONSOLE manifest — to the flows. Narration
+# lives in `repo-blueprint.yaml`, which manifest.test.sh does not read, so
+# putting the checks there would have meant reading a second file in a test
+# named after the first.
+#
+# What orun's event stream actually carries, which is what a line may name.
+META_AT = {
+    # start/await/failed render against the phase's opening meta …
+    "start": {"files", "expectedMinutes"},
+    "await": {"files", "expectedMinutes"},
+    "failed": {"files", "expectedMinutes"},
+    # … and only `done` has run to a close, so only `done` knows how long it
+    # took or what comes next. A `start` line naming `elapsed` would render
+    # empty at the one moment it was written for.
+    "done": {"files", "expectedMinutes", "elapsed", "next"},
+}
+STATE_WORDS = {"done", "failed", "complete", "completed", "succeeded", "skipped"}
+PHASE_KEYS = {"name", "title"}
+input_keys = set((bp.get("inputs") or {}).keys())
+
+def strip_expressions(line):
+    out, rest = [], line
+    while True:
+        i = rest.find("{{")
+        if i < 0:
+            out.append(rest)
+            return "".join(out)
+        out.append(rest[:i])
+        j = rest.find("}}", i)
+        if j < 0:
+            return "".join(out)
+        rest = rest[j + 2:]
+
+def refs(line):
+    """Every `.a.b` path inside an expression."""
+    found = []
+    for expr in re.findall(r"\{\{(.*?)\}\}", line, re.S):
+        found += re.findall(r"\.([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)", expr)
+    return found
+
+def check_line(where, line, slot, hook_ids):
+    # Rule 2: prose may describe the world, never assert the run's state.
+    prose = strip_expressions(line).lower()
+    for w in STATE_WORDS:
+        if re.search(rf"\b{w}\b", prose):
+            bad(f"{where} asserts {w!r} — `state` is the truth and narration is "
+                f"the caption. Describe the world, not the run.")
+    # Rule 3: every reference resolves against what the engine actually emits.
+    for ref in refs(line):
+        parts = ref.split(".")
+        root = parts[0]
+        if root == "phase":
+            if len(parts) != 2 or parts[1] not in PHASE_KEYS:
+                bad(f"{where} names .{ref}; a phase carries {sorted(PHASE_KEYS)}")
+        elif root == "inputs":
+            if len(parts) != 2 or parts[1] not in input_keys:
+                bad(f"{where} names .{ref}, which is not a declared input")
+        elif root == "meta":
+            allowed = META_AT.get(slot, META_AT["start"])
+            if len(parts) != 2 or parts[1] not in allowed:
+                bad(f"{where} names .{ref}; the {slot} event carries "
+                    f"{sorted(allowed)}")
+        elif root == "hooks":
+            if len(parts) < 2 or parts[1] not in hook_ids:
+                bad(f"{where} names .{ref}; this phase has no hook {parts[1] if len(parts)>1 else '?'!r}")
+        else:
+            bad(f"{where} names .{ref}; narration may reference phase, inputs, "
+                f"meta and hooks")
+
+for p in phases:
+    n = p.get("narrate") or {}
+    ids = {h.get("id") for h in hooks_of(p)}
+    for slot in ("start", "await", "done", "failed"):
+        line = n.get(slot)
+        if not line:
+            bad(f"phase {p['name']} declares no narrate.{slot} — an operator sees "
+                f"a generated line instead of the one this baseline meant")
+            continue
+        check_line(f"phase {p['name']} narrate.{slot}", line, slot, ids)
+
+    # An `await` is the one place an operator is left waiting with nothing
+    # happening on screen, so it is the one place a line is not optional.
+    for h in ((p.get("hooks") or {}).get("await") or []):
+        line = h.get("narrate")
+        if not line:
+            bad(f"phase {p['name']} await hook {h.get('id')} declares no narrate "
+                f"— a wait with no words reads as a stalled build")
+            continue
+        check_line(f"phase {p['name']} hook {h.get('id')} narrate", line, "done", ids)
+
+    for slot in ("pre", "post"):
+        for h in ((p.get("hooks") or {}).get(slot) or []):
+            if h.get("narrate"):
+                check_line(f"phase {p['name']} hook {h.get('id')} narrate",
+                           h["narrate"], "start", ids)
+
 # ── what BE1 deleted stays deleted ────────────────────────────────────────
 if list((root / "flows" / "phases").glob("*/blueprint.yaml")):
     bad("a flows/phases/*/blueprint.yaml is back — there is one blueprint")
@@ -143,8 +243,11 @@ if problems:
     sys.exit(1)
 
 placed = sum(len(p.get("modules") or []) for p in phases)
+narrated = sum(len(p.get("narrate") or {}) for p in phases)
+narrated += sum(1 for p in phases for h in hooks_of(p) if h.get("narrate"))
 print(f"   {len(phases)} phases, {placed} modules, "
       f"{len(HOOK_ONLY)} hook-only — in execution order")
+print(f"   {narrated} authored narration lines, every reference resolving")
 PY
 
 echo "phases.test.sh: ok"
