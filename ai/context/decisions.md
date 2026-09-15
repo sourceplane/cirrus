@@ -71,17 +71,25 @@ where Cirrus diverged the divergence is the entry.
 
 ### Baseline machinery
 
-- The bootstrap is the phased one: `flows/phases/01…08` plus the `00-all`
-  umbrella. The single-run express flow was retired with the fork.
+- **The blueprint is the bootstrap.** There is one artifact,
+  `repo-blueprint.yaml`, and `orun new --phase <name>` is the whole runtime;
+  the phases are `01-scaffold … 08-docs`. The shell layer that used to wrap
+  it was deleted once every one of its mechanisms existed in the binary as a
+  typed action — a bootstrap should not be a program the baseline ships.
+- **Phase state is derived, never stored.** The engine asks the tree which
+  phases are placed. Anything written down would be a cache, and it must
+  always be safe to delete — which is what lets a phase be run alone, months
+  later, from a fresh container.
 - **Products receive product-only content.** The scaffold blueprint ships
-  source, infra, CI, and the product's own docs; `flows/`, `agents/`,
-  `tooling/{rebrand,blueprint,bootstrap,migrations,catalog}`, and the
-  baseline's planning state stay in the baseline. A product's docs speak
-  about the product, not about the factory that made it.
+  source, infra, CI, and the product's own docs; `repo-blueprint.yaml`,
+  `agents/`, `tooling/{rebrand,blueprint,bootstrap,migrations,catalog}`, and
+  the baseline's planning state stay in the baseline. A product's docs speak
+  about the product, not about the factory that made it. `testing/leak.test.sh`
+  gates that promise by deriving what every phase would place.
 - Component catalog docs are generated from `component.yaml`
   (`tooling/catalog/gen-component-docs.mjs --check` fails on drift). Prose
   that is genuinely per-component belongs in `specs/`.
-- Timings in `flows/phases/TIMINGS.md` are labeled by provenance: inherited
+- Timings in `docs/phases/TIMINGS.md` are labeled by provenance: inherited
   measurements from Lumen, or Cirrus estimates awaiting a real run. An
   estimate must never be presented as a measurement.
 

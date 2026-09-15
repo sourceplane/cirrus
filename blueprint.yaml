@@ -102,7 +102,8 @@ spec:
       # declaring it here would be a manifest promising a capability no runner
       # has. It becomes a probe when the action does.
 
-  # ── PREVIEW ONLY. `flows/common/create-secrets.sh` creates these. ────────
+  # ── PREVIEW ONLY. `repo-blueprint.yaml`'s `integrations/reconcile` hooks
+  # mint these, brokered, during phase 03. ────────────────────────────────
   # Transcribed from that script's own table (and its `create` calls), so the
   # conformance test compares this list to the script rather than to a copy of
   # itself. The console renders them read-only: they are minted from the
@@ -123,7 +124,7 @@ spec:
       why: Connection fact, not a secret
       fact: true
 
-  # ── PREVIEW ONLY. `flows/common/track.sh`, driven by the umbrella, creates
+  # ── PREVIEW ONLY. Each phase's `orun.task/ensure@v1` hook opens
   # these. Idempotent by identity — epic by slug, milestone by name-within-epic
   # — so a re-run finds what it made before. The console renders the programme
   # so an operator can see the shape of the work before pressing Build.
@@ -145,8 +146,6 @@ spec:
       - name: 08-docs
 
   bootstrap:
-    umbrella: flows/phases/00-all/workflow.yaml
-    agentBrief: flows/agent/BASELINE-TASK.md
     expectedMinutes: 60
     tokenChannel: ORUN_TOKEN_FILE   # the flows read the runtime's refreshed token
   verify:

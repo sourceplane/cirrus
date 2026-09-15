@@ -9,7 +9,7 @@ shipped and every place it departed from the spec.
 | **BE2** | ✅ Shipped | the narration contract: 57 authored lines, every reference conformance-checked |
 | **BE1a** | ✅ Shipped | the orun floor moved to v2.56.0, and a job that proves the blueprint parses |
 | **BE3** | ✅ Shipped | inputs v3: `askedBy` deleted, every input patterned, `apibaseurl` derived — and two seams the manifest had no gate for |
-| BE4 | 🗓️ Planned | `flows/` deleted — its orun-cloud gate is gone (BE-K1c shipped); open question 10's rename lands in the same commit |
+| **BE4** | ✅ Shipped | `flows/` deleted — 4,971 lines, and the five inputs renamed to the manifest's keys in the same commit (open question 10, answered) |
 | **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
 | **BE5b** | ✅ Shipped | Tier 1 places, brands and runs the phases — and found two orun defects that made a real bootstrap impossible |
 | BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag (its acceptance criterion needs rewriting first: open question 12) |
@@ -592,7 +592,7 @@ two — the same shape as BE1a's version pin. `05-edge` now requires
 sequences a run; `requires` is the gate), and `phases.test.sh` gates the whole
 class so it cannot recur.
 
-### `flows/testing/placement.test.sh`
+### `testing/placement.test.sh`
 
 Tier 1 in full, in about **ten seconds**, offline and with no credential:
 
@@ -628,3 +628,118 @@ Ten contract tests pass against orun **v2.56.2**, the pinned version: `track`,
 `land-pr`, `agent-build`, `phase-vars`, `manifest`, `converge`, `phases`,
 `coverage`, `leak`, `placement`. The new one rides `blueprint-parses`, which
 already installs orun, plus `setup-node` for rebrand.
+
+
+## BE4 — `flows/` deleted
+
+### What shipped
+
+The shell layer is gone: `flows/common/` (eleven scripts), the eight
+`flows/phases/*/workflow.yaml`, `flows/phases/00-all/`, the agent's brief,
+build script and workflow, `flows/AGENT-PROMPT.md`, `flows/README.md`, and
+the five test scripts that tested orun behaviour through fakes
+(`track`, `land-pr`, `converge`, `agent-build`, `phase-vars`) along with the
+`fake-orun` and `fake-gh` doubles. The `tests/flows` component is retired.
+
+Kept, relocated:
+
+| from | to | why |
+|---|---|---|
+| `flows/common/render-deployment-docs.sh` | `hooks/render-deployment-docs.sh` | `08-docs`'s `run:` hook — the renderer is this baseline's own business, not a verb any bootstrap needs |
+| `flows/testing/{manifest,phases,coverage,leak,placement}.test.sh` | `testing/` | the five that test THIS repository's declarations |
+| `flows/testing/provision-workspace.yaml` | `testing/` | throwaway prerequisites for an end-to-end rehearsal |
+| `flows/phases/*/README.md`, `README.md`, `TIMINGS.md` | `docs/phases/*.md` | one page per phase, flat, because there are no folders to hold them |
+
+`docs/phases/00-all.md` has no successor: the umbrella was a workflow that
+invoked eight workflows, and `--resume` is the same thing as a flag. What was
+true in it — why the bootstrap can run unattended, what still needs a human —
+moved into `docs/phases/README.md` and `BOOTSTRAP.md`.
+
+### Open question 10, answered in the same commit
+
+The five inputs were renamed to the manifest's keys: `repoName`→`reponame`,
+`productName`→`productname`, `productDomain`→`productdomain`,
+`apiBaseUrl`→`apibaseurl`, `workersDevSubdomain`→`subdomain` — 55 references
+in `repo-blueprint.yaml`, 40 in `rebrand.mjs`, and the rest across eight more
+files. This had to be the same commit, because the translation table WAS
+`flows/phases/01-scaffold/workflow.yaml`'s `--set` list: delete it alone and
+the console sets the manifest's keys on a blueprint that declares different
+ones, and orun fails closed on all five.
+
+One `workersDevSubdomain` was deliberately left standing:
+`apps/web-console-next/component.yaml`'s. That is an orun *composition
+parameter* — a different namespace with its own contract — and renaming it
+because it shares a spelling with a blueprint input would have broken the
+console's deploy lane to make a grep come back clean.
+
+### What the tests had to become
+
+`manifest.test.sh` compared `blueprint.yaml` against files BE4 deletes: it
+read the umbrella's `--set` lines for milestones and `create-secrets.sh`'s
+`create` calls for secrets. It now reads `repo-blueprint.yaml`'s own hooks —
+`orun.integrations/reconcile@v1` for the secret keys, `orun.task/ensure@v1`
+for the milestones — which is a better test than the one it replaced, because
+the manifest is now checked against the thing that actually runs rather than
+against a script that described it. It also **refuses** `spec.bootstrap.umbrella`
+and `spec.bootstrap.agentBrief` if either reappears: orun-cloud BE-K1c made
+them optional, and this side makes them absent.
+
+`phases.test.sh` lost its "every phase folder under `flows/` has a phase
+declared here" check, which BE4 made vacuous, and gained its successor: every
+phase has a page under `docs/phases/`, and every page a phase.
+`04-workers-restore` is covered by `04-workers.md` by declaration, because the
+two landings are one story. Its "what BE1 deleted stays deleted" guard now
+also refuses `flows/` itself.
+
+`coverage.test.sh`'s `BASELINE_ONLY` exemption map is **empty**, and that is
+BE4's own result: its one entry was `tests/flows`, exempt because it tested
+`flows/`. The mechanism stays — the check refuses an exemption whose directory
+is absent, so a stale entry cannot linger, and the next baseline-only
+directory should have to be argued for in a diff.
+
+The two leak gates gained three entries they should always have had.
+`testing/` and `hooks/` are directories BE4 itself created, and `docs/phases/`
+is where the phase docs landed — all three are the factory, and nothing
+gated them. (`blueprint.yaml` was missing from the list too.)
+
+### The documentation is the contract change
+
+`BOOTSTRAP.md` and `docs/phases/README.md` are rewritten around
+`orun new --blueprint repo-blueprint.yaml --phase <name>` / `--resume` /
+`--status`. The per-phase remote references — `orun workflow run
+github:sourceplane/cirrus@<ref>//flows/phases/NN/workflow.yaml` — have no
+successor and were never going to: one pinned artifact, selected with a flag.
+Open question 4 anticipated this and asked for it in the release notes of the
+tag that carries BE4; `BOOTSTRAP.md` carries the note inline as well, because
+an operator with the old command in their shell history reads the file, not
+the release.
+
+Nine documents that described the shell layer as current now describe the
+blueprint: `README.md`, the four `ai/context/` files, `ai/context/operations.md`
+(whose `OPSFLOWS` placeholder ships to every product), and the ten phase
+pages. The epic's own specs still name `flows/` throughout and deliberately
+so — they are the record of the migration, and a plan that stopped naming what
+it deleted would be a worse plan.
+
+### One thing that got worse, and is recorded rather than hidden
+
+The umbrella ran `create-secrets.sh` at about minute two as a deliberate
+write-probe, so a builder/viewer API key failed there with the
+re-mint-as-admin hint instead of thirty minutes later. The blueprint has no
+equivalent: the first credential write is now `03-infrastructure`'s reconcile.
+The failure is still exact and still actionable, but it costs an operator two
+phases and a repo creation first. `docs/phases/README.md` says so in its
+prerequisites, and it is open question 14.
+
+### Verification
+
+Five contract tests pass against orun **v2.56.2**, the pinned version:
+`manifest`, `phases`, `coverage`, `leak`, `placement`. The count went from ten
+to five because the other five tested orun's own behaviour through a fake
+`orun` and a fake `gh` — `track`, `land-pr`, `converge`, `agent-build`,
+`phase-vars` — and those verbs are typed actions now, testable beside their
+implementations rather than through a double.
+
+`placement.test.sh` is the one that matters here: it places all 1085 files,
+brands them, and runs `01 → 07` phase by phase through the rebrand against the
+renamed inputs. A rename that missed a reference would fail it.
