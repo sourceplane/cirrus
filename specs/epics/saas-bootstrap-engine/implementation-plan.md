@@ -145,8 +145,14 @@ the files a product should actually carry.
   cross-session resume from a deleted working directory.
 - Per-phase wall clock written back into `docs/phases/TIMINGS.md` (relocated
   by BE4) as a committed artifact of the run.
-- `always()` teardown: retire the workspace, delete the repo, revoke the
-  brokered secrets.
+- `always()` teardown: delete the repo, revoke the brokered secrets, and
+  **destroy the Cloudflare resources the run created** — which the original
+  entry did not list and which is the only part of teardown that costs money
+  if it is missing (open question 18: ~30 paid resources per run, and orun
+  has no `destroy` verb). Not "retire the workspace": there is no verb for
+  that either, so tier 3 reuses ONE rehearsal workspace instead of creating
+  one per run (open question 17), which also exercises the adoption and
+  idempotence paths a fresh tenant never would.
 - Triggers: nightly on `main`, `e2e` label on a PR, and a **required check on
   the tag workflow** so no `baseline-vN` is cut from an unproven tree.
 
