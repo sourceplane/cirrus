@@ -42,7 +42,12 @@ if not phases:
 
 # What the eight slices placed, before they were deleted.
 WAS = {
-    "01-scaffold": ["ai-context", "github-workflows", "rebrand-values", "root-gitignore",
+    # `ai-context` became `ai-deployment` + `ai-operations` in BE5: the module
+    # used to copy the whole of ai/context/, which carried this repository's own
+    # planning state and its Lumen provenance into every product. The partition
+    # below is the pre-migration truth for everything else; this one line is a
+    # deliberate, argued change and is recorded as such.
+    "01-scaffold": ["ai-deployment", "ai-operations", "github-workflows", "rebrand-values", "root-gitignore",
                     "root-intent", "root-kiox", "root-kiox-lock", "root-package-json",
                     "root-pnpm-lock", "root-pnpm-workspace", "root-readme", "root-turbo",
                     "tooling-eslint", "tooling-tsconfig", "tooling-wire", "vscode"],
