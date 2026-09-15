@@ -19,36 +19,36 @@ metadata:
 # state backend, `sourceplane.io` apiVersion, company mailboxes) is intentionally
 # NOT an input — rebrand.mjs protects it.
 inputs:
-  repoName:
+  reponame:
     type: string
     pattern: "^[a-z][a-z0-9-]*$"
     required: true
     description: Repo slug (e.g. acme-cloud) — intent metadata.name, D1 database names, worker resource prefixes.
-  productName:
+  productname:
     type: string
     required: true
     description: Human display name (e.g. "Acme Cloud").
-  productDomain:
+  productdomain:
     type: string
     required: true
     description: Product domain (e.g. acme.dev) — BASE_DOMAIN, console custom domains, OAuth origins.
   pascalName:
     type: string
     default: ""
-    description: SDK class identifier (default derived from productName by rebrand.mjs).
+    description: SDK class identifier (default derived from productname by rebrand.mjs).
   brandSlug:
     type: string
     default: ""
-    description: Cloudflare worker resource prefix (default repoName).
+    description: Cloudflare worker resource prefix (default reponame).
   cliBin:
     type: string
     default: ""
-    description: CLI binary name + env-var prefix source (default repoName).
-  apiBaseUrl:
+    description: CLI binary name + env-var prefix source (default reponame).
+  apibaseurl:
     type: string
     default: ""
-    description: CLI default API base (default https://api.<productDomain>).
-  workersDevSubdomain:
+    description: CLI default API base (default https://api.<productdomain>).
+  subdomain:
     type: string
     default: "your-workers-subdomain"
     description: workers.dev subdomain for app-config seams.
@@ -67,7 +67,7 @@ inputs:
       that fails loudly rather than silently cross-tenanting.
   # ── BE1: the three facts the phases below need and the flows used to hold.
   # They were workflow inputs (`githuborg`, `epicslug`, `domain` on
-  # flows/phases/*/workflow.yaml), which made them invisible to anything
+  # the flows' per-phase workflow.yaml), which made them invisible to anything
   # reading this file — including the console that has to render a form.
   githubOrg:
     type: string
@@ -550,7 +550,7 @@ modules:
   #    orun's repo-scale gate — and later `orun plan` in the product's own CI —
   #    discovers apps/, infra/, packages/ and tests/, which by design are empty
   #    until later phases fill them. A missing root is a hard gate failure, so
-  #    `flows/phases/01-scaffold/workflow.yaml` created them with a mkdir and a
+  #    the scaffold flow created them with a mkdir and a
   #    touch immediately before calling `orun new`. That is a file the tree
   #    needs in order to be valid, which is what a module is for: shell that
   #    creates a required file is a module nobody wrote down.
@@ -577,14 +577,14 @@ modules:
     files:
       ".rebrand/values.json": |
         {
-          "repoName": "{{ .repoName }}",
-          "productName": "{{ .productName }}",
-          "productDomain": "{{ .productDomain }}"{{ if .pascalName }},
+          "reponame": "{{ .reponame }}",
+          "productname": "{{ .productname }}",
+          "productdomain": "{{ .productdomain }}"{{ if .pascalName }},
           "pascalName": "{{ .pascalName }}"{{ end }}{{ if .brandSlug }},
           "brandSlug": "{{ .brandSlug }}"{{ end }}{{ if .cliBin }},
-          "cliBin": "{{ .cliBin }}"{{ end }}{{ if .apiBaseUrl }},
-          "apiBaseUrl": "{{ .apiBaseUrl }}"{{ end }},
-          "workersDevSubdomain": "{{ .workersDevSubdomain }}"{{ if .salesEmail }},
+          "cliBin": "{{ .cliBin }}"{{ end }}{{ if .apibaseurl }},
+          "apibaseurl": "{{ .apibaseurl }}"{{ end }},
+          "subdomain": "{{ .subdomain }}"{{ if .salesEmail }},
           "salesEmail": "{{ .salesEmail }}"{{ end }},
           "orunWorkspace": "{{ .orunWorkspace }}",
           "githubOrg": "{{ .githubOrg }}",
@@ -629,7 +629,7 @@ phases:
     narrate:
       start:  "Creating the repository and writing its foundations — intent, CI, tooling, and the identity every later phase reads back. About {{ .meta.expectedMinutes }} minutes."
       await:  "Waiting for the first push to settle on main."
-      done:   "{{ .inputs.repoName }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productName }}. That took {{ .meta.elapsed }}."
+      done:   "{{ .inputs.reponame }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productname }}. That took {{ .meta.elapsed }}."
       failed: "The repository did not get off the ground. The log above says where it stopped."
     modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
     hooks:
@@ -694,10 +694,10 @@ phases:
         # The repo has to exist before there is anywhere to land.
         - id: repo
           uses: orun.repo/ensure@v1
-          narrate: "The repository exists at {{ .inputs.githubOrg }}/{{ .inputs.repoName }}."
+          narrate: "The repository exists at {{ .inputs.githubOrg }}/{{ .inputs.reponame }}."
           with:
             owner: "{{ .inputs.githubOrg }}"
-            name: "{{ .inputs.repoName }}"
+            name: "{{ .inputs.reponame }}"
             private: true
         - id: land
           uses: orun.pr/land@v1
@@ -746,7 +746,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The convergence run for {{ .phase.name }} came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   - name: 03-infrastructure
@@ -760,7 +760,7 @@ phases:
     modules: [cloudflare-d1, cloudflare-kv, db-migrate]
     # The first phase that DEPLOYS. `requires.probe` asks reality the question
     # a lock file cannot answer: are the two provider connections live right
-    # now? `flows/phases/04-workers/README.md` carries the same knowledge as
+    # now? `docs/phases/04-workers.md` carries the same knowledge as
     # prose — "Lane fails resolving WIRING_*: phase 03 incomplete" — and prose
     # cannot gate anything.
     requires:
@@ -825,7 +825,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Terraform applied and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.secrets/exists@v1
@@ -887,7 +887,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Twelve workers deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   # The second pass, and a phase of its own rather than more hooks on the
@@ -936,7 +936,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The four workers redeployed with their bindings."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 2
 
   - name: 05-edge
@@ -989,15 +989,15 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The edge deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
           narrate: "Both /health endpoints answered."
           with:
             urls:
-              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-api-edge-stage.{{ .inputs.subdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-api-edge-prod.{{ .inputs.subdomain }}.workers.dev/health"
 
   - name: 06-console
     title: The web console
@@ -1036,17 +1036,17 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The console deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
           narrate: "Every console and edge URL answered."
           with:
             urls:
-              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-              - "https://{{ .inputs.repoName }}-web-console-next-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
-              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-              - "https://{{ .inputs.repoName }}-web-console-next-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.reponame }}-api-edge-stage.{{ .inputs.subdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-web-console-next-stage.{{ .inputs.subdomain }}.workers.dev"
+              - "https://{{ .inputs.reponame }}-api-edge-prod.{{ .inputs.subdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-web-console-next-prod.{{ .inputs.subdomain }}.workers.dev"
 
   # cloudflare-domain trails the console because it wires the DEPLOYED
   # console's custom domain. `when:` is the condition the umbrella carried as
@@ -1056,10 +1056,10 @@ phases:
     title: The custom domain
     expectedMinutes: 5
     narrate:
-      start:  "Now wiring {{ .inputs.productDomain }} — DNS records and custom domains in front of the edge and the console."
+      start:  "Now wiring {{ .inputs.productdomain }} — DNS records and custom domains in front of the edge and the console."
       await:  "Waiting for Cloudflare to attach the custom domains."
-      done:   "{{ .inputs.productDomain }} resolves to the console, and api.{{ .inputs.productDomain }} to the edge."
-      failed: "The domain did not attach. Check that the zone for {{ .inputs.productDomain }} exists in this Cloudflare account."
+      done:   "{{ .inputs.productdomain }} resolves to the console, and api.{{ .inputs.productdomain }} to the edge."
+      failed: "The domain did not attach. Check that the zone for {{ .inputs.productdomain }} exists in this Cloudflare account."
     modules: [cloudflare-domain]
     when: inputs.domain
     requires:
@@ -1089,7 +1089,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Cloudflare applied the DNS and custom-domain records."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   # Places nothing. It records what the other phases built, from PROBED facts
@@ -1119,7 +1119,7 @@ phases:
             contract: tasks/08-docs.TaskContract.yaml
       post:
         - id: render
-          run: ["bash", "{{ .baseline.dir }}/flows/common/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
+          run: ["bash", "{{ .baseline.dir }}/hooks/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The deployment record is merged into main."
@@ -1134,7 +1134,7 @@ phases:
           narrate: "Every live URL answered on the final probe."
           with:
             urls:
-              - "https://{{ .inputs.repoName }}-api-edge-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-              - "https://{{ .inputs.repoName }}-web-console-next-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
-              - "https://{{ .inputs.repoName }}-api-edge-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-              - "https://{{ .inputs.repoName }}-web-console-next-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.reponame }}-api-edge-stage.{{ .inputs.subdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-web-console-next-stage.{{ .inputs.subdomain }}.workers.dev"
+              - "https://{{ .inputs.reponame }}-api-edge-prod.{{ .inputs.subdomain }}.workers.dev/health"
+              - "https://{{ .inputs.reponame }}-web-console-next-prod.{{ .inputs.subdomain }}.workers.dev"

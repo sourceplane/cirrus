@@ -9,13 +9,14 @@ with a note when mitigated.
 
 ### Not yet exercised end to end
 
-- **No full Cirrus bootstrap has been run.** The phase workflows are
-  inherited from Lumen, where they are proven; what is unproven here is phase
-  03 against D1 and the `d1-edit` token path. The first real bootstrap should
-  be treated as a test, watched, and its timings written back into
-  `flows/phases/TIMINGS.md`.
+- **No full Cirrus bootstrap has been run.** The phase sequence is inherited
+  from Lumen, where it is proven; what is unproven here is `03-infrastructure`
+  against D1 and the `d1-edit` token path. The first real bootstrap should be
+  treated as a test, watched, and its timings written back into
+  `docs/phases/TIMINGS.md`.
 - **The `d1-edit` scope template must exist in the platform's Cloudflare
-  integration** for `create-secrets.sh` to mint `CLOUDFLARE_D1_TOKEN`. If the
+  integration** for `03-infrastructure`'s `orun.integrations/reconcile@v1`
+  hook to mint `CLOUDFLARE_D1_TOKEN`. If the
   connected account's parent token lacks D1 Write, the mint is refused with
   `parent_grant_insufficient` — the operator must re-issue the Cloudflare
   token with that permission group and re-connect.
