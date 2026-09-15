@@ -77,11 +77,13 @@ in prose, and BC's `askedConsoleInputs()` returns the whole set.
 
 **Scope.** The deletion, once every replacement is live.
 
-> **Not landable from this repository alone.** `spec.bootstrap.umbrella` and
-> `spec.bootstrap.agentBrief` name the two files BE4 deletes, and orun-cloud's
-> manifest parser requires both — so the tag carrying BE4 would be a manifest
-> the console refuses to read. Open question 11; the orun-cloud change lands
-> first.
+> **The cross-repo half is done.** `spec.bootstrap.umbrella` and
+> `spec.bootstrap.agentBrief` named the two files BE4 deletes, and orun-cloud
+> both required them in the manifest and *fetched* them in its catalog
+> preflight — so the tag carrying BE4 would have been refused twice over.
+> orun-cloud **BE-K1c** shipped both halves. What remains is this repository's
+> own: open question 10's input-key rename, in the same commit that deletes the
+> translation table.
 
 - Delete `flows/common/` (eleven scripts), the eight `flows/phases/*/workflow.yaml`,
   `flows/phases/00-all/`, `flows/agent/BASELINE-TASK.md`, `flows/agent/build.sh`,
@@ -144,5 +146,5 @@ on that commit, and `TIMINGS.md` carries measurements rather than estimates.
 | BE2 | orun **BE-O6** (event stream + `--progress`) | narration has nowhere to be printed |
 | BE3 | orun-cloud **BE-K1** (manifest v3 parser) | the console must accept the new input fields before the baseline declares them |
 | BE4 | orun **BE-O5** (remaining actions), **BE-O8** (`Hook.Workflow` deleted) | the deletion rule above |
-| BE4 | orun-cloud: `spec.bootstrap.umbrella` and `agentBrief` must stop being REQUIRED | BE4 deletes both files, and the manifest parser refuses a manifest without them — and refuses an unknown key in their place. See open question 11 |
+| BE4 | orun-cloud **BE-K1c** ✅ | `spec.bootstrap.umbrella` and `agentBrief` had to stop being required, and the catalog preflight had to stop fetching them, before a tag without those files could be registered at all. Both shipped; see open question 11 |
 | BE6 | orun **BE-O7** (`orun baseline`) | the run command does not exist yet |
