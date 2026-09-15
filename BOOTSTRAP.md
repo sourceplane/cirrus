@@ -190,6 +190,49 @@ every phase's state and is the flag for that.
 - **Incremental rollouts**: normal PRs — merges to `main` converge
   automatically.
 
+## 4. Cutting a baseline tag (maintainers)
+
+Every product built from this repository resolves a `baseline-vN` tag. One cut
+from a commit whose tier-3 rehearsal never ran publishes a bootstrap nobody has
+watched work, to people who find out an hour in — so the tag is cut by a
+workflow rather than by hand:
+
+```bash
+gh workflow run tag.yml -f version=baseline-v25          # from main
+gh workflow run tag.yml -f version=baseline-v25 -f ref=<sha>
+```
+
+It refuses unless the commit has a **green run of the Rehearsal workflow on
+that exact sha**. If it refuses, the fix is to prove the commit rather than to
+go around it:
+
+```bash
+gh workflow run rehearsal.yml --ref <sha>   # ~60 minutes, tier 3
+```
+
+The rule is `testing/tag-gate.sh` — a script, so it can be run before you need
+it, and tested (`testing/tag-gate.test.sh`) against a fake API. It distinguishes
+three answers on purpose: proven, **unproven** (run the rehearsal), and
+**unanswerable** (the API could not be asked, which is not the same thing and
+needs a different fix).
+
+### The half no file in this repository can enforce
+
+A workflow cannot refuse a tag push. A tag is created and *then* the event
+fires, and GitHub's required status checks apply to branches, not tags. So
+there are two layers, and only one of them is a gate:
+
+| | |
+|---|---|
+| `tag.yml` → `cut` | **The gate.** Verifies, then creates. An unproven tag cannot be cut this way. |
+| `tag.yml` → `verify` | **The alarm.** Runs on `push: tags: baseline-v*` and goes red if the commit was never proven. It cannot undo the tag. |
+
+Making the refusal binding needs one repository setting: a **ruleset on tag
+`baseline-v*` with "Restrict creations"**, leaving the workflow's token the only
+creator. Until that is set, `cut` is the paved road and `verify` is the alarm —
+which is written here rather than left implied, because a gate that quietly is
+not one is worse than a gate that says what it is.
+
 ## Troubleshooting (everything we hit doing this for real)
 
 | Symptom | Cause → fix |

@@ -112,6 +112,44 @@ for comp in BASELINE_ONLY:
     if not (root / comp).exists():
         bad(f"{comp} is declared baseline-only and does not exist — drop the entry")
 
+# ── WHAT `ignore` ACTUALLY EXCLUDES (BE6) ──────────────────────────────────
+#
+# orun matches an ignore entry two ways, and WHICH ONE depends on the entry:
+# a pattern containing no glob metacharacter is compared against each path
+# SEGMENT, and only a pattern containing one is compared against the whole
+# relative path. So `apps/admin-worker/wrangler.jsonc` matches nothing at all —
+# no segment is ever equal to it — and the entry is INERT while reading exactly
+# like a rule.
+#
+# That was not hypothetical. Twelve such entries were inert in this file's own
+# blueprint, and a canary written to `apps/admin-worker/wrangler.jsonc` was
+# placed straight into a product — which is the leak their comment says they
+# exist to prevent. An `ignore` list that silently does nothing is worse than
+# no list, because the comment above it reads as a defence.
+for entry in bp.get("ignore") or []:
+    if "/" in entry and not any(c in entry for c in "*?["):
+        bad(f'ignore entry "{entry}" names a path and has no glob character, so orun '
+            f'matches it against path SEGMENTS and it excludes nothing. Write it as '
+            f'"**/{entry}".')
+
+# A workflow that runs the FACTORY must not ship to the factory's products.
+# `github-workflows` copies the whole `.github` directory, so a lane added for
+# this repository travels to every product built from it — and one that reads a
+# path under `testing/` cannot work there, because `testing/` is not placed.
+# rehearsal.yml did exactly this: shipped, on a nightly cron, reading an intent
+# file no product has.
+ignored = set(bp.get("ignore") or [])
+workflows = sorted((root / ".github" / "workflows").glob("*.y*ml"))
+for wf in workflows:
+    text = wf.read_text(encoding="utf-8")
+    if "testing/" not in text:
+        continue
+    rel = f".github/workflows/{wf.name}"
+    if f"**/{rel}" not in ignored and rel not in ignored:
+        bad(f"{rel} reads a path under testing/, which no product is placed with, "
+            f"and is not in the blueprint's ignore list — so it ships into every "
+            f'product and fails there. Add "**/{rel}" to ignore.')
+
 if problems:
     print("FAIL: the blueprint and this repository disagree about what a product is:",
           file=sys.stderr)
