@@ -12,7 +12,9 @@
 # more paths, the brief and the umbrella, until BE4 deleted the layer they
 # named. This baseline is blueprint-driven: `spec.bootstrap` declares neither,
 # and the row that fetches this file declares neither either — orun-cloud
-# BE-K1d. Both are still the registry's for a baseline that has them.) That is why there is no `tag` here: this file is fetched *at* the tag
+# BE-K1d. Both are still the registry's for a baseline that has them.)
+#
+# That is why there is no `tag` here: this file is fetched *at* the tag
 # the registry pins, so a tag here could only ever be a second, rotting copy —
 # as it was, reading `baseline-v1` against a live `baseline-v4` for three
 # releases before anything noticed.
@@ -107,9 +109,11 @@ spec:
 
   # ── PREVIEW ONLY. `repo-blueprint.yaml`'s `integrations/reconcile` hooks
   # mint these, brokered, during phase 03. ────────────────────────────────
-  # Transcribed from that script's own table (and its `create` calls), so the
-  # conformance test compares this list to the script rather than to a copy of
-  # itself. The console renders them read-only: they are minted from the
+  # Transcribed from those hooks' own `keys:` and `template:` values, so
+  # `testing/manifest.test.sh` compares this list to the document that mints
+  # them rather than to a copy of itself — it used to compare against a shell
+  # script's `create` calls, and BE4 deleted the script, not the check.
+  # The console renders them read-only: they are minted from the
   # workspace's connections at build time, so no credential is ever typed,
   # shown or stored in the console. Keys that already exist are kept.
   secrets:
@@ -151,7 +155,7 @@ spec:
 
   bootstrap:
     expectedMinutes: 60
-    tokenChannel: ORUN_TOKEN_FILE   # where a runner hands the bootstrap its refreshed token
+    tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
     urls:
       - "https://{reponame}-api-edge-{env}.{subdomain}.workers.dev/health"
