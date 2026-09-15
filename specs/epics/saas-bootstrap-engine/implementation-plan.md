@@ -77,6 +77,12 @@ in prose, and BC's `askedConsoleInputs()` returns the whole set.
 
 **Scope.** The deletion, once every replacement is live.
 
+> **Not landable from this repository alone.** `spec.bootstrap.umbrella` and
+> `spec.bootstrap.agentBrief` name the two files BE4 deletes, and orun-cloud's
+> manifest parser requires both — so the tag carrying BE4 would be a manifest
+> the console refuses to read. Open question 11; the orun-cloud change lands
+> first.
+
 - Delete `flows/common/` (eleven scripts), the eight `flows/phases/*/workflow.yaml`,
   `flows/phases/00-all/`, `flows/agent/BASELINE-TASK.md`, `flows/agent/build.sh`,
   `flows/agent/workflow.yaml`, `flows/AGENT-PROMPT.md`.
@@ -138,4 +144,5 @@ on that commit, and `TIMINGS.md` carries measurements rather than estimates.
 | BE2 | orun **BE-O6** (event stream + `--progress`) | narration has nowhere to be printed |
 | BE3 | orun-cloud **BE-K1** (manifest v3 parser) | the console must accept the new input fields before the baseline declares them |
 | BE4 | orun **BE-O5** (remaining actions), **BE-O8** (`Hook.Workflow` deleted) | the deletion rule above |
+| BE4 | orun-cloud: `spec.bootstrap.umbrella` and `agentBrief` must stop being REQUIRED | BE4 deletes both files, and the manifest parser refuses a manifest without them — and refuses an unknown key in their place. See open question 11 |
 | BE6 | orun **BE-O7** (`orun baseline`) | the run command does not exist yet |
