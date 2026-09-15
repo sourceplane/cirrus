@@ -1,0 +1,23 @@
+{
+  "name": "@site/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ids": "./src/ids.ts",
+    "./errors": "./src/errors.ts",
+    "./crypto": "./src/crypto.ts",
+    "./tokens": "./src/tokens.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@site/eslint-config": "workspace:*",
+    "@site/tsconfig": "workspace:*",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,62 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: mail-worker
+  description: Cloudflare Worker for transactional mail and newsletter broadcasts (internal, service-bound)
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: site-runtime
+  path: apps/mail-worker
+  dependsOn:
+    - component: cloudflare-d1
+    - component: db-migrate
+  secretEnv:
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/virga/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/virga/prod/WIRING_CLOUDFLARE_D1"
+
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    orgName: sourceplane
+    owner: sourceplane
+    repo: virga
+
+    turboFilter: "@site/mail-worker"
+    wranglerConfig: wrangler.jsonc
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: "cloudflare-d1"
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@site/mail-worker
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@site/mail-worker
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'Migrations run through the db-migrate component.'"
+    smokeCommand: "echo 'Internal-only worker; no public smoke endpoint.'"
+  labels:
+    team: platform
+    layer: runtime
+    surface: mail
+    runtime: cloudflare
