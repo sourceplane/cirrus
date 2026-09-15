@@ -12,7 +12,10 @@ shipped and every place it departed from the spec.
 | **BE4** | ✅ Shipped | `flows/` deleted — 4,971 lines, and the five inputs renamed to the manifest's keys in the same commit (open question 10, answered) |
 | **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
 | **BE5b** | ✅ Shipped | Tier 1 places, brands and runs the phases — and found two orun defects that made a real bootstrap impossible |
-| BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag (its acceptance criterion needs rewriting first: open question 12) |
+| **BE4c** | ✅ Shipped | this baseline names the document a runner places (`spec.bootstrap.blueprint`) |
+| **BE6a** | ✅ Shipped | the teardown, before the lane that needs it — workers, D1 and KV by validated prefix |
+| **BE6b** | ✅ Shipped | the rehearsal is a component, with a stack this repo keeps |
+| BE6 | 🟡 Partial | the tag gate shipped; the live rehearsal itself needs credentials this repository deliberately does not hold |
 
 ## BE1 — `repo-blueprint.yaml` v3: native phases
 
@@ -743,3 +746,61 @@ implementations rather than through a double.
 `placement.test.sh` is the one that matters here: it places all 1085 files,
 brands them, and runs `01 → 07` phase by phase through the rebrand against the
 renamed inputs. A rename that missed a reference would fail it.
+
+## BE6 — the tag gate, and the half that is not code
+
+### What shipped
+
+`testing/tag-gate.sh` answers one question about one commit — *is there a
+SUCCESSFUL Rehearsal run on exactly this sha* — and `.github/workflows/tag.yml`
+is the door that asks it before creating a tag. A `baseline-vN` tag is what
+every product built from this repository resolves; one cut from a commit whose
+tier-3 rehearsal never ran publishes a bootstrap nobody has watched work, to
+people who find out an hour in.
+
+**Three answers, kept distinct**, because they need three different things done
+about them: proven, UNPROVEN (run the rehearsal), and UNANSWERABLE (the API
+could not be asked). The third is the one a gate gets wrong — an API error that
+reads as "unproven" sends somebody to re-run a rehearsal that already passed;
+one that reads as "proven" cuts the tag the file exists to stop.
+
+**What it can and cannot enforce**, said plainly rather than implied. A
+workflow cannot refuse a tag push: a tag is created and THEN the event fires,
+and required status checks apply to branches, not tags. So `cut` is the gate
+and `verify` (on `push: tags`) is the alarm, and making the refusal BINDING
+needs one repository setting no file here can make — a ruleset on `baseline-v*`
+with "Restrict creations". A gate that quietly is not one is worse than a gate
+that says what it is.
+
+### And then the gate found what it was written to find
+
+`repo-blueprint.yaml`'s `github-workflows` module copies the WHOLE `.github`
+directory, so anything added there travels into every product. Three things
+were travelling, each verified by placing a real product rather than by
+reading: every path-shaped `ignore` entry was INERT (orun matches an entry with
+no glob metacharacter against each path SEGMENT), and both `rehearsal.yml`'s
+nightly cron and `ci.yml`'s factory jobs were shipping into customer products.
+
+### The half that is not code, and is not this repository's to finish
+
+**Done when** a `baseline-vN` tag cannot be pushed without a green tier-3 run
+on that commit, and `TIMINGS.md` carries measurements rather than estimates.
+The first clause is now enforced as far as a file can enforce it. The second
+exists only after a real ~60-minute bootstrap against a real Cloudflare
+account, and that needs two credentials this repository deliberately does not
+hold (open question 16) — a rehearsal workspace and a Cloudflare account, with
+`secret://lumen/cirrus-rehearsal/rehearsal/…` and the `ORUN_REHEARSAL_WORKSPACE`
+repository variable set.
+
+Until the first green nightly, `TIMINGS.md` keeps saying its numbers are
+estimates rather than being quietly blessed by a workflow that exists.
+
+### What is waiting on the same thing
+
+`baseline-v6`. This baseline's registry row still pins `baseline-v5`, whose
+`blueprint.yaml` the platform's parser REJECTS — orun-cloud BE-K4b measured it,
+and all five registered baselines fail the same way: BE-K1 made `pattern`
+required on every input and no baseline has re-cut since. HEAD's
+`blueprint.yaml` parses (five inputs, all patterned; eight milestones), so a
+`baseline-v6` fixes the row — and cutting one goes through the gate above,
+which is waiting on the rehearsal.
