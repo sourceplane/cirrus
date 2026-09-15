@@ -41,11 +41,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Contract tests (track, land-pr, agent-build, phase-vars, manifest, converge, phases)
+      - name: Contract tests (track, land-pr, agent-build, phase-vars, manifest, converge, phases, coverage)
         run: |
           set -euo pipefail
           python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
-          for t in track land-pr agent-build phase-vars manifest converge phases; do
+          for t in track land-pr agent-build phase-vars manifest converge phases coverage; do
             echo "── $t"
             bash "flows/testing/$t.test.sh"
           done
@@ -90,6 +90,11 @@ jobs:
             --set "productName=Acme Cloud" \
             --set productDomain=acme.dev \
             --set githubOrg=acme-inc
+      # Tier 1's leak gate. It derives what every phase WOULD place and gates
+      # that set — so it needs orun, which is why it rides this job rather than
+      # the bash-only one above.
+      - name: the leak gate — what a product carries
+        run: bash flows/testing/leak.test.sh
 
   plan:
     runs-on: ubuntu-latest

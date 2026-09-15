@@ -458,11 +458,34 @@ modules:
     to: tooling/wire
   # The product's own context pack (operating contract + live-deployment
   # manifest), not the baseline's planning state.
-  - name: ai-context
+  # ── The product's own context pack, FILE BY FILE (BE5's leak gate).
+  #
+  # This was `from: ai/context` — the whole directory — and the directory holds
+  # this repository's own planning state. Every product shipped with cirrus's
+  # `current.md`, `decisions.md` and `open-risks.md`, and with
+  # `fork-from-baseline.md`, which opens:
+  #
+  #     # Provenance — Cirrus from the Lumen baseline
+  #
+  # After rebrand that becomes a sentence about the CUSTOMER's product, saying
+  # it was forked from Lumen at a commit the customer has never seen. Not a
+  # leak of a secret — a leak of a false statement, written in the product's
+  # own voice, in the file an agent is pointed at first.
+  #
+  # There is no file list on a copy module, so one module per file. That is the
+  # feature, not the workaround: adding a file to `ai/context/` can no longer
+  # ship it by accident, because shipping it means writing a module and saying
+  # in a diff that a product should have it.
+  - name: ai-deployment
     mode: copy
     source: baseline
-    from: ai/context
-    to: ai/context
+    from: ai/context/deployment.md
+    to: ai/context/deployment.md
+  - name: ai-operations
+    mode: copy
+    source: baseline
+    from: ai/context/operations.md
+    to: ai/context/operations.md
   - name: github-workflows
     mode: copy
     source: baseline
@@ -608,7 +631,7 @@ phases:
       await:  "Waiting for the first push to settle on main."
       done:   "{{ .inputs.repoName }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productName }}. That took {{ .meta.elapsed }}."
       failed: "The repository did not get off the ground. The log above says where it stopped."
-    modules: [ai-context, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
+    modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
     hooks:
       pre:
         - id: task

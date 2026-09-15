@@ -10,7 +10,8 @@ shipped and every place it departed from the spec.
 | **BE1a** | ✅ Shipped | the orun floor moved to v2.56.0, and a job that proves the blueprint parses |
 | BE3 | 🗓️ Planned | inputs v3, `askedBy` deleted (needs orun-cloud BE-K1) |
 | BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3, BE-O5 ✅, BE-O8 ✅) |
-| BE5 | 🗓️ Planned | CI tiers 0–2 |
+| **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
+| BE5b | 🗓️ Planned | Tier 1's placement half (needs orun BE-O11) and Tier 2 |
 | BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag |
 
 ## BE1 — `repo-blueprint.yaml` v3: native phases
@@ -313,3 +314,96 @@ not the network — so it needs no credential and no workspace.
 This is the first check of BE5's Tier 0, brought forward because its absence is
 what let the regression through. Run against `main` before this change, it
 fails at the first line.
+
+
+## BE5a — the coverage gate, and the leak the epic named
+
+### The coverage gate (Tier 0)
+
+`repo-blueprint.yaml` decides what a product is made of. A component that no
+module names is simply not in the product — and nothing said so. The failure is
+quiet and late: the fork builds, its CI goes green, and the missing piece
+surfaces when somebody looks for a worker that was never copied.
+
+orun enforces the other half already — every module in exactly one phase, and a
+`dependsOn` naming an unknown module is a parse error. What it cannot know is
+what this repository *contains*, because a blueprint declares what to place,
+not what exists.
+
+`flows/testing/coverage.test.sh` closes that. **43 of 44 components are
+placed**; `tests/flows` is declared baseline-only with its reason, because it
+tests `flows/`, which no product carries. Exemptions are a named map rather
+than a pattern — `tests/*` would also hide the thirteen component suites a
+product genuinely needs, and the next baseline-only directory should have to be
+argued for in a diff.
+
+It checks four things, each verified by breaking the real file:
+
+| Rule | What a violation reads like |
+|---|---|
+| every component is placed | `packages/sdk is a component and no module places it` |
+| by exactly one module | `packages/shared is placed by 2 modules (shared, shared-again)` |
+| whose `from` exists | `module sdk takes its content from packages/sdk-gone, which does not exist — it would place nothing, and say nothing` |
+| and an exemption is real | `tests/flows is declared baseline-only and does not exist — drop the entry` |
+
+The third is the sharp one. orun resolves `from` against the source tree and an
+**absent path is an empty module, not an error** — so a renamed directory would
+silently stop shipping.
+
+### The leak gate (Tier 1), and what it found
+
+`BOOTSTRAP.md` describes a product as the thing cirrus makes, not a copy of
+cirrus. The `ai-context` module copied the whole of `ai/context/`, so every
+product shipped this repository's `current.md`, `decisions.md` and
+`open-risks.md` — and `fork-from-baseline.md`, which opens:
+
+> # Provenance — Cirrus from the Lumen baseline
+
+After rebrand that is a sentence about the **customer's** product, telling them
+it was forked from Lumen at a commit they have never seen. Not a leaked secret:
+a false statement in the product's own voice, in the file an agent is pointed
+at first.
+
+`ai-context` is now `ai-deployment` + `ai-operations`, one module per file.
+There is no file list on a copy module, and that is the feature rather than the
+workaround — a new file in `ai/context/` cannot ship without somebody writing a
+module and arguing for it in a diff.
+
+`flows/testing/leak.test.sh` gates three things over the **derived** placement:
+`ai/` is exactly the two declared files; no `flows/`, `agents/`, `tasks/`,
+`specs/` or baseline tooling; and no *provenance prose* in the context pack.
+
+That last check deliberately does **not** search for "cirrus". rebrand rewrites
+this repository's name into the product's — that is its whole job — so flagging
+it would mean failing on input rebrand is about to fix, and testing rebrand's
+work in the wrong place against the wrong tree. It looks for what rebrand has
+no rule for: another baseline's name, and "forked from" phrasing.
+
+Run against the blueprint as it stood before this change, it names all four
+leaking files. That is the plan's acceptance criterion — *"the leak gate is red
+until `ai/context/` stops shipping"* — and it was, and it is fixed here.
+
+### What is NOT here, and why
+
+The plan's Tier 1 places the tree, brands it, and runs the product's own
+`orun validate` / `orun plan --dry-run` inside it. **A whole-blueprint
+`orun new` cannot run**, which Tier 1 discovered on its first execution:
+
+```
+✕ phase "02-foundation" requires 01-scaffold (pending) — run 01-scaffold first
+```
+
+Every phase's `requires` is checked before the first byte is written, so
+`02-foundation` asks whether `01-scaffold` is on disk during the run that is
+about to write it. A real bootstrap is unaffected — it runs phase by phase and
+the tree accumulates — but a dry instantiation cannot place anything.
+
+So BE5a gates the **derived** placement, which needs no run, and the placement
+half moves to **BE5b** behind orun **BE-O11**. Recorded as open question 9.
+
+### Verification
+
+Nine contract tests pass: `track`, `land-pr`, `agent-build`, `phase-vars`,
+`manifest`, `converge`, `phases`, `coverage`, `leak`. The coverage gate joins
+the bash-only `flows-contract` job; the leak gate rides `blueprint-parses`,
+which already installs orun at the pinned version.
