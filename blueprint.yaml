@@ -154,6 +154,12 @@ spec:
       - name: 08-docs
 
   bootstrap:
+    # THE BUILD DOCUMENT: the file whose phases a runner places. This baseline
+    # has no umbrella and no agent brief — BE4 deleted the layer they named —
+    # so this is the only entry point, and without it a runner that fetched
+    # this repo at its pinned tag would have nothing to run. `manifestPath` in
+    # the registry row names THIS file, the console card; it is not the build.
+    blueprint: repo-blueprint.yaml
     expectedMinutes: 60
     tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
