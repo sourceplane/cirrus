@@ -14,7 +14,7 @@ The repo ROOT — no deployable components yet:
 
 - `intent.yaml` (workspace AND project written in), `.github/workflows/ci.yml`
   (resume-capable CI: exec-id = run id, conditional `--retry`,
-  `max-parallel: 8`, lane pin orun ≥ v2.52.4)
+  `max-parallel: 8`, lane pin orun ≥ v2.56.0)
 - `tooling/` — ONLY what product builds use: `eslint`, `tsconfig`, `wire`
 - `ai/context/` — fresh, product-only agent context: `current.md`,
   `decisions.md`, `open-risks.md`, plus the `operations.md` contract and
