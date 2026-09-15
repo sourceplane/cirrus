@@ -234,6 +234,40 @@ for path in manifests:
     if not boot.get("expectedMinutes"):
         B("bootstrap.expectedMinutes is missing — the console renders it")
 
+    # ── …and what BE-K1e added in their place ─────────────────────────────
+    #
+    # With no umbrella and no brief, `blueprint` is the ONLY entry point: it
+    # names the document whose phases a runner places after fetching this repo
+    # at its pinned tag. The registry row's `manifestPath` names the console
+    # CARD — this file — so without this key a runner has nothing to run.
+    #
+    # Checked the way everything else here is checked: against the thing that
+    # does the work, not against another copy of the claim. The file must
+    # exist, and it must be the one that actually declares the phases — a path
+    # to some other YAML would satisfy a mere existence check and fail a real
+    # bootstrap at the only moment that matters.
+    build = boot.get("blueprint")
+    if not build:
+        B("bootstrap.blueprint is missing. This baseline has no umbrella and "
+          "no agentBrief (BE4), so nothing else names the document a runner "
+          "places — a fetch at the pinned tag would find no entry point.")
+    else:
+        target = root / build
+        if not target.is_file():
+            B(f"bootstrap.blueprint names {build}, which does not exist")
+        else:
+            try:
+                doc = yaml.safe_load(target.read_text()) or {}
+            except yaml.YAMLError as exc:
+                doc = {}
+                B(f"bootstrap.blueprint names {build}, which does not parse: {exc}")
+            if doc and not (doc.get("phases") or (doc.get("spec") or {}).get("phases")):
+                B(f"bootstrap.blueprint names {build}, which declares no phases. "
+                  f"A runner would fetch it and place nothing.")
+            if doc and doc.get("kind") != "Blueprint":
+                B(f"bootstrap.blueprint names {build}, whose kind is "
+                  f"{doc.get('kind')!r} rather than Blueprint")
+
     # ── every declared input is one the BLUEPRINT accepts ─────────────────
     #
     # This used to check the manifest's keys against the UMBRELLA's inputs,
