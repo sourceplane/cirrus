@@ -26,9 +26,13 @@ A quick-check component that runs the two contract tests under
 - `manifest.test.sh` — `blueprint.yaml` against the flows that realize it:
   `secrets` against `create-secrets.sh`'s own `create` calls, `programme`
   against the umbrella's `ensure-milestone` calls (including the `07-domain`
-  condition and the `epicslug` default), `askedBy: console` inputs against
-  their patterns, declared paths against the tree, and `verify` placeholders
-  against the inputs. Refuses `spec.source.tag` outright. Every check compares
+  condition and the `epicslug` default), inputs v3 — every input carries a
+  `pattern`, `askedBy` is refused, and `from`/`derive`/`probe` are one source
+  not three — every declared input against the umbrella's own `inputs` (orun's
+  flow engine fails closed on an undeclared `--set`), each `derive` against the
+  second implementation of the same rule in `tooling/rebrand/rebrand.mjs`,
+  declared paths against the tree, and `verify` placeholders against the
+  inputs. Refuses `spec.source.tag` outright. Every check compares
   the manifest to a script, never to another copy of the same claim — that is
   how a stale tag survived three releases and four tests in this directory.
   Needs PyYAML alongside python3.

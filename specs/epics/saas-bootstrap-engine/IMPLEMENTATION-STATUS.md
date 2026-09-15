@@ -8,8 +8,8 @@ shipped and every place it departed from the spec.
 | **BE1** | ✅ Shipped | `repo-blueprint.yaml` v3: nine native phases, hooks, the slices and the splitter deleted |
 | **BE2** | ✅ Shipped | the narration contract: 57 authored lines, every reference conformance-checked |
 | **BE1a** | ✅ Shipped | the orun floor moved to v2.56.0, and a job that proves the blueprint parses |
-| BE3 | 🗓️ Planned | inputs v3, `askedBy` deleted (needs orun-cloud BE-K1) |
-| BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3, BE-O5 ✅, BE-O8 ✅) |
+| **BE3** | ✅ Shipped | inputs v3: `askedBy` deleted, every input patterned, `apibaseurl` derived — and two seams the manifest had no gate for |
+| BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3 ✅, BE-O5 ✅, BE-O8 ✅ — and open question 10 first) |
 | **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
 | BE5b | 🗓️ Planned | Tier 1's placement half (needs orun BE-O11) and Tier 2 |
 | BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag |
@@ -407,3 +407,129 @@ Nine contract tests pass: `track`, `land-pr`, `agent-build`, `phase-vars`,
 `manifest`, `converge`, `phases`, `coverage`, `leak`. The coverage gate joins
 the bash-only `flows-contract` job; the leak gate rides `blueprint-parses`,
 which already installs orun at the pinned version.
+
+## BE3 — inputs v3, and the two seams nobody was checking
+
+### What shipped
+
+`blueprint.yaml`'s `inputs` block, replaced whole and **byte-identical to
+orun-cloud's `tests/fixtures/blueprint-manifests/cirrus.yaml`**. That is the
+point of the exercise: the console's parser has a fixture claiming to be this
+file, and the two are now the same bytes rather than the same intent.
+
+`askedBy` is deleted. It divided inputs into ones a form collects and ones an
+agent asked for in a session; the second half no longer exists, so the field
+could only ever hold one value. **The cost lands on `pattern`** — an
+`askedBy: agent` input was exempt from it, because prose asked for the value
+and prose does not validate. All five inputs now carry the rule their value is
+checked against before Continue, plus `help` and `example` for the field.
+
+| Input | How it arrives |
+|---|---|
+| `reponame` | `from: repo.name` — the operator already picked the repository |
+| `productname` | typed |
+| `productdomain` | typed |
+| `apibaseurl` | `derive: "https://api.{productdomain}"` |
+| `subdomain` | typed |
+
+**`subdomain` is not probed, though it is the obvious candidate.** Asking
+someone to look a workers.dev subdomain up in a dashboard is a question the
+Cloudflare connection could answer. The action that would answer it does not
+exist: orun's registry is closed at nine and `orun.cloudflare/subdomain@v1` is
+not among them, so declaring it would be a manifest promising a capability no
+runner has. The manifest parser cannot catch that — it validates a `probe.uses`
+for *shape*, not membership, which is the right call and exactly why it cannot
+— so the reason is written at the input. It becomes a probe when the action
+does.
+
+### The two seams, both found by writing the gate before the change
+
+**1. Nothing checked that the umbrella ACCEPTS what the manifest declares.**
+`apibaseurl` is a new key. The manifest's keys are the umbrella's input names,
+and orun's flow engine fails closed on a `--set` it has not declared
+(`internal/flow/engine.go`: `unknown input %q`). So the new input was one of
+two things, and which one depended on a detail neither file states: a bootstrap
+that dies at step zero, or — worse, because it is silent — a value the console
+resolves, shows the operator on the review step, and then drops on the floor.
+
+It was the silent one, and on every path that exists today. `build.sh` forwards
+ten fixed keys and `flows/agent/workflow.yaml` hands it three flags; neither
+carries `apibaseurl`, and the console cannot invoke the umbrella at all yet —
+that is orun-cloud **BE-K4**. So the derived value reaches the bootstrap
+contract and stops there.
+
+Which is harmless *because of the second seam*, and only because of it: with the
+two rules held equal, a path that drops the console's value gets rebrand's, and
+they are the same string. That is the difference between a fallback and a bug.
+The umbrella accepting the key is groundwork for BE-K4 rather than a fix to a
+live break — said plainly here because the gate now passes either way, and a
+future reader should not have to infer which.
+
+`manifest.test.sh` now checks every declared input against the umbrella's
+parsed `inputs` — **one direction only**. The umbrella declares more than this
+file does (`workspace`, `out`, `baselineref`, `watch`, `dryrun`, `track`,
+`epicslug`, `domain`), and those are how the platform drives a build rather
+than what a product is configured with. What must hold is that nothing this
+file declares arrives at a flow that cannot take it. `apibaseurl` is now
+threaded: declared on the umbrella and on `01-scaffold`, and handed to the
+engine's existing `apiBaseUrl`.
+
+**2. The derivation already existed, in JavaScript.** `tooling/rebrand/rebrand.mjs`:
+
+```js
+const apiBaseUrl = values.apiBaseUrl ?? `https://api.${productDomain}`;
+```
+
+So `derive: "https://api.{productdomain}"` is a second copy of a rule that was
+already implemented — which is the failure this file's own header warns about:
+*"a drift test between two files catches nothing."*
+
+Both paths are live and neither is going away this milestone. A console
+bootstrap resolves `derive` and the flow hands it down, so the manifest's rule
+wins; a phase run by hand passes nothing and rebrand's fallback wins. One
+value, two implementations. So the gate does not pick a winner — it holds them
+equal, parsing rebrand's `?? ` fallback and comparing the expression to the
+manifest's after normalizing `${productDomain}` to `{productdomain}`.
+
+### What needed no change, and one thing that now cannot land
+
+`flows/agent/BASELINE-TASK.md` was already correct. It defers to the contract's
+`asks` list rather than naming its own intake (BC-K5), and it already handles
+the empty case — *"If `asks` is empty there is nothing to ask"*. With inputs v3
+`asks` **is** empty for every manifest, so section 1 of the brief is inert
+prose in a file BE4 deletes. Nothing to do.
+
+What this milestone found and did not fix is **open question 10**: all five
+manifest keys are lowercase and all five blueprint inputs are camelCase (with
+`subdomain` → `workersDevSubdomain` a rename, not a casing difference). The
+only thing translating them is `01-scaffold`'s `--set` list — which BE4
+deletes. That is a BE4 blocker, recorded with the evidence rather than
+absorbed here.
+
+### Verification
+
+Eleven manifest rules, **each verified by breaking the real file** and
+restoring it:
+
+| Broken | What it reads |
+|---|---|
+| `askedBy` put back | `inputs[productname] declares askedBy — there is no agent to ask…` |
+| a `pattern` removed | `inputs[reponame] declares no pattern — it is collected in a form…` |
+| `derive` names nothing declared | `inputs[apibaseurl].derive references {nosuchthing}, which is not a declared input` |
+| `derive` names itself | `inputs[apibaseurl].derive references itself` |
+| `derive` is a constant | `…has no {key} reference — a constant is a default, not a derivation` |
+| two sources | `inputs[apibaseurl] declares from and derive — an input has one source` |
+| a malformed `probe.uses` | `…is 'not-an-action-id' — not an action id (<namespace>/<verb>@v<major>)` |
+| the manifest's `derive` drifts | `…and tooling/rebrand/rebrand.mjs falls back to 'https://api.{productdomain}'` |
+| rebrand's fallback drifts | the same message, from the other side |
+| the umbrella drops the input | `inputs[apibaseurl] is not an input of flows/phases/00-all/workflow.yaml` |
+| the umbrella's `inputs` vanish | `no inputs found in … — this check has gone blind` |
+
+The umbrella's inputs are **parsed, not grepped**: a regex over the file would
+also match a key in a step body, and the blindness guard cannot tell a wrong
+match from a right one.
+
+Nine contract tests pass against orun **v2.56.0**, the pinned version — not a
+locally built one, which is the distinction BE1a exists to enforce. Both edited
+workflows pass `orun workflow validate`, and the engine accepts the threaded
+`--set apiBaseUrl=…`.

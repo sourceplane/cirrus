@@ -40,6 +40,10 @@ inputs:
   subdomain:
     type: string
     description: workers.dev subdomain (keeping the baseline's is supported).
+  apibaseurl:
+    type: string
+    default: ""
+    description: 'CLI/SDK default API base. Empty = rebrand derives https://api.<productdomain>.'
   githuborg:
     type: string
     default: "sourceplane"
@@ -122,6 +126,7 @@ steps:
           --set "productName={{ inputs.productname }}" \
           --set "productDomain={{ inputs.productdomain }}" \
           --set "workersDevSubdomain={{ inputs.subdomain }}" \
+          --set "apiBaseUrl={{ inputs.apibaseurl }}" \
           --set "orunWorkspace={{ inputs.workspace }}"
         cd "$out"
         [ -d .git ] || git init -q -b main

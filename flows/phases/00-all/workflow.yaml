@@ -38,6 +38,10 @@ inputs:
   subdomain:
     type: string
     description: workers.dev subdomain.
+  apibaseurl:
+    type: string
+    default: ""
+    description: 'CLI/SDK default API base. Empty = rebrand derives https://api.<productdomain>, which is the same rule blueprint.yaml states as its `derive`.'
   githuborg:
     type: string
     default: "sourceplane"
@@ -189,6 +193,7 @@ steps:
         run_phase 01-scaffold 2 \
           --set "reponame={{ inputs.reponame }}" --set "productname={{ inputs.productname }}" \
           --set "productdomain={{ inputs.productdomain }}" --set "subdomain={{ inputs.subdomain }}" \
+          --set "apibaseurl={{ inputs.apibaseurl }}" \
           --set "githuborg={{ inputs.githuborg }}"
     timeout: 25m
   - name: credprobe

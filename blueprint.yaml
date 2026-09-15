@@ -56,14 +56,16 @@ spec:
     apiKeyRole: admin          # secret writes need the admin floor
 
   inputs:
-    # `askedBy` is the console/agent division of labour: `console` inputs gate
-    # the flow and are validated against `pattern` before Continue; `agent`
-    # inputs are NAMED on the review step and asked for in the session, because
-    # they only matter once the build is running.
+    # Every input is collected by the console (BE-K1, inputs v3). `askedBy` is
+    # gone: it divided inputs into ones a form collects and ones an agent asked
+    # for in the session, and there is no agent in the build path any more.
+    #
+    # The cost lands here. An `askedBy: agent` input was exempt from `pattern`,
+    # because prose asked for it and prose does not validate. Every input now
+    # carries the rule its value is checked against before Continue.
     - key: reponame
       label: Repo name
       pattern: "^[a-z][a-z0-9-]{1,38}$"
-      askedBy: console
       # The console already has this: the operator picked the repository. Say
       # so rather than making the flow ask for the name printed above the
       # field — and say it HERE, because the only alternative was for the
@@ -72,13 +74,33 @@ spec:
       from: repo.name
     - key: productname
       label: Product display name
-      askedBy: agent
+      pattern: "^[A-Za-z0-9][A-Za-z0-9 .,'&-]{1,48}$"
+      help: The name people will see — in the console header, the emails, the docs.
+      example: Acme Cloud
     - key: productdomain
       label: Product domain
-      askedBy: agent
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+      help: The apex domain the product answers on. It does not need to exist yet.
+      example: acme.dev
+    - key: apibaseurl
+      label: API base URL
+      pattern: "^https://[a-z0-9.-]+$"
+      help: Where the CLI and SDK point by default.
+      # Derived rather than asked: it is the product domain with a prefix, and
+      # a field for it is a field an operator can get subtly wrong (http, a
+      # trailing slash, api. on the wrong half) for no gain.
+      derive: "https://api.{productdomain}"
     - key: subdomain
       label: workers.dev subdomain
-      askedBy: agent
+      pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+      help: The workers.dev subdomain on the Cloudflare account this builds into.
+      example: acme
+      # NOT probed, though it is the obvious candidate: asking someone to look
+      # this up in a dashboard is a question the connection could answer. The
+      # action that would answer it does not exist — orun's registry is closed
+      # at nine and `orun.cloudflare/subdomain@v1` is not among them, so
+      # declaring it here would be a manifest promising a capability no runner
+      # has. It becomes a probe when the action does.
 
   # ── PREVIEW ONLY. `flows/common/create-secrets.sh` creates these. ────────
   # Transcribed from that script's own table (and its `create` calls), so the
