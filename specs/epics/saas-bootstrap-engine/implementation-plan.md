@@ -123,13 +123,28 @@ the files a product should actually carry.
 
 **Scope.** The end-to-end run that has never happened.
 
-- A workflow that provisions a scratch workspace + repo, runs
-  `orun baseline new … --local --resume --progress json`, asserts phases,
-  endpoints, rollup and the narration sequence.
+> **Corrected before implementing, per open questions 12, 15 and 16.** Three
+> things in the original entry no longer describe anything that exists, and one
+> was never satisfiable. The corrections are inline below; the design (§6) is
+> left as written, because that is where the design is recorded and this file
+> is where the plan is.
+
+- A workflow that provisions a scratch workspace + repo
+  (`testing/provision-workspace.yaml`, relocated by BE4), clones this baseline
+  at the commit under test and runs
+  `orun new --blueprint repo-blueprint.yaml --out <product> --run-hooks
+  --resume --progress json`. **Not `orun baseline new`** — that is BE-O7b and
+  is not in any release; the flag form is what a bootstrap runs today, and
+  swapping it in later changes one line of this workflow (open question 15).
+- Asserts **phases placed** — `done` OR `drifted`, never `Done()` alone —
+  endpoints, rollup and the narration sequence. A branded product's phases
+  derive as `drifted` permanently and by design, so "every phase `done`" is
+  unsatisfiable and any "resume until done" loop never terminates
+  (open question 12).
 - The two properties nothing tests today: idempotence on re-run, and
   cross-session resume from a deleted working directory.
-- Per-phase wall clock written back into `flows/phases/TIMINGS.md` (relocated)
-  as a committed artifact of the run.
+- Per-phase wall clock written back into `docs/phases/TIMINGS.md` (relocated
+  by BE4) as a committed artifact of the run.
 - `always()` teardown: retire the workspace, delete the repo, revoke the
   brokered secrets.
 - Triggers: nightly on `main`, `e2e` label on a PR, and a **required check on
@@ -137,6 +152,15 @@ the files a product should actually carry.
 
 **Done when** a `baseline-vN` tag cannot be pushed without a green tier-3 run
 on that commit, and `TIMINGS.md` carries measurements rather than estimates.
+
+**Two halves, and only one of them is code.** The tag gate is this repository's
+to build. The measurements are not: they exist only after a real ~60-minute
+bootstrap against a real Cloudflare account, so the first green nightly is what
+closes the second half — and until then `TIMINGS.md` must keep saying its
+numbers are estimates rather than being quietly blessed by a workflow that
+exists. **And the run needs two credentials this repository deliberately does
+not hold** (open question 16), which is a decision before it is an
+implementation.
 
 ## Cross-repo edges
 
