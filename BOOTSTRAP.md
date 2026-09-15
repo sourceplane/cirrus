@@ -143,10 +143,20 @@ orun new --blueprint repo-blueprint.yaml \
 ```
 
 `--progress` is four renderings of ONE stream — they differ in what they
-show, never in what happened. `json` emits the raw event objects (a hosted
-runner or a console build page reads these); `plain` prints the narration
-alone, one line per event, for a CI log; `verbose` adds every detail line;
-`auto` is narration with the engine's facts under it.
+show, never in what happened. `json` emits the raw event objects, one JSON
+object per line, `schema: bootstrap-event/v1` (a hosted runner or a console
+build page reads these); `plain` prints the narration alone, one line per
+event, for a CI log; `verbose` adds every detail line; `auto` is narration
+with the engine's facts under it.
+
+**The stream is hook execution, not placement.** A run WITHOUT `--run-hooks`
+emits one `skipped` event per declared-but-unplaced phase and nothing else —
+so `--resume --progress json` with hooks off, which places every phase and
+skips none, prints no events at all. That is not a broken flag: the events
+describe phases starting, waiting, finishing and failing, and with hooks off
+none of that happens. If you want to see the stream, you are asking for a
+real run. If you want to see the *shape* without one, `--status` derives
+every phase's state and is the flag for that.
 
 | requirement | detail |
 |---|---|
