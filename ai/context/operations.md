@@ -46,7 +46,9 @@ cloud link → `orun workspace use` selection.
   (works with user sessions and workspace-scoped `ORUN_TOKEN`s alike).
 - Project SLUGS in the intent are resolved to `prj_…` ids by the CLI
   (orun ≥ v2.52.4). The CI lane pin in `.github/workflows/ci.yml` must
-  stay ≥ v2.56.0 — the floor rose with the phase overlay, not with this fix.
+  stay ≥ v2.56.2 — the floor rose with the phase overlay (v2.56.0) and again
+  when a branded tree turned out to refuse its own next phase (v2.56.2), not
+  with this fix.
 
 ## How deployment works
 

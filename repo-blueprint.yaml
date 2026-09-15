@@ -949,7 +949,20 @@ phases:
       failed: "The edge did not come up. The deploy log above says why."
     modules: [api-edge, api-edge-tests]
     requires:
-      phases: [04-workers-restore]
+      # 04-WORKERS, NOT 04-WORKERS-RESTORE, and the reason is what a gate can
+      # know. The restore places no files, so orun derives it as `unknown` —
+      # deliberately, because its work is a landing in the task plane and a
+      # deployment, neither of which the product repo can be asked about. A
+      # requirement on it could therefore NEVER be satisfied, and this phase
+      # refused for the whole of a real bootstrap:
+      #
+      #     ✕ phase "05-edge" requires 04-workers-restore (unknown)
+      #
+      # The ordering is not lost by naming its predecessor instead. Phase order
+      # in this document is what sequences a run; `requires` is the gate that
+      # catches somebody running 05 against a tree where 04 never happened,
+      # and `04-workers` answers exactly that, from the files on disk.
+      phases: [04-workers]
     hooks:
       pre:
         - id: task

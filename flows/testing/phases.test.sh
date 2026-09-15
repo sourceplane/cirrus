@@ -100,6 +100,33 @@ for name in HOOK_ONLY:
     elif by_name[name].get("modules"):
         bad(f"phase {name} places modules — it is declared as hooks only")
 
+# ── nothing may GATE on a phase the tree cannot answer for ────────────────
+#
+# A hook-only phase places no files, so orun derives it as `unknown` rather
+# than `done` (orun BE-O10) — deliberately, because its work is a landing in
+# the task plane and a live deployment, neither of which the product repo can
+# be asked about. `requires.phases` fails closed on `unknown`. So a requirement
+# naming one can NEVER be satisfied, and the phase declaring it refuses for the
+# whole of a real bootstrap.
+#
+# BE1 shipped exactly that: `05-edge` required `04-workers-restore`, and the
+# epic's own open question 7 said "nothing declares one on them" — true of the
+# intent, false of the file, with nothing comparing the two. It surfaced only
+# once orun BE-O12 made the phases before it pass:
+#
+#     ✕ phase "05-edge" requires 04-workers-restore (unknown)
+#
+# Naming the hook-only phase's own predecessor instead loses no ordering: phase
+# order in this document is what sequences a run, and `requires` is the gate
+# that catches a phase run against a tree where its predecessor never happened.
+for p in phases:
+    for need in ((p.get("requires") or {}).get("phases") or []):
+        if need in HOOK_ONLY:
+            bad(f"phase {p['name']} requires {need}, which places no files — orun "
+                f"derives a hook-only phase as `unknown` and requires.phases "
+                f"fails closed on it, so this gate can never pass. Require its "
+                f"predecessor instead.")
+
 # ── every phase says what it is and what to budget ────────────────────────
 for p in phases:
     for field in ("title", "expectedMinutes"):
