@@ -50,6 +50,47 @@ jobs:
             bash "flows/testing/$t.test.sh"
           done
 
+  # THE BLUEPRINT PARSES WITH THE BINARY A BOOTSTRAP ACTUALLY RUNS.
+  #
+  # This job exists because its absence let a real regression reach main. BE1
+  # rewrote `repo-blueprint.yaml` to orun's phase overlay and repointed every
+  # flow at `orun new --blueprint repo-blueprint.yaml --phase <name>`. It was
+  # verified against an orun built from that repo's main — and no released orun
+  # could read a word of it:
+  #
+  #     ✕ unknown flag: --phase
+  #     ✕ parse blueprint: yaml: unmarshal errors:
+  #         line 613: cannot unmarshal !!map into []scaffold.Hook
+  #
+  # Every test in this repo passed. They all read the YAML with PyYAML, which
+  # will parse anything well-formed; not one of them asked the question that
+  # matters, which is whether the CLI at the PINNED VERSION can read it.
+  #
+  # So this job pins the same version the bootstrap does and makes orun itself
+  # answer. `--status` derives every phase's state: it parses the document,
+  # validates each phase's hooks against the action registry, compiles every
+  # `when` and every narration template, and writes nothing. It does not probe
+  # — derivation asks the tree, not the network — so it needs no credential.
+  blueprint-parses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: sourceplane/orun-action@v1.2.0
+        with:
+          version: v2.56.0
+      - name: repo-blueprint.yaml, read by the pinned CLI
+        run: |
+          set -euo pipefail
+          orun --version
+          # Inputs that are `required: true` must be supplied for the document
+          # to resolve; the values are arbitrary and nothing is written.
+          orun new --blueprint repo-blueprint.yaml --status \
+            --out "$(mktemp -d)" \
+            --set repoName=acme-cloud \
+            --set "productName=Acme Cloud" \
+            --set productDomain=acme.dev \
+            --set githubOrg=acme-inc
+
   plan:
     runs-on: ubuntu-latest
     outputs:
@@ -60,7 +101,7 @@ jobs:
           fetch-depth: 0
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.52.6
+          version: v2.56.0
       - env:
           # Surface the best-effort catalog auto-sync (execution.state.autopushCatalog).
           # A successful push prints "✓ pushed catalog …"; ORUN_VERBOSE also makes
@@ -112,7 +153,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.52.6
+          version: v2.56.0
       # exec-id is the RUN id alone (no attempt suffix): a `gh run rerun
       # --failed` then RESUMES the same orun execution — jobs that succeeded in
       # a prior attempt stay completed, so re-run lanes' cross-job dependencies

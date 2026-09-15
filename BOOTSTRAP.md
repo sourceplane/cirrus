@@ -15,7 +15,10 @@ where this baseline is cheaper than a Postgres-backed one.
 ## 0. What you need
 
 - GitHub org access (repo creation) and a machine with `git`, `gh`, `node`,
-  `python3`, and the `orun` CLI ≥ v2.52.6 (same floor as the product lane pin).
+  `python3`, and the `orun` CLI ≥ v2.56.0 (same floor as the product lane pin).
+  v2.56.0 is the floor because it is the first release carrying the phase
+  overlay `repo-blueprint.yaml` uses: before it there is no `--phase` flag and
+  `hooks.{pre,post,await}` does not parse.
 - A Cloudflare account (Workers paid plan for the fleet) and its **Account
   API token** (the console's Connect recipe lists the exact permission
   groups). It is the ONLY provider credential this baseline needs — and it
@@ -110,7 +113,7 @@ orun workflow run github:sourceplane/cirrus@<ref>//flows/phases/02-foundation/wo
 
 | requirement | detail |
 |---|---|
-| image deps | `git`, `gh`, `node` (≥20), `python3`, `curl`, `orun` ≥ v2.52.6 (the product's ci.yml lane pin matches) |
+| image deps | `git`, `gh`, `node` (≥20), `python3`, `curl`, `orun` ≥ v2.56.0 — the first release that can read this repo's blueprint (the product's ci.yml lane pin matches) |
 | `ORUN_TOKEN` | orun access token; preflight authenticates with it (no login flow) |
 | `GITHUB_TOKEN` | fine-grained PAT: **read** on `sourceplane/cirrus` (baseline fetch); on the PRODUCT repo: **contents write** (pushes), **pull-requests write** (landings), **actions read+write** (converge watches runs and auto-resumes via `gh run rerun`), **checks read**; **repo create** on the org if phase 01 creates the repo (or pre-create it — supported) |
 | pinning | the `@<ref>` in the remote reference pins EVERYTHING — the flow fetches its baseline at that exact commit (`ORUN_FLOW_SOURCE_SHA`). Use a tag for reproducible bootstraps; `@main` for latest |

@@ -7,6 +7,7 @@ shipped and every place it departed from the spec.
 |---|---|---|
 | **BE1** | ✅ Shipped | `repo-blueprint.yaml` v3: nine native phases, hooks, the slices and the splitter deleted |
 | **BE2** | ✅ Shipped | the narration contract: 57 authored lines, every reference conformance-checked |
+| **BE1a** | ✅ Shipped | the orun floor moved to v2.56.0, and a job that proves the blueprint parses |
 | BE3 | 🗓️ Planned | inputs v3, `askedBy` deleted (needs orun-cloud BE-K1) |
 | BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3, BE-O5 ✅, BE-O8 ✅) |
 | BE5 | 🗓️ Planned | CI tiers 0–2 |
@@ -236,3 +237,79 @@ the start event carries ['expectedMinutes', 'files']
 refuses an uncompilable narration template and a state word at parse time
 (BE-O10), so a passing `--status` is itself a conformance check. All seven
 contract tests pass.
+
+
+## BE1a — the floor, and the check that was missing
+
+**A regression fix, not a planned milestone.** BE1 and BE2 shipped a
+`repo-blueprint.yaml` that **no released orun could read**, and every test in
+this repository passed while that was true.
+
+### What was broken
+
+BE1 repointed every flow at `orun new --blueprint repo-blueprint.yaml --phase
+<name>`. Against `v2.55.2`, the newest release at the time:
+
+```
+✕ unknown flag: --phase
+
+✕ parse blueprint: yaml: unmarshal errors:
+    line 613: cannot unmarshal !!map into []scaffold.Hook
+    line 701: cannot unmarshal !!map into []scaffold.Hook   … ×5
+```
+
+All ten BE-O milestones were on orun's `main` and **none was in a release**.
+`v2.55.2` sat fifteen commits earlier, at a `Phase` type carrying only
+`name`/`description`/`modules`/`hooks`, with `hooks` a bare list rather than
+`{pre,post,await}`. This repository's CI pinned `v2.52.6`, older still.
+
+So `main` carried a bootstrap that could not start.
+
+### Why nothing caught it
+
+Every check in this repo reads `repo-blueprint.yaml` with **PyYAML**, which
+parses anything well-formed. `phases.test.sh` asserts the module partition,
+execution order, narration references — all of it true, and none of it the
+question that mattered: *can the CLI at the pinned version read this?*
+
+BE1's own verification had the same shape. Placement equivalence was proven
+against an orun compiled from `main` minutes earlier. The two repositories were
+each internally consistent; the seam between them was unchecked.
+
+### The fix
+
+**orun v2.56.0** is cut from `381eb74` (BE-O10), the first release carrying the
+phase overlay. Every pin here moves to it:
+
+| Where | Was | Now |
+|---|---|---|
+| `.github/workflows/ci.yml` (both lanes) | `v2.52.6` | `v2.56.0` |
+| `flows/AGENT-PROMPT.md` installer | `v2.55.0` | `v2.56.0` |
+| `BOOTSTRAP.md` floor (×2) | `≥ v2.52.6` | `≥ v2.56.0` |
+| `ai/context/operations.md` | `≥ v2.52.4` | `≥ v2.56.0` |
+| `flows/phases/01-scaffold/README.md` | `≥ v2.52.4` | `≥ v2.56.0` |
+| `flows/phases/TIMINGS.md` | `≥ v2.52.4` | `≥ v2.56.0` |
+
+The historical notes in `TIMINGS.md`'s defect log keep their old version
+numbers: they record which release fixed what, and rewriting them would erase
+the record.
+
+### The guard
+
+A new `blueprint-parses` CI job installs orun **at the pinned version** and
+makes the CLI itself answer:
+
+```yaml
+orun new --blueprint repo-blueprint.yaml --status --out "$(mktemp -d)" \
+  --set repoName=acme-cloud --set "productName=Acme Cloud" \
+  --set productDomain=acme.dev --set githubOrg=acme-inc
+```
+
+`--status` derives every phase's state: it parses the document, validates each
+hook against the action registry, compiles every `when` and every narration
+template, and writes nothing. It does **not** probe — derivation asks the tree,
+not the network — so it needs no credential and no workspace.
+
+This is the first check of BE5's Tier 0, brought forward because its absence is
+what let the regression through. Run against `main` before this change, it
+fails at the first line.
