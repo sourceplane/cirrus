@@ -230,8 +230,17 @@ every phase's state and is the flag for that.
   why the account it runs against is not the one anything is deployed to: a
   run that bootstraps a whole product from nothing has to hold the credential
   the first consent would otherwise be clicked for, so it holds one for a
-  dedicated rehearsal account that can reach no production resource. That
-  lane never touches a product, and no product ever carries it.
+  dedicated rehearsal account that can reach no production resource.
+
+  That token is an **orun-managed secret**, not a GitHub one — declared as
+  `secretEnv` on `testing/rehearsal/component.yaml`, resolved lease-bound at
+  claim time and redacted from the logs, revocable without a commit. So the
+  sentence above stays literally true of GitHub: `GITHUB_TOKEN` is still the
+  only credential this repository's CI holds. What is stored is a long-lived
+  provider token for an account nothing is deployed to, held by the platform
+  rather than by the forge, and the separation of the account — not the
+  storage — is what bounds that lane. It never touches a product, and no
+  product ever carries it.
 - **Resume-capable CI**: exec-id is the GitHub run id (no attempt suffix) and
   every lane passes `--retry` — `gh run rerun --failed` is a true resume.
 - **Parked-by-default fleet** at instantiation; the bootstrap un-parks it in
