@@ -9,9 +9,9 @@ shipped and every place it departed from the spec.
 | **BE2** | ✅ Shipped | the narration contract: 57 authored lines, every reference conformance-checked |
 | **BE1a** | ✅ Shipped | the orun floor moved to v2.56.0, and a job that proves the blueprint parses |
 | **BE3** | ✅ Shipped | inputs v3: `askedBy` deleted, every input patterned, `apibaseurl` derived — and two seams the manifest had no gate for |
-| BE4 | 🗓️ Planned | `flows/` deleted (needs BE1–BE3 ✅, BE-O5 ✅, BE-O8 ✅ — and open question 10 first) |
+| BE4 | 🚧 Blocked | `flows/` deleted — needs an orun-cloud change first (open question 11), then open question 10's rename |
 | **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
-| BE5b | 🗓️ Planned | Tier 1's placement half (needs orun BE-O11) and Tier 2 |
+| BE5b | 🚧 Blocked | Tier 1's placement half and Tier 2 — needs orun **BE-O11 in a release**; it is on main, unreleased (v2.56.0 is BE-O10) |
 | BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag |
 
 ## BE1 — `repo-blueprint.yaml` v3: native phases
