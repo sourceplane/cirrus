@@ -37,6 +37,15 @@ A quick-check component that runs the two contract tests under
   how a stale tag survived three releases and four tests in this directory.
   Needs PyYAML alongside python3.
 
+- `placement.test.sh` — Tier 1's placement half (BE5b). Places the whole
+  blueprint from `tests/fixtures/acme.json`, asserts the repo-scale gate that
+  rides inside `orun new` actually ran, brands the tree as `01-scaffold`'s
+  hooks do, runs `rebrand.mjs --verify`, applies the leak rules to the REAL
+  files, checks the product's `DEFAULT_API_URL` against `blueprint.yaml`'s
+  `derive`, then runs phases 01 → 07 with the rebrand in the middle and a
+  `--resume` afterwards. Needs orun (≥ v2.56.2), node and git; about ten
+  seconds, offline. Run against v2.56.1 it reports seven failures.
+
 > **Where these actually run in CI.** Not here. This component's
 > `quick-check` profile runs setup, install and a package-structure check and
 > no tests — observed on a live lane reporting `4 passed, 0 failed` with no

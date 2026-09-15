@@ -11,8 +11,8 @@ shipped and every place it departed from the spec.
 | **BE3** | ✅ Shipped | inputs v3: `askedBy` deleted, every input patterned, `apibaseurl` derived — and two seams the manifest had no gate for |
 | BE4 | 🚧 Blocked | `flows/` deleted — needs an orun-cloud change first (open question 11), then open question 10's rename |
 | **BE5a** | ✅ Shipped | Tier 0's coverage gate, the leak gate, and `ai/context/` narrowed to two files |
-| BE5b | 🚧 Blocked | Tier 1's placement half and Tier 2 — needs orun **BE-O11 in a release**; it is on main, unreleased (v2.56.0 is BE-O10) |
-| BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag |
+| **BE5b** | ✅ Shipped | Tier 1 places, brands and runs the phases — and found two orun defects that made a real bootstrap impossible |
+| BE6 | 🗓️ Planned | CI tier 3 — live bootstrap, required before any `baseline-vN` tag (its acceptance criterion needs rewriting first: open question 12) |
 
 ## BE1 — `repo-blueprint.yaml` v3: native phases
 
@@ -533,3 +533,98 @@ Nine contract tests pass against orun **v2.56.0**, the pinned version — not a
 locally built one, which is the distinction BE1a exists to enforce. Both edited
 workflows pass `orun workflow validate`, and the engine accepts the threaded
 `--set apiBaseUrl=…`.
+
+## BE5b — the tree is placed, branded, and made to answer
+
+### What BE5a could not do, and why that mattered more than it looked
+
+BE5a gated the **derived** placement: what every phase *would* write. It had
+no choice — a whole-blueprint `orun new` refused before writing a byte. orun
+**BE-O11** fixed that, and this milestone's first act was to run the thing
+BE5a could only model.
+
+Which turned up two defects in orun that made **a real bootstrap impossible**,
+neither of them visible to any check in either repository.
+
+**1. A requirement could not be satisfied by a branded predecessor.**
+
+```
+✕ phase "02-foundation" requires 01-scaffold (drifted) — run 01-scaffold first
+```
+
+`01-scaffold` places the tree and then rewrites the baseline's identity out of
+every file it just wrote — BE1 moved that hook chain into it, correctly. So
+from the moment phase 01 ends, `01-scaffold` derives `drifted`, permanently.
+orun's `checkRequires` accepted only `done`. **The bootstrap died at step two**,
+and every phase after it too.
+
+**2. `--resume` reverted the product's identity.**
+
+```
+before resume:  "name": "acme-cloud"
+after  resume:  "name": "cirrus"
+```
+
+`--resume` re-placed anything not `done`, which on a branded product is every
+placed phase. A resume between phases — what an automated build runs — silently
+overwrote the branded tree with the baseline's own rendering.
+
+Both fixed in orun **BE-O12**, and the floor here moves to **v2.56.2**.
+v2.56.0 was the first release that could *read* this blueprint; v2.56.2 is the
+first that can *run* it past phase 01.
+
+### And one defect of our own
+
+```
+✕ phase "05-edge" requires 04-workers-restore (unknown)
+```
+
+`04-workers-restore` places no files, so orun derives it as `unknown` — and
+fails closed, deliberately, because its work is a landing in the task plane and
+a deployment, neither of which the product repo can be asked about. A
+requirement naming it can therefore **never** be satisfied.
+
+The epic's own open question 7 says a hook-only phase "may not be relied on by
+a `requires.phases` gate, **which is why nothing declares one on them**". That
+clause was true of the intent and false of the file, with nothing comparing the
+two — the same shape as BE1a's version pin. `05-edge` now requires
+`04-workers`, which loses no ordering (phase order in the document is what
+sequences a run; `requires` is the gate), and `phases.test.sh` gates the whole
+class so it cannot recur.
+
+### `flows/testing/placement.test.sh`
+
+Tier 1 in full, in about **ten seconds**, offline and with no credential:
+
+| Step | What it proves |
+|---|---|
+| place the whole blueprint from `tests/fixtures/acme.json` | 1085 files, `domain` forced on so the conditional phase is covered |
+| assert the repo-scale gate line appeared | `orun validate` + `orun plan --dry-run` and the two-parser check on every generated `component.yaml` ride *inside* `orun new` — which is exactly why they need asserting. A future orun that stopped running them would weaken this tier in silence, and BE1a exists because that already happened once |
+| brand it as `01-scaffold`'s hooks do, then `rebrand.mjs --verify` | zero baseline-identity residue |
+| the leak rules over the **real files** | `ai/` is exactly the two declared files; no factory; no provenance prose — now read from the *branded* tree rather than this repository's copy |
+| `DEFAULT_API_URL` against `blueprint.yaml`'s `derive` | BE3 checked the rules against each other; this checks the value a product ends up with: `https://api.acme.dev` |
+| **01 → 07, phase by phase, with the rebrand in the middle** | the step nothing here had ever taken, and where both BE-O12 defects lived |
+| `--resume` over the branded tree | the product's identity survives it |
+
+Run against **v2.56.1** — the release before BE-O12 — it reports seven
+failures: every phase from 02 to 07 refused, and the resume reverting
+`package.json`'s name to `cirrus`. That is the proof the file is worth having.
+
+### Tier 2, and what is split out
+
+**Resume determinism is here**, in the form the design asked for: the phased
+sequence runs through a rebrand and a `--resume` afterwards leaves it alone.
+
+**The recording-registry phase walk is not**, and it is not a bash test. It
+needs orun's `Options.Actions` substitution seam, which is a Go-level
+interface with no CLI surface — BE-O11 established that no *flag* was needed
+for offline placement, which is a different thing from being able to inject a
+recording runner from a shell. That walk belongs beside the actions in orun's
+own suite, or behind a capability orun does not yet have.
+
+### Verification
+
+Ten contract tests pass against orun **v2.56.2**, the pinned version: `track`,
+`land-pr`, `agent-build`, `phase-vars`, `manifest`, `converge`, `phases`,
+`coverage`, `leak`, `placement`. The new one rides `blueprint-parses`, which
+already installs orun, plus `setup-node` for rebrand.
