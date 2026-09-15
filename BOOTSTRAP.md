@@ -208,13 +208,20 @@ alone, one line per event, for a CI log; `verbose` adds every detail line;
   phases have run; the engine asks the tree. A stored file would be a cache,
   and it must always be safe to delete — which is what makes a phase runnable
   alone, months later, from a fresh container.
-- **CI holds one credential: `GITHUB_TOKEN`.** Provider credentials are
-  brokered per run from workspace integrations; terraform state lives on the
-  platform (`backend "http"`, run-token auth); terraform outputs travel as
-  lease-published job-output secrets. No AWS, no Secrets Manager, no
-  long-lived provider tokens anywhere. The bootstrap's own secret hooks hold
-  no value either: a brokered secret is a pointer at a connection and a scope
-  template, minted just-in-time at resolve.
+- **The product's CI holds one credential: `GITHUB_TOKEN`.** Provider
+  credentials are brokered per run from workspace integrations; terraform
+  state lives on the platform (`backend "http"`, run-token auth); terraform
+  outputs travel as lease-published job-output secrets. No AWS, no Secrets
+  Manager, no long-lived provider tokens on any deploy path. The bootstrap's
+  own secret hooks hold no value either: a brokered secret is a pointer at a
+  connection and a scope template, minted just-in-time at resolve.
+
+  The baseline's own tier-3 rehearsal lane is the one exception, and it is
+  why the account it runs against is not the one anything is deployed to: a
+  run that bootstraps a whole product from nothing has to hold the credential
+  the first consent would otherwise be clicked for, so it holds one for a
+  dedicated rehearsal account that can reach no production resource. That
+  lane never touches a product, and no product ever carries it.
 - **Resume-capable CI**: exec-id is the GitHub run id (no attempt suffix) and
   every lane passes `--retry` — `gh run rerun --failed` is a true resume.
 - **Parked-by-default fleet** at instantiation; the bootstrap un-parks it in
