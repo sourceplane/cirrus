@@ -46,9 +46,10 @@ pass in the product repo.
   self-contained; a failure here usually means a partial apply (re-run the
   phase — apply is additive) or a pnpm lock drift (the scaffold carries
   the lock; don't regenerate it mid-phase).
-- **`apply-blueprint: working tree is not clean`**: commit or stash your
-  local edits in the product repo first — the phase refuses to mix its
-  slice with unrelated changes.
+- **The landing picks up edits you did not intend**: commit or stash your
+  local changes in the product repo before running a phase. `orun.pr/land@v1`
+  lands what is in the tree, and a phase is meant to land its own modules,
+  not your work in progress.
 
 ## Example commands
 

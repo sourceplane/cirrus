@@ -40,11 +40,12 @@ document nobody checked.
 
 ## Things that shape the total
 
-1. **One convergence per landing.** Every phase lands with
-   `land-pr.sh --no-wait`: the phase content comes from the PINNED baseline
-   and was verified there, so PR lanes would deploy the fleet a second time.
-   The converge step is the gate. The check-gated `land-pr.sh` default
-   remains right for incremental changes on a live product.
+1. **One convergence per landing.** A phase's `orun.pr/land@v1` merges
+   without waiting on PR checks: the phase content comes from the PINNED
+   baseline and was verified there, so PR lanes would deploy the fleet a
+   second time. The `orun.run/watch@v1` await hook is the gate. Waiting on
+   checks remains right for incremental changes on a live product, which is
+   what a normal PR does.
 2. **Watch GitHub Actions billing.** A full bootstrap is hundreds of runner
    minutes. A tripped spending limit presents as lanes that "fail" with NO
    logs anywhere — the message lives only in the check-run ANNOTATIONS

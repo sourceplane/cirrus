@@ -7,9 +7,12 @@
 #
 # The division of labour with the registry is strict, and it is the whole point
 # of BC: the registry (orun-cloud `infra/baselines-registry/baselines.yaml`)
-# owns identity and commerce — id, visibility, tier, the pinned tag, the brief
-# and umbrella paths. This file owns the build contract. NEITHER RESTATES THE
-# OTHER. That is why there is no `tag` here: this file is fetched *at* the tag
+# owns identity and commerce — id, visibility, tier, the pinned tag. This file
+# owns the build contract. NEITHER RESTATES THE OTHER. (The registry owned two
+# more paths, the brief and the umbrella, until BE4 deleted the layer they
+# named. This baseline is blueprint-driven: `spec.bootstrap` declares neither,
+# and the row that fetches this file declares neither either — orun-cloud
+# BE-K1d. Both are still the registry's for a baseline that has them.) That is why there is no `tag` here: this file is fetched *at* the tag
 # the registry pins, so a tag here could only ever be a second, rotting copy —
 # as it was, reading `baseline-v1` against a live `baseline-v4` for three
 # releases before anything noticed.
@@ -129,7 +132,7 @@ spec:
   # — so a re-run finds what it made before. The console renders the programme
   # so an operator can see the shape of the work before pressing Build.
   programme:
-    epicSlug: infra-baselining         # = 00-all's `epicslug` input default
+    epicSlug: infra-baselining         # = repo-blueprint.yaml's `epicSlug` default
     epicName: "Infra baselining — {productname}"
     milestones:
       - name: 01-scaffold
@@ -138,16 +141,17 @@ spec:
       - name: 04-workers
       - name: 05-edge
       - name: 06-console
-      # The umbrella only ensures this one when its `domain` input is "true"
-      # (it needs the Cloudflare zone to already exist). Declared with its
-      # condition rather than silently listed, so the console can say so.
+      # 07-domain carries `when: inputs.domain` in repo-blueprint.yaml (it
+      # needs the Cloudflare zone to already exist), so its milestone is
+      # ensured only on a run that asks for it. Declared with its condition
+      # rather than silently listed, so the console can say so.
       - name: 07-domain
         when: domain
       - name: 08-docs
 
   bootstrap:
     expectedMinutes: 60
-    tokenChannel: ORUN_TOKEN_FILE   # the flows read the runtime's refreshed token
+    tokenChannel: ORUN_TOKEN_FILE   # where a runner hands the bootstrap its refreshed token
   verify:
     urls:
       - "https://{reponame}-api-edge-{env}.{subdomain}.workers.dev/health"
