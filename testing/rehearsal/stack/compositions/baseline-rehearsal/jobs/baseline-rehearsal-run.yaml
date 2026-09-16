@@ -98,7 +98,7 @@ spec:
           --set reponame="$RUN_PREFIX" \
           --set productname="Rehearsal $RUN_PREFIX" \
           --set productdomain="rehearsal.invalid" \
-          --set githubOrg="{{.parameters.githubOrg}}" \
+          --set githuborg="{{.parameters.githuborg}}" \
           --set orunWorkspace="$ORUN_REHEARSAL_WORKSPACE" \
           | tee "$events"
         echo "build=${PIPESTATUS[0]}" >> "$STATUS_FILE"

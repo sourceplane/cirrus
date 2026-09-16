@@ -51,7 +51,7 @@ cd cirrus
 orun new --blueprint repo-blueprint.yaml \
   --out ~/sourceplane/acme --run-hooks --resume \
   --set reponame=acme --set productname="Acme Cloud" \
-  --set productdomain=acme.dev --set githubOrg=sourceplane \
+  --set productdomain=acme.dev --set githuborg=sourceplane \
   --set orunWorkspace=ws_XXXXXXXX \
   --set subdomain=<workers-dev-subdomain>
 ```
@@ -84,7 +84,7 @@ phase in that folder.
 orun new --blueprint repo-blueprint.yaml --out ~/sourceplane/acme --run-hooks \
   --phase 01-scaffold \
   --set reponame=acme --set productname="Acme Cloud" \
-  --set productdomain=acme.dev --set githubOrg=sourceplane \
+  --set productdomain=acme.dev --set githuborg=sourceplane \
   --set orunWorkspace=ws_XXXXXXXX --set subdomain=<workers-dev-subdomain>
 
 # every later phase reads identity back from the placed tree — but the
@@ -249,7 +249,7 @@ not one is worse than a gate that says what it is.
 | D1 lane or db-migrate: `Authentication error (10000)` | The lane resolved `CLOUDFLARE_API_TOKEN` (workers-deploy), which cannot touch D1. Both D1 components must bind `CLOUDFLARE_D1_TOKEN`. |
 | CLI login dies with 429 `rate_limited` | Fixed ≥ v2.48.1 (redeem honors Retry-After). Upgrade the CLI. |
 | `unknown flag: --phase`, or `cannot unmarshal !!map into []scaffold.Hook` | The CLI is below the v2.56.2 floor. Nothing in this repo is readable by an older one. |
-| `✕ input "productdomain" is required` | Required inputs are validated before anything else, so this names the key nobody typed. All four requireds — `reponame`, `productname`, `productdomain`, `githubOrg` — must be set on every invocation, including single-phase ones. |
+| `✕ input "productdomain" is required` | Required inputs are validated before anything else, so this names the key nobody typed. All four requireds — `reponame`, `productname`, `productdomain`, `githuborg` — must be set on every invocation, including single-phase ones. |
 | Console/edge smoke fails right after the FIRST deploy of a worker | workers.dev route propagation race — the deploy lane's smoke retries with backoff (stack-tectonic ≥ 0.18.2); a convergence resume clears older pins. |
 | Terraform lane: "state already locked" by ITS OWN plan | Backend lock-release race — a convergence resume clears it. |
 | Environment cannot observe GitHub Actions (gh 403) | `orun.pr/land@v1` and `orun.run/watch@v1` fall back to plain REST automatically. If even REST Actions is blocked, the watch reports it rather than hanging — verify the run out-of-band before the next phase. |

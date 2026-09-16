@@ -37,10 +37,10 @@ gates the set, so the promise is a test rather than a claim.
 | input | example | notes |
 |---|---|---|
 | `--out` | `$HOME/sourceplane/acme` | a flag, not an input; created if absent |
-| `reponame` | `acme` | REQUIRED. Lowercase slug (`^[a-z][a-z0-9-]*$`); repo becomes `<githubOrg>/<reponame>` |
+| `reponame` | `acme` | REQUIRED. Lowercase slug (`^[a-z][a-z0-9-]*$`); repo becomes `<githuborg>/<reponame>` |
 | `productname` | `Acme Cloud` | REQUIRED. Display name |
 | `productdomain` | `acme.dev` | REQUIRED. Product domain |
-| `githubOrg` | `sourceplane` | REQUIRED. The org or user the repo is created under |
+| `githuborg` | `sourceplane` | REQUIRED. The org or user the repo is created under |
 | `orunWorkspace` | `ws_FGBDTQ8T` | workspace id. Empty writes a placeholder that fails loudly rather than silently cross-tenanting |
 | `subdomain` | `rahulvarghesepullely` | workers.dev subdomain — keeping the baseline's is supported (worker names are brand-prefixed) |
 | `apibaseurl` | `https://api.acme.dev` | CLI default API base; empty derives from `productdomain` |
@@ -72,11 +72,11 @@ see `repo-blueprint.yaml`'s `inputs:` block for the full set.
    - the repo was **pre-created on GitHub** (org policy may restrict repo
      creation to admins — create it empty, no README) → the action detects
      it, wires `origin`, and pushes;
-   - nothing exists anywhere → it is created private under `githubOrg` and
+   - nothing exists anywhere → it is created private under `githuborg` and
      pushed.
 
    Requires a `GITHUB_TOKEN` with repo-creation (or at least push) rights
-   on `githubOrg`.
+   on `githuborg`.
 4. **land** — `orun.pr/land@v1`. It runs after **repo** because a landing
    resolves the git remote — which is also why repo creation lives in THIS
    phase and not later: everything after `01-scaffold` assumes a pushed,
@@ -109,7 +109,7 @@ orun new --blueprint repo-blueprint.yaml \
   --set reponame=acme \
   --set productname="Acme Cloud" \
   --set productdomain=acme.dev \
-  --set githubOrg=sourceplane \
+  --set githuborg=sourceplane \
   --set orunWorkspace=ws_ABCD1234 \
   --set subdomain=rahulvarghesepullely
 ```

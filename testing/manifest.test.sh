@@ -123,8 +123,34 @@ for path in manifests:
     input_keys = {f.get("key") for f in (spec.get("inputs") or [])}
     ACTION_ID = re.compile(r"^[a-z][a-z0-9.]*/[a-z][a-z0-9-]*@v[0-9]+$")
     REBRAND = "tooling/rebrand/rebrand.mjs"
+    # THE KEY CHARSET THE PLATFORM'S PARSER ENFORCES, mirrored here.
+    #
+    # `INPUT_KEY_RE = /^[a-z][a-z0-9_]{0,38}$/` in orun-cloud's
+    # `blueprint-manifest.ts`. Nothing in this repository ran that parser: the
+    # `blueprint-parses` job reads `repo-blueprint.yaml` with ORUN, which
+    # accepts camelCase happily, and this file is a hand-rolled reader of the
+    # card. So a card key orun likes and the platform refuses passed every
+    # check here and failed at the pin:
+    #
+    #     line 98: input key "githubOrg" must be lowercase letters, digits
+    #              and underscores
+    #
+    # It cost a baseline tag — v6 was already cut and a baseline tag is never
+    # moved — which is the whole argument for mirroring the rule rather than
+    # trusting that the two readers agree.
+    #
+    # It also constrains `repo-blueprint.yaml`: a card key must be an input the
+    # blueprint accepts (checked below), so any input the CARD declares must be
+    # named in this charset on BOTH sides. The blueprint's own camelCase
+    # inputs — `epicSlug`, `orunWorkspace`, `pascalName` — are untouched,
+    # because the card does not declare them.
+    INPUT_KEY = re.compile(r"^[a-z][a-z0-9_]{0,38}$")
     for i, field in enumerate(spec.get("inputs") or []):
         key = field.get("key", f"#{i}")
+        if not INPUT_KEY.match(str(key)):
+            B(f"inputs[{key}] is not a key the platform's parser accepts — it "
+              f"must match ^[a-z][a-z0-9_]{{0,38}}$ (lowercase letters, digits "
+              f"and underscores). The console would refuse the whole manifest.")
         if "askedBy" in field:
             B(f"inputs[{key}] declares askedBy — there is no agent to ask, so "
               f"every input is collected by the console")
@@ -284,7 +310,7 @@ for path in manifests:
     # refused.
     #
     # ONE DIRECTION ONLY. The blueprint declares more than this file does —
-    # `githubOrg`, `epicSlug`, `domain`, `orunWorkspace` and the identity
+    # `githuborg`, `epicSlug`, `domain`, `orunWorkspace` and the identity
     # defaults are how a BUILD is driven, not what a product is configured
     # with. What must hold is that nothing this file declares arrives at an
     # engine that cannot take it.
@@ -303,12 +329,12 @@ for path in manifests:
     # The check above is one-directional on purpose: the blueprint declares
     # more than this card does, because `epicSlug`, `domain` and the identity
     # defaults are how a BUILD is driven rather than what a product is
-    # configured with. That tolerance had no floor, and `githubOrg` fell
+    # configured with. That tolerance had no floor, and `githuborg` fell
     # through it — `required: true` in the blueprint, absent from this card,
     # so a platform build resolved the card's inputs, handed them to the
     # runner and died on its first step:
     #
-    #     ✕ input "githubOrg" is required
+    #     ✕ input "githuborg" is required
     #
     # An input the blueprint REQUIRES and gives no default to is one somebody
     # must supply, and the only things that supply inputs to a hosted build

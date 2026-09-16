@@ -41,7 +41,7 @@ predecessor is not placed, naming it.
 `01-scaffold` takes the product identity once and writes it into the repo
 (`.rebrand/values.json`); every later phase reads it back from the placed
 tree. But the blueprint's **required** inputs — `reponame`, `productname`,
-`productdomain`, `githubOrg` — are validated before any phase runs, so
+`productdomain`, `githuborg` — are validated before any phase runs, so
 they must be supplied on every invocation, single-phase ones included. A
 `--values` file is easier than repeating `--set`.
 
@@ -147,7 +147,7 @@ a closed registry inside the orun binary, not a script this repo ships:
 | action | role |
 |---|---|
 | `orun.task/ensure@v1` | the phase's own task in the workspace's task plane: find-or-create by identity under `epicSlug`, contract attached from `tasks/<phase>.TaskContract.yaml`. Never blocks a landing |
-| `orun.repo/ensure@v1` | create the product repo under `githubOrg` if it does not exist (pre-created is supported) |
+| `orun.repo/ensure@v1` | create the product repo under `githuborg` if it does not exist (pre-created is supported) |
 | `orun.pr/land@v1` | commit → branch → PR → wait for checks → merge → back on main, through the provenance pen so the landing binds to the phase's task |
 | `orun.run/watch@v1` | wait for the main convergence run; auto-resume through transient failures (`resumeBudget: 3`) |
 | `orun.doctor/check@v1` | the provider-consent wait — a precondition, not a preamble |

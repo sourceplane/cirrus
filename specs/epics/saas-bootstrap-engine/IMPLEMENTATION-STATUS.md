@@ -57,7 +57,7 @@ tree needs in order to be valid is a module nobody wrote down.
 `post` hooks.** It was global because a one-shot instantiation has only one
 end; in a phased bootstrap the end of `01-scaffold` *is* that moment.
 
-**Three inputs came in from the flows**: `githubOrg`, `epicSlug` and `domain`
+**Three inputs came in from the flows**: `githuborg`, `epicSlug` and `domain`
 were workflow inputs on `flows/phases/*/workflow.yaml`, invisible to anything
 reading this file — including the console that has to render a form for them.
 They are also written into `.rebrand/values.json`, because that file is
@@ -306,7 +306,7 @@ makes the CLI itself answer:
 ```yaml
 orun new --blueprint repo-blueprint.yaml --status --out "$(mktemp -d)" \
   --set repoName=acme-cloud --set "productName=Acme Cloud" \
-  --set productDomain=acme.dev --set githubOrg=acme-inc
+  --set productDomain=acme.dev --set githuborg=acme-inc
 ```
 
 `--status` derives every phase's state: it parses the document, validates each
