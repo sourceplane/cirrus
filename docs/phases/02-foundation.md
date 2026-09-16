@@ -14,7 +14,7 @@ whose lanes build and test it in CI.
 ## Inputs
 
 `--out` is the product repo. The blueprint's required inputs — `reponame`,
-`productname`, `productdomain`, `githubOrg` — are validated before any phase
+`productname`, `productdomain`, `githuborg` — are validated before any phase
 runs, so pass them on every invocation (a `--values` file beats repeating
 `--set`); everything else this phase needs it reads back from the placed
 tree. See [the phases README](README.md).

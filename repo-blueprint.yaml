@@ -69,7 +69,7 @@ inputs:
   # They were workflow inputs (`githuborg`, `epicslug`, `domain` on
   # the flows' per-phase workflow.yaml), which made them invisible to anything
   # reading this file — including the console that has to render a form.
-  githubOrg:
+  githuborg:
     type: string
     pattern: "^[A-Za-z0-9][A-Za-z0-9-]*$"
     required: true
@@ -596,7 +596,7 @@ modules:
   #    records the non-secret inputs in .orun/provenance.lock, but `.orun/` is
   #    gitignored in the product, so it has never survived a container — this
   #    file is committed, which is why every input a later phase needs must
-  #    appear here. githubOrg/epicSlug/domain are here for exactly that: a
+  #    appear here. githuborg/epicSlug/domain are here for exactly that: a
   #    phase run months later in a fresh container reads them back.
   - name: rebrand-values
     mode: template
@@ -613,7 +613,7 @@ modules:
           "subdomain": "{{ .subdomain }}"{{ if .salesEmail }},
           "salesEmail": "{{ .salesEmail }}"{{ end }},
           "orunWorkspace": "{{ .orunWorkspace }}",
-          "githubOrg": "{{ .githubOrg }}",
+          "githuborg": "{{ .githuborg }}",
           "epicSlug": "{{ .epicSlug }}",
           "domain": {{ if .domain }}true{{ else }}false{{ end }}
         }
@@ -720,9 +720,9 @@ phases:
         # The repo has to exist before there is anywhere to land.
         - id: repo
           uses: orun.repo/ensure@v1
-          narrate: "The repository exists at {{ .inputs.githubOrg }}/{{ .inputs.reponame }}."
+          narrate: "The repository exists at {{ .inputs.githuborg }}/{{ .inputs.reponame }}."
           with:
-            owner: "{{ .inputs.githubOrg }}"
+            owner: "{{ .inputs.githuborg }}"
             name: "{{ .inputs.reponame }}"
             private: true
         - id: land
@@ -772,7 +772,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The convergence run for {{ .phase.name }} came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   - name: 03-infrastructure
@@ -851,7 +851,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Terraform applied and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.secrets/exists@v1
@@ -913,7 +913,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Twelve workers deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   # The second pass, and a phase of its own rather than more hooks on the
@@ -962,7 +962,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The four workers redeployed with their bindings."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 2
 
   - name: 05-edge
@@ -1015,7 +1015,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The edge deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
@@ -1062,7 +1062,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The console deployed and the convergence run came back green."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
         - id: verify
           uses: orun.http/probe@v1
@@ -1115,7 +1115,7 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Cloudflare applied the DNS and custom-domain records."
           with:
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.reponame }}"
+            repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
 
   # Places nothing. It records what the other phases built, from PROBED facts

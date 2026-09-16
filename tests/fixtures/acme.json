@@ -13,7 +13,7 @@
   "reponame": "acme-cloud",
   "productname": "Acme Cloud",
   "productdomain": "acme.dev",
-  "githubOrg": "acme-inc",
+  "githuborg": "acme-inc",
   "subdomain": "acme",
   "orunWorkspace": "ws_0000000000000000000000000000000f",
   "epicSlug": "infra-baselining",

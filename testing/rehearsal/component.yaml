@@ -47,7 +47,7 @@ spec:
     # `sourceplane` by default: a rehearsal creates and deletes repositories,
     # and pointing that at the org the real products live in is one typo away
     # from deleting one.
-    githubOrg: sourceplane-rehearsal
+    githuborg: sourceplane-rehearsal
     # orun's floor for this baseline. `baseline new --local` arrived in
     # v2.57.0; `repo-blueprint.yaml` needs >= v2.56.2 to run past phase 01.
     orunVersion: v2.57.0

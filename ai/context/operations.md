@@ -136,7 +136,7 @@ orun new --blueprint repo-blueprint.yaml --out <product-checkout> \
 ```
 
 `<values.yaml>` carries this product's identity — at minimum `reponame`,
-`productname`, `productdomain`, `githubOrg` and `orunWorkspace`, which the
+`productname`, `productdomain`, `githuborg` and `orunWorkspace`, which the
 blueprint validates before anything runs. `--run-hooks` is what makes a phase
 land and verify rather than just place files; `--status` previews without
 writing. Every phase is idempotent — re-running a completed one is a no-op

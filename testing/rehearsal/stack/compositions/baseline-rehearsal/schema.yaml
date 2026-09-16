@@ -21,12 +21,12 @@ spec:
       parameters:
         type: object
         required:
-          - githubOrg
+          - githuborg
           - orunVersion
           - nodeVersion
           - baselineId
         properties:
-          githubOrg:
+          githuborg:
             type: string
             description: The org the throwaway product repo is created under. Never the org real products live in.
           orunVersion:
