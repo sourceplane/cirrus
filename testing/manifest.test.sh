@@ -298,6 +298,38 @@ for path in manifests:
                   f"console would resolve it and the engine would refuse it "
                   f"(orun fails closed on an undeclared --set)")
 
+    # ── …AND THE OTHER DIRECTION, for REQUIRED inputs only ───────────────
+    #
+    # The check above is one-directional on purpose: the blueprint declares
+    # more than this card does, because `epicSlug`, `domain` and the identity
+    # defaults are how a BUILD is driven rather than what a product is
+    # configured with. That tolerance had no floor, and `githubOrg` fell
+    # through it — `required: true` in the blueprint, absent from this card,
+    # so a platform build resolved the card's inputs, handed them to the
+    # runner and died on its first step:
+    #
+    #     ✕ input "githubOrg" is required
+    #
+    # An input the blueprint REQUIRES and gives no default to is one somebody
+    # must supply, and the only things that supply inputs to a hosted build
+    # are this card's fields and its `from`/`derive` sources. So "more" may
+    # not include one of those.
+    #
+    # Defaulted inputs stay out of it: a default IS the supply.
+    if bp is not None:
+        for key, spec_in in (bp.get("inputs") or {}).items():
+            if not isinstance(spec_in, dict):
+                continue
+            if not spec_in.get("required"):
+                continue
+            if "default" in spec_in:
+                continue
+            if key not in input_keys:
+                B(f"repo-blueprint.yaml requires input {key!r} and gives it no "
+                  f"default, and this card does not declare it — a hosted build "
+                  f"would collect every field it shows and still die with "
+                  f'\'input "{key}" is required\'')
+
     # ── programme: BOTH or NEITHER, against the blueprint's own hooks ─────
     #
     # A milestone is what a phase CLUBS ITS TASK UNDER, which the phase states

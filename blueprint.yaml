@@ -95,6 +95,22 @@ spec:
       # a field for it is a field an operator can get subtly wrong (http, a
       # trailing slash, api. on the wrong half) for no gain.
       derive: "https://api.{productdomain}"
+    - key: githubOrg
+      label: GitHub organisation
+      pattern: "^[A-Za-z0-9][A-Za-z0-9-]*$"
+      help: The GitHub org or user the product repository is created under.
+      # DERIVED FROM THE CHOSEN REPOSITORY, not asked. The operator picks the
+      # product repo in step 1, and its owner IS this value — a form field for
+      # it would be a second chance to get it wrong.
+      #
+      # It is here because `repo-blueprint.yaml` declares it `required: true`
+      # and this card did not declare it at all, so a platform build resolved
+      # the five inputs below, handed them to the runner, and died on its very
+      # first step with `✕ input "githubOrg" is required`. The manifest gate is
+      # one-directional by design — the build may declare more than the card —
+      # but "more" may not include something the build REQUIRES and no one
+      # supplies.
+      from: repo.owner
     - key: subdomain
       label: workers.dev subdomain
       pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
