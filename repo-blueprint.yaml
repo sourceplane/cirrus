@@ -660,6 +660,19 @@ phases:
     modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
     hooks:
       pre:
+        # THE EPIC IS THE BOOTSTRAP'S OWN CONTAINER, so the bootstrap makes it.
+        # Every phase's task clubs under `epicSlug`, and until this hook existed
+        # nothing created it — a fresh workspace answered the first phase with
+        # `epic: no epic with that ref, key or slug` and the run ended there.
+        # Found-or-created by slug, so a re-run and a resume land in the same
+        # epic rather than minting a second one; that is why the slug is an
+        # input and not a generated id.
+        - id: epic
+          uses: orun.task/ensure@v1
+          with:
+            kind: epic
+            slug: "{{ .inputs.epicSlug }}"
+            name: "Baselining {{ .inputs.productname }}"
         - id: task
           uses: orun.task/ensure@v1
           with:
