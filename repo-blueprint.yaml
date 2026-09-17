@@ -83,6 +83,17 @@ inputs:
       here, so a run that starts fresh and a run that resumes find the same
       work — the epic is found by slug, which is why this is an input and not
       a generated id.
+  repoPrivate:
+    type: boolean
+    default: true
+    description: >-
+      Whether the product repository is created private. Private is the safe
+      default — a product repo born public is a decision nobody made, and it
+      cannot be un-made retroactively for anything already pushed. It was
+      hard-coded until now, which meant a baseline could not instantiate the
+      open-source product it was asked for without editing the blueprint.
+      `orun.repo/ensure@v1` only sets this at creation: an existing repository
+      keeps whatever visibility it already has.
   domain:
     type: boolean
     default: false
@@ -737,7 +748,7 @@ phases:
           with:
             owner: "{{ .inputs.githuborg }}"
             name: "{{ .inputs.reponame }}"
-            private: true
+            private: "{{ .inputs.repoPrivate }}"
         - id: land
           uses: orun.pr/land@v1
           narrate: "The first commit is merged into main."
