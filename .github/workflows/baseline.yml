@@ -102,8 +102,10 @@ jobs:
           # older CLI refuses the whole document at parse; v2.58.6 is where a
           # landing's check wait covers the whole PR run; v2.58.7 knows
           # orun.doctor/check@v1's `githubOwner`; v2.58.8 reads
-          # orun.secrets/exists@v1's `environments`.
-          version: v2.58.8
+          # orun.secrets/exists@v1's `environments`; v2.58.10 defers a probe
+          # about a project the bootstrap has not created yet; v2.58.11 fills
+          # an input declared `from: workspace`.
+          version: v2.58.11
       - name: repo-blueprint.yaml, read by the pinned CLI
         run: |
           set -euo pipefail

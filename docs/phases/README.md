@@ -51,8 +51,10 @@ The three the phases used to carry as per-workflow inputs are blueprint
 inputs now, which is how the console can render a form from this document
 alone:
 
-- `orunWorkspace` — workspace id (`ws_…`). Empty writes a placeholder that
-  fails loudly rather than silently cross-tenanting.
+- `orunWorkspace` — workspace id (`ws_…`). Unset, it is the workspace the
+  build runs in (`from: workspace`: ORUN_WORKSPACE, which a console build
+  always has); with none anywhere, a placeholder that fails loudly rather than
+  silently cross-tenanting.
 - `epicSlug` (default `infra-baselining`) — the epic every phase clubs its
   task under. Found by slug, so a fresh run and a resumed run find the same
   work.

@@ -51,7 +51,7 @@ spec:
     # orun's floor for this baseline: v2.58.6 (see BOOTSTRAP.md) — v2.58.5
     # is the first that can bootstrap it at all, v2.58.6 the first whose
     # landings verify each phase's PR. `baseline new --local` arrived in v2.57.0.
-    orunVersion: v2.58.8
+    orunVersion: v2.58.11
     nodeVersion: "20"
     # The baseline id in the registry. The rehearsal resolves the row, fetches
     # the source at the PUBLISHED TAG and builds what it names — which is the
