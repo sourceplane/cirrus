@@ -51,12 +51,14 @@ const dryRun = flag("dry-run");
 const verifyOnly = flag("verify");
 
 let values = {};
-if (!verifyOnly) {
-  const valuesPath = arg("values");
-  if (!valuesPath) {
-    console.error("usage: rebrand.mjs --values <file> [--dry-run] | --verify");
-    process.exit(2);
-  }
+// --verify takes --values too, optionally: without them it cannot tell the
+// product's own identity from a leftover of the baseline's (below).
+const valuesPath = arg("values");
+if (!verifyOnly && !valuesPath) {
+  console.error("usage: rebrand.mjs --values <file> [--dry-run] | --verify [--values <file>]");
+  process.exit(2);
+}
+if (valuesPath) {
   values = JSON.parse(fs.readFileSync(valuesPath, "utf8"));
   for (const required of ["reponame", "productname", "productdomain"]) {
     if (typeof values[required] !== "string" || values[required].length === 0) {
@@ -421,17 +423,6 @@ function sweep(files, allowedLiterals = []) {
 
 const files = trackedFiles();
 
-if (verifyOnly) {
-  const residue = sweep(files);
-  if (residue.length > 0) {
-    console.error(`rebrand --verify: ${residue.length} baseline-identity leftover(s):`);
-    for (const r of residue) console.error(`  ${r}`);
-    process.exit(1);
-  }
-  console.log("rebrand --verify: no baseline-identity leftovers.");
-  process.exit(0);
-}
-
 const literalPairs = pairs();
 const regexPairs = scopedPairs();
 const counts = new Map();
@@ -460,6 +451,27 @@ const rematchable = (v) =>
   regexPairs.some(({ re }) => new RegExp(re.source).test(v));
 // Longest first, so a held value is never split by a shorter one inside it.
 const guarded = produced.filter(rematchable).sort((a, b) => b.length - a.length);
+
+if (verifyOnly) {
+  // A product whose own name, domain or workspace slug contains a baseline
+  // word (`cirrus-test`, `cirrus-e2e`) carries that word legitimately, and
+  // without its values --verify cannot know that: every phase of such a
+  // bootstrap failed its rebrand-verify on the product's own identity. Given
+  // --values, what this rebrand would write is allowed exactly as the
+  // post-rename sweep allows it.
+  const residue = sweep(
+    files,
+    valuesPath ? produced.filter((to) => new RegExp(RESIDUE_RE.source).test(to)) : [],
+  );
+  if (residue.length > 0) {
+    console.error(`rebrand --verify: ${residue.length} baseline-identity leftover(s):`);
+    for (const r of residue) console.error(`  ${r}`);
+    process.exit(1);
+  }
+  console.log("rebrand --verify: no baseline-identity leftovers.");
+  process.exit(0);
+}
+
 
 for (const file of files) {
   let text;

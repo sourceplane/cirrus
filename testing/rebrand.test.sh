@@ -103,5 +103,30 @@ check "a token keeps the word boundaries its value had" \
   "{$base}" apps/w/notes.yaml 'id: cirrus.appcirrus' \
   'id: altocumulus.devcirrus'
 
+# --verify runs in every phase of a bootstrap. Without the product's values it
+# cannot tell the product's own identity from a baseline leftover, and a product
+# whose domain contains `cirrus` failed it in every phase; with them it passes.
+# A real leftover must still fail it either way.
+verify() { # NAME VALUES FILE CONTENT WANT(pass|fail) [--values]
+  local name="$1" values="$2" file="$3" content="$4" want="$5" withvalues="${6:-}" tmp got
+  tmp="$(mktemp -d)"
+  git -C "$tmp" init -q
+  mkdir -p "$tmp/$(dirname "$file")" "$tmp/.rebrand"
+  printf '%s\n' "$content" > "$tmp/$file"
+  printf '%s\n' "$values" > "$tmp/.rebrand/values.json"
+  git -C "$tmp" add -A
+  if (cd "$tmp" && node "$rebrand" --verify ${withvalues:+--values .rebrand/values.json} >/dev/null 2>&1); then got=pass; else got=fail; fi
+  rm -rf "$tmp"
+  if [ "$got" = "$want" ]; then echo "   ok  $name"; else echo "   ✕  $name: --verify ${got}ed, want $want" >&2; fail=1; fi
+}
+echo "── rebrand --verify: the product's own identity is not residue"
+weather='{"reponame":"acme","productname":"Acme","productdomain":"cirrus-weather.dev"}'
+verify "given the values, a domain containing a baseline word passes" \
+  "$weather" apps/w/wrangler.template.jsonc '"BASE_DOMAIN": "cirrus-weather.dev"' pass --values
+verify "without them it cannot know, and fails" \
+  "$weather" apps/w/wrangler.template.jsonc '"BASE_DOMAIN": "cirrus-weather.dev"' fail
+verify "given the values, a real leftover still fails" \
+  "$weather" apps/w/wrangler.template.jsonc '"BASE_DOMAIN": "cirrus.app"' fail --values
+
 [ "$fail" -eq 0 ] || exit 1
 echo "rebrand.test.sh: ok"
