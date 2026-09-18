@@ -832,6 +832,13 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        # The workspace lockfile grows with the tree. 01-scaffold wrote it for
+        # the three projects that existed then, and the lanes install with
+        # --frozen-lockfile, so this phase's packages were refused before a
+        # test ran: `ERR_PNPM_OUTDATED_LOCKFILE … not up to date with
+        # packages/contracts/package.json`. The landing stages it.
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The packages PR is merged into main."
@@ -926,6 +933,8 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The infrastructure PR is merged into main."
@@ -991,6 +1000,8 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         # The Cloudflare service-binding two-pass. The
         # {billing,membership,events,notifications} cluster binds to itself,
         # and a binding cannot name a worker that does not exist yet, so the
@@ -1118,6 +1129,8 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The edge PR is merged into main."
@@ -1176,6 +1189,8 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The console PR is merged into main."
@@ -1241,6 +1256,8 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The domain PR is merged into main."
