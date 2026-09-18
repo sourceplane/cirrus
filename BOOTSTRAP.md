@@ -19,12 +19,15 @@ where this baseline is cheaper than a Postgres-backed one.
 ## 0. What you need
 
 - GitHub org access (repo creation) and a machine with `git`, `gh`, `node`
-  (≥20), `pnpm`, `python3`, and the `orun` CLI **≥ v2.56.2** (same floor as
-  the product lane pin). v2.56.0 is the first release carrying the phase
-  overlay this blueprint uses — before it there is no `--phase` flag and
-  `hooks.{pre,post,await}` does not parse. v2.56.2 is the first that can run
-  it **past phase 01**: a phase that brands what it places derives as
-  `drifted` from then on, and the requirement gate used to refuse that.
+  (≥20), `pnpm`, `python3`, and the `orun` CLI **≥ v2.58.5**. That is the
+  floor for RUNNING the bootstrap; the product's own `ci.yml` lane pin is a
+  separate, lower floor (≥ v2.56.2). v2.56.0 carried the phase overlay (before
+  it there is no `--phase` and `hooks.{pre,post,await}` does not parse);
+  v2.56.2 let a branded phase satisfy the next one's requirement; v2.58.4
+  resolves a milestone name and a rendered bool; and v2.58.5 is the first that
+  can bootstrap at all — it writes each phase's files on that phase's turn,
+  its landing commits, seeds an empty repository and deletes the branch it
+  merged, and a convergence watches the commit it landed (`sha:`).
 - A Cloudflare account (Workers paid plan for the fleet) and its **Account
   API token** (the console's Connect recipe lists the exact permission
   groups). It is the ONLY provider credential this baseline needs — and it
@@ -160,7 +163,7 @@ every phase's state and is the flag for that.
 
 | requirement | detail |
 |---|---|
-| image deps | `git`, `gh`, `node` (≥20), `pnpm`, `python3`, `curl`, `orun` ≥ v2.56.2. The product's `ci.yml` lane pin matches |
+| image deps | `git`, `gh`, `node` (≥20), `pnpm`, `python3`, `curl`, `orun` ≥ v2.58.5 to run the bootstrap. The product's `ci.yml` lane pin (≥ v2.56.2) is its own floor |
 | `ORUN_TOKEN` | orun access token; the typed actions authenticate with it (no login flow) |
 | `GITHUB_TOKEN` | fine-grained PAT: **read** on `sourceplane/cirrus` (the clone); on the PRODUCT repo: **contents write** (pushes), **pull-requests write** (landings), **actions read+write** (`orun.run/watch@v1` watches runs and auto-resumes via `gh run rerun`), **checks read**; **repo create** on the org if `01-scaffold` creates the repo (or pre-create it — supported) |
 | pinning | the clone's `--branch <tag>` pins EVERYTHING: the blueprint, its modules, and the hooks' scripts all come from that one commit. Use a tag for reproducible bootstraps; `main` for latest |
@@ -248,7 +251,7 @@ not one is worse than a gate that says what it is.
 | Worker verify lane: missing `WIRING_*` secret | Its terraform upstream hasn't applied (check that lane first) — inside one convergence run the DAG guarantees order; across manual partial runs it does not. `04-workers` guards this with a `requires.probe` on both keys. |
 | D1 lane or db-migrate: `Authentication error (10000)` | The lane resolved `CLOUDFLARE_API_TOKEN` (workers-deploy), which cannot touch D1. Both D1 components must bind `CLOUDFLARE_D1_TOKEN`. |
 | CLI login dies with 429 `rate_limited` | Fixed ≥ v2.48.1 (redeem honors Retry-After). Upgrade the CLI. |
-| `unknown flag: --phase`, or `cannot unmarshal !!map into []scaffold.Hook` | The CLI is below the v2.56.2 floor. Nothing in this repo is readable by an older one. |
+| `unknown flag: --phase`, `cannot unmarshal !!map into []scaffold.Hook`, or `orun.run/watch@v1 has no parameter "sha"` | The CLI is below the v2.58.5 floor. This blueprint is not readable by an older one. |
 | `✕ input "productdomain" is required` | Required inputs are validated before anything else, so this names the key nobody typed. All four requireds — `reponame`, `productname`, `productdomain`, `githuborg` — must be set on every invocation, including single-phase ones. |
 | Console/edge smoke fails right after the FIRST deploy of a worker | workers.dev route propagation race — the deploy lane's smoke retries with backoff (stack-tectonic ≥ 0.18.2); a convergence resume clears older pins. |
 | Terraform lane: "state already locked" by ITS OWN plan | Backend lock-release race — a convergence resume clears it. |
