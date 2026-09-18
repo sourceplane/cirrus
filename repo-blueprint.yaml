@@ -749,6 +749,37 @@ phases:
             owner: "{{ .inputs.githuborg }}"
             name: "{{ .inputs.reponame }}"
             private: "{{ .inputs.repoPrivate }}"
+        # THE REPOSITORY MUST BE THE WORKSPACE'S before anything lands in it,
+        # or the product's own CI cannot reach the platform. Every convergence
+        # lane authenticates over GitHub OIDC, and the platform resolves that
+        # token through the repo link. With no link, every lane of the first
+        # real convergence died before running a step:
+        #
+        #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+        #     Not found (code: not_found)
+        #
+        # The shell this replaced ended 01-scaffold with exactly this pair (its
+        # `link` step). BE4 kept the repo step and dropped the link, and
+        # nothing noticed, because no BE4 run had reached a convergence.
+        #
+        # `link` may be refused where the credential cannot write links (a
+        # workspace key) and the platform has linked the repository already —
+        # a --via-platform build only builds into a linked one. So `link` is
+        # best effort and `check` is the gate: an unlinked repository stops
+        # here, naming the fix, instead of an hour later in every lane.
+        - id: link
+          run:
+            - bash
+            - -c
+            - |
+              orun cloud link --org "$1" || true
+              orun cloud check --org "$1" || {
+                echo "$2 is not linked to workspace $1 — its CI cannot authenticate. Link it (orun cloud link --org $1, or the console's Git Repos) and re-run this phase." >&2
+                exit 1
+              }
+            - link
+            - "{{ .inputs.orunWorkspace }}"
+            - "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
         - id: land
           uses: orun.pr/land@v1
           narrate: "The first commit is merged into main."
