@@ -59,11 +59,16 @@ inputs:
   orunWorkspace:
     type: string
     default: ""
+    # Unset, it is the workspace the build runs in (ORUN_WORKSPACE — which a
+    # console build's sandbox always sets, and which the console form cannot
+    # send). A value set on the command line or recorded by the tree wins.
+    from: workspace
     description: >-
-      Orun Cloud workspace ID (ws_…) for this instance's remote state. rebrand.mjs
-      treats the orun state backend as org-owned and leaves it alone, so without
-      this the fork inherits the BASELINE's workspace and its CI would claim
-      another tenant's workspace. Left empty, the scaffold writes a placeholder
+      Orun Cloud workspace ID (ws_…, org_… or slug) for this instance's remote
+      state. rebrand.mjs treats the orun state backend as org-owned and leaves
+      it alone, so without this the fork inherits the BASELINE's workspace and
+      its CI would claim another tenant's workspace. Unset, it is the workspace
+      the build runs in; with none anywhere, the scaffold writes a placeholder
       that fails loudly rather than silently cross-tenanting.
   # ── BE1: the three facts the phases below need and the flows used to hold.
   # They were workflow inputs (`githuborg`, `epicslug`, `domain` on

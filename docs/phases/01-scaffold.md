@@ -41,7 +41,7 @@ gates the set, so the promise is a test rather than a claim.
 | `productname` | `Acme Cloud` | REQUIRED. Display name |
 | `productdomain` | `acme.dev` | REQUIRED. Product domain |
 | `githuborg` | `sourceplane` | REQUIRED. The org or user the repo is created under |
-| `orunWorkspace` | `ws_FGBDTQ8T` | workspace id. Empty writes a placeholder that fails loudly rather than silently cross-tenanting |
+| `orunWorkspace` | `ws_FGBDTQ8T` | workspace id. Unset, the workspace the build runs in (ORUN_WORKSPACE); with none anywhere, a placeholder that fails loudly rather than silently cross-tenanting |
 | `subdomain` | `rahulvarghesepullely` | workers.dev subdomain — keeping the baseline's is supported (worker names are brand-prefixed) |
 | `apibaseurl` | `https://api.acme.dev` | CLI default API base; empty derives from `productdomain` |
 | `epicSlug` | `infra-baselining` (default) | the epic every phase clubs its task under |

@@ -192,6 +192,16 @@ STATE_WORDS = {"done", "failed", "complete", "completed", "succeeded", "skipped"
 PHASE_KEYS = {"name", "title"}
 input_keys = set((bp.get("inputs") or {}).keys())
 
+# THE WORKSPACE COMES FROM THE BUILD. A console build cannot send
+# `orunWorkspace` (the manifest's input keys are lowercase, and the console
+# holds only repository facts), so without `from: workspace` it is empty
+# there, and phase 01 writes `workspace: ws_SET_ME` into the product, points
+# every secret ref at the repository's name, and links with `--org ""`.
+# orun >= v2.58.11 fills it from the workspace the build runs in.
+ws_input = (bp.get("inputs") or {}).get("orunWorkspace") or {}
+if ws_input.get("from") != "workspace":
+    bad("inputs.orunWorkspace must declare `from: workspace` — a console build has no other way to say it")
+
 def strip_expressions(line):
     out, rest = [], line
     while True:
