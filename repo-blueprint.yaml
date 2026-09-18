@@ -83,6 +83,17 @@ inputs:
       here, so a run that starts fresh and a run that resumes find the same
       work — the epic is found by slug, which is why this is an input and not
       a generated id.
+  repoPrivate:
+    type: boolean
+    default: true
+    description: >-
+      Whether the product repository is created private. Private is the safe
+      default — a product repo born public is a decision nobody made, and it
+      cannot be un-made retroactively for anything already pushed. It was
+      hard-coded until now, which meant a baseline could not instantiate the
+      open-source product it was asked for without editing the blueprint.
+      `orun.repo/ensure@v1` only sets this at creation: an existing repository
+      keeps whatever visibility it already has.
   domain:
     type: boolean
     default: false
@@ -660,6 +671,19 @@ phases:
     modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
     hooks:
       pre:
+        # THE EPIC IS THE BOOTSTRAP'S OWN CONTAINER, so the bootstrap makes it.
+        # Every phase's task clubs under `epicSlug`, and until this hook existed
+        # nothing created it — a fresh workspace answered the first phase with
+        # `epic: no epic with that ref, key or slug` and the run ended there.
+        # Found-or-created by slug, so a re-run and a resume land in the same
+        # epic rather than minting a second one; that is why the slug is an
+        # input and not a generated id.
+        - id: epic
+          uses: orun.task/ensure@v1
+          with:
+            kind: epic
+            slug: "{{ .inputs.epicSlug }}"
+            name: "Baselining {{ .inputs.productname }}"
         - id: task
           uses: orun.task/ensure@v1
           with:
@@ -724,7 +748,7 @@ phases:
           with:
             owner: "{{ .inputs.githuborg }}"
             name: "{{ .inputs.reponame }}"
-            private: true
+            private: "{{ .inputs.repoPrivate }}"
         - id: land
           uses: orun.pr/land@v1
           narrate: "The first commit is merged into main."
