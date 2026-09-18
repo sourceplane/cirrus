@@ -738,7 +738,7 @@ phases:
         - id: git-restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         # The repo has to exist before there is anywhere to land.
@@ -831,7 +831,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         # The workspace lockfile grows with the tree. 01-scaffold wrote it for
         # the three projects that existed then, and the lanes install with
         # --frozen-lockfile, so this phase's packages were refused before a
@@ -932,7 +932,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
@@ -999,7 +999,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         # The Cloudflare service-binding two-pass. The
@@ -1128,7 +1128,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
@@ -1188,7 +1188,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
@@ -1255,7 +1255,7 @@ phases:
         - id: restage
           run: ["git", "add", "-A"]
         - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
