@@ -749,6 +749,37 @@ phases:
             owner: "{{ .inputs.githuborg }}"
             name: "{{ .inputs.reponame }}"
             private: "{{ .inputs.repoPrivate }}"
+        # THE REPOSITORY MUST BE THE WORKSPACE'S before anything lands in it,
+        # or the product's own CI cannot reach the platform. Every convergence
+        # lane authenticates over GitHub OIDC, and the platform resolves that
+        # token through the repo link. With no link, every lane of the first
+        # real convergence died before running a step:
+        #
+        #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+        #     Not found (code: not_found)
+        #
+        # The shell this replaced ended 01-scaffold with exactly this pair (its
+        # `link` step). BE4 kept the repo step and dropped the link, and
+        # nothing noticed, because no BE4 run had reached a convergence.
+        #
+        # `link` may be refused where the credential cannot write links (a
+        # workspace key) and the platform has linked the repository already —
+        # a --via-platform build only builds into a linked one. So `link` is
+        # best effort and `check` is the gate: an unlinked repository stops
+        # here, naming the fix, instead of an hour later in every lane.
+        - id: link
+          run:
+            - bash
+            - -c
+            - |
+              orun cloud link --org "$1" || true
+              orun cloud check --org "$1" || {
+                echo "$2 is not linked to workspace $1 — its CI cannot authenticate. Link it (orun cloud link --org $1, or the console's Git Repos) and re-run this phase." >&2
+                exit 1
+              }
+            - link
+            - "{{ .inputs.orunWorkspace }}"
+            - "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
         - id: land
           uses: orun.pr/land@v1
           narrate: "The first commit is merged into main."
@@ -782,6 +813,32 @@ phases:
             prefix: BASE
             contract: tasks/02-foundation.TaskContract.yaml
       post:
+        # EVERY PHASE BRANDS WHAT IT PLACED, before it lands.
+        #
+        # orun writes a phase's files between its pre and post hooks (v2.58.5;
+        # before that it wrote the WHOLE tree up front, and 01-scaffold landed
+        # the entire product — 1075 files — as its first PR). So these files
+        # arrive carrying the baseline's identity AFTER 01-scaffold's rebrand
+        # has run, and landing them as placed would ship `cirrus-*` worker
+        # names into the product. The shell this replaced did the same in
+        # every phase (apply-blueprint.sh: place, stage, rebrand, stage).
+        # rebrand.mjs enumerates the tree with `git ls-files`, hence the stage
+        # before it; --verify then refuses a landing with identity left over.
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        # The workspace lockfile grows with the tree. 01-scaffold wrote it for
+        # the three projects that existed then, and the lanes install with
+        # --frozen-lockfile, so this phase's packages were refused before a
+        # test ran: `ERR_PNPM_OUTDATED_LOCKFILE … not up to date with
+        # packages/contracts/package.json`. The landing stages it.
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The packages PR is merged into main."
@@ -796,8 +853,18 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The convergence run for {{ .phase.name }} came back green."
           with:
+            # The run for the commit THIS landing merged, waited for. The
+            # branch's newest run, read the moment the merge returns, is the
+            # previous phase's — GitHub registers a push's run seconds later —
+            # so an unpinned watch reported "converged" for a run that had not
+            # started. And a wait of 0 parks the phase at once, which ends a
+            # one-process bootstrap (the platform's driver included) at its
+            # first convergence; the budget is roughly twice the phase's
+            # expectedMinutes.
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 1800
 
   - name: 03-infrastructure
     title: The data infrastructure
@@ -857,6 +924,17 @@ phases:
             keys: [CLOUDFLARE_ACCOUNT_ID]
             template: account-id
       post:
+        # Brand what this phase placed before it lands (see 02-foundation).
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The infrastructure PR is merged into main."
@@ -875,8 +953,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Terraform applied and the convergence run came back green."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 1800
         - id: verify
           uses: orun.secrets/exists@v1
           narrate: "The wiring secrets the workers read are in the workspace."
@@ -911,6 +991,17 @@ phases:
             prefix: BASE
             contract: tasks/04-workers.TaskContract.yaml
       post:
+        # Brand what this phase placed before it lands (see 02-foundation).
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         # The Cloudflare service-binding two-pass. The
         # {billing,membership,events,notifications} cluster binds to itself,
         # and a binding cannot name a worker that does not exist yet, so the
@@ -937,8 +1028,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Twelve workers deployed and the convergence run came back green."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 3600
 
   # The second pass, and a phase of its own rather than more hooks on the
   # first. The restore can only run AFTER 04-workers has converged — a service
@@ -986,8 +1079,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The four workers redeployed with their bindings."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 2
+            waitSeconds: 1800
 
   - name: 05-edge
     title: The API edge
@@ -1025,6 +1120,17 @@ phases:
             prefix: BASE
             contract: tasks/05-edge.TaskContract.yaml
       post:
+        # Brand what this phase placed before it lands (see 02-foundation).
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The edge PR is merged into main."
@@ -1039,8 +1145,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The edge deployed and the convergence run came back green."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 1800
         - id: verify
           uses: orun.http/probe@v1
           narrate: "Both /health endpoints answered."
@@ -1072,6 +1180,17 @@ phases:
             prefix: BASE
             contract: tasks/06-console.TaskContract.yaml
       post:
+        # Brand what this phase placed before it lands (see 02-foundation).
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The console PR is merged into main."
@@ -1086,8 +1205,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "The console deployed and the convergence run came back green."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 2700
         - id: verify
           uses: orun.http/probe@v1
           narrate: "Every console and edge URL answered."
@@ -1126,6 +1247,17 @@ phases:
             prefix: BASE
             contract: tasks/07-domain.TaskContract.yaml
       post:
+        # Brand what this phase placed before it lands (see 02-foundation).
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The domain PR is merged into main."
@@ -1139,8 +1271,10 @@ phases:
           uses: orun.run/watch@v1
           narrate: "Cloudflare applied the DNS and custom-domain records."
           with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
+            waitSeconds: 1800
 
   # Places nothing. It records what the other phases built, from PROBED facts
   # rather than from what the blueprint intended — which is why it runs last
