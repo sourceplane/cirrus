@@ -48,10 +48,10 @@ spec:
     # and pointing that at the org the real products live in is one typo away
     # from deleting one.
     githuborg: sourceplane-rehearsal
-    # orun's floor for this baseline: v2.58.5, the first release that can
-    # bootstrap it end to end (see BOOTSTRAP.md). `baseline new --local`
-    # arrived in v2.57.0.
-    orunVersion: v2.58.5
+    # orun's floor for this baseline: v2.58.6 (see BOOTSTRAP.md) — v2.58.5
+    # is the first that can bootstrap it at all, v2.58.6 the first whose
+    # landings verify each phase's PR. `baseline new --local` arrived in v2.57.0.
+    orunVersion: v2.58.6
     nodeVersion: "20"
     # The baseline id in the registry. The rehearsal resolves the row, fetches
     # the source at the PUBLISHED TAG and builds what it names — which is the

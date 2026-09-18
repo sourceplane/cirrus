@@ -98,24 +98,30 @@ jobs:
           # re-open it, so lanes wait out the race instead.
           retry_flag=""
           if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then retry_flag="--retry"; fi
-          # Remote state authenticates to the platform over OIDC, and the
-          # backend refuses a pull_request OIDC token BY DESIGN — a PR must
-          # never obtain deploy/state credentials. The refusal resource-hides
-          # as `not_found`, so every PR lane died at
-          #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
-          #     Not found (code: not_found)
-          # BEFORE running a single test body. That is why the retired
-          # tests/flows component was never able to fail a pull request: it
-          # never ran on one.
+          # EVERY RUN REPORTS TO THE PLATFORM, a pull request's included.
           #
-          # So a PR runs with NO state flag. Per specs/core/repo.md the
-          # portable base command is `orun run --plan … --job …` and remote
-          # state is an additive opt-in, so omitting it keeps state local and
-          # the verify profile — build, typecheck, tests — is entirely offline.
-          # Push-to-main keeps it for coordination and the live run view.
-          # (Same shape as orun-cloud's ci.yml, which fixed this first.)
-          state_flag=""
-          if [ "${{ github.event_name }}" != "pull_request" ]; then state_flag="--remote-state"; fi
+          # A PR lane resolves its secrets like any other (a verify lane still
+          # reads the wiring its fixture stands in for, an infra lane plans
+          # against the real account), and a job's secret refs are resolved
+          # before its first step whatever its profile does — so a PR run
+          # without remote state failed every lane that declares one:
+          #
+          #   ✗ cloudflare-d1.stage.terraform: secret resolution failed: local
+          #     runs resolve secrets only from ORUN_SECRET_<KEY> overrides
+          #
+          # and a phase's PR could never be verified before it merged. This
+          # used to drop the state flag on PRs, on the belief that the backend
+          # refuses a pull_request OIDC token by design. It does not: the
+          # exchange's only gate is the repo link's CI settings (oidcEnabled,
+          # allowedRefPattern, allowedEnvironments — identity-worker
+          # oidc-exchange.ts), and the resource-hidden `not_found` seen at the
+          # time is exactly what an UNLINKED repository answers, push or PR.
+          # Remote state on a PR also puts the PR's runs in front of the
+          # platform, which renders runs on refs/pull/<n> as that PR's row.
+          # Fork PRs get no OIDC token from GitHub at all and still fail
+          # closed. Nothing mutating runs here: deploy/apply profiles are gated
+          # on triggerRef github-push-main.
+          state_flag="--remote-state"
           orun run \
             --plan plan.json \
             --runner github-actions \

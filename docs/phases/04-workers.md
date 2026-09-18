@@ -1,11 +1,16 @@
 # Phase 04 — workers
 
-Lands the **12-worker fleet** (`repo-blueprint.yaml`, phase `04-workers`) in two
+Lands the **database migrations** and the **12-worker fleet**
+(`repo-blueprint.yaml`, phase `04-workers`) in two
 landings: first with the service-binding feedback edges stripped so
 first-boot workers can deploy in DAG order, then a restore landing once
 every worker they point at exists.
 
 ## What it lands
+
+`infra/db-migrate` — the migration runner, applied to the D1 database phase 03
+created; it plans on the PR (the database id exists by now) and applies after
+the merge, ahead of the workers that read the schema.
 
 `apps/`: `policy-worker`, `membership-worker`, `events-worker`,
 `projects-worker`, `identity-worker`, `config-worker`, `webhooks-worker`,
