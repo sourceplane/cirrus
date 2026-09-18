@@ -669,6 +669,24 @@ phases:
       done:   "{{ .inputs.reponame }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productname }}. That took {{ .meta.elapsed }}."
       failed: "The repository did not get off the ground. The log above says where it stopped."
     modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire, vscode]
+    # THE PLATFORM MUST BE ABLE TO SEE THE REPOSITORY BEFORE IT EXISTS. Every
+    # phase lands a pull request that files under its task, and the platform
+    # learns of a PR only through the GitHub App installation on the account
+    # that OWNS the repository. A workspace connected to some other account
+    # passed "github is connected", and every PR of the product it built was
+    # invisible to it — no PR rows, nothing filed — found on
+    # sourceplane/altocumulus, whose workspace was connected only to the user
+    # account `adampullely`. So the owner's connection is asked for here,
+    # before a repository is created, and waited for like any other consent.
+    requires:
+      probe:
+        - id: github
+          uses: orun.doctor/check@v1
+          with:
+            providers: [github]
+            githubOwner: "{{ .inputs.githuborg }}"
+            waitSeconds: 600
+            pollSeconds: 20
     hooks:
       pre:
         # THE EPIC IS THE BOOTSTRAP'S OWN CONTAINER, so the bootstrap makes it.
@@ -899,6 +917,7 @@ phases:
           uses: orun.doctor/check@v1
           with:
             providers: [github, cloudflare]
+            githubOwner: "{{ .inputs.githuborg }}"
             waitSeconds: 600
             pollSeconds: 20
     hooks:
