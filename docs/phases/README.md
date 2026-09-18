@@ -24,12 +24,14 @@ before anything else can build or deploy. Each phase's `requires.phases`
 states this in the document, and the engine refuses a phase whose
 predecessor is not placed, naming it.
 
+Every phase lands as a pull request that is verified, then merged: each landing waits for its PR's own CI to finish green (the product's PR runs carry remote state, so lanes that need secrets resolve them on the PR too), and the convergence after the merge is still watched.
+
 | phase | lands | verified by |
 |---|---|---|
 | [`01-scaffold`](01-scaffold.md) | **GitHub repo created** + repo born: intent, CI, tooling, identity | repo pushed + workspace-linked |
 | [`02-foundation`](02-foundation.md) | 13 shared packages | verify lanes green |
-| [`03-infrastructure`](03-infrastructure.md) | d1, kv, db-migrate | published `WIRING_*` secrets |
-| [`04-workers`](04-workers.md) | the 12-worker fleet, service bindings stripped | convergence green |
+| [`03-infrastructure`](03-infrastructure.md) | d1, kv | published `WIRING_*` secrets |
+| [`04-workers`](04-workers.md) | db-migrate + the 12-worker fleet, service bindings stripped | convergence green |
 | [`04-workers-restore`](04-workers.md) | the bindings put back | convergence green |
 | [`05-edge`](05-edge.md) | api-edge | `/health` 200 on stage+prod |
 | [`06-console`](06-console.md) | web console | console + edge live |

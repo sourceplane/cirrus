@@ -780,6 +780,14 @@ phases:
             - link
             - "{{ .inputs.orunWorkspace }}"
             - "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
+        # EVERY PHASE IS A PULL REQUEST THAT IS VERIFIED, THEN MERGED. No
+        # landing below says `wait: false`: each waits for its PR's own CI —
+        # the workflow run to its last lane, not just the checks registered so
+        # far (orun >= v2.58.6) — and merges only on green. The product's PR
+        # runs carry remote state (.github/workflows/ci.yml), so a lane that
+        # needs a secret resolves it on the PR as it would on main. Every
+        # convergence after a merge is still watched, because deploying is
+        # what a merge does and a PR cannot.
         - id: land
           uses: orun.pr/land@v1
           narrate: "The first commit is merged into main."
@@ -788,7 +796,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase({{ .phase.name }}): repo born"
-            wait: false
 
   - name: 02-foundation
     title: The shared packages
@@ -847,7 +854,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase({{ .phase.name }}): shared packages"
-            wait: false
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -870,11 +876,17 @@ phases:
     title: The data infrastructure
     expectedMinutes: 3
     narrate:
-      start:  "Now the data layer — a D1 database and a KV namespace per environment, then the migration runner. This is the first phase that touches Cloudflare."
+      start:  "Now the data layer — a D1 database and a KV namespace per environment. This is the first phase that touches Cloudflare."
       await:  "Terraform is applying. D1 and KV create in seconds; the wait is the convergence run around them."
       done:   "D1 and KV exist on stage and prod, and their ids are published as wiring secrets for the workers to read. {{ .meta.elapsed }}."
       failed: "The data layer did not come up. The convergence log above carries the provider's own error."
-    modules: [cloudflare-d1, cloudflare-kv, db-migrate]
+    # db-migrate is NOT here, though it is data plane: its PR lane plans the
+    # migrations against the database cloudflare-d1 creates, whose id is a
+    # job-output secret that exists only once this phase's merge has applied.
+    # In this phase its PR lane was red on every fresh product, so the phase
+    # could never be verified before it merged. It lands with 04-workers, the
+    # first phase that reads the database, where the id already exists.
+    modules: [cloudflare-d1, cloudflare-kv]
     # The first phase that DEPLOYS. `requires.probe` asks reality the question
     # a lock file cannot answer: are the two provider connections live right
     # now? `docs/phases/04-workers.md` carries the same knowledge as
@@ -902,7 +914,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): d1, kv, db-migrate"
+            name: "phase({{ .phase.name }}): d1, kv"
             prefix: BASE
             contract: tasks/03-infrastructure.TaskContract.yaml
         - id: secret-workers-deploy
@@ -942,12 +954,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): d1, kv, db-migrate"
-            # This PR's db-migrate plan lane CANNOT pass on a fresh product:
-            # it resolves the database id from cloudflare-d1's job-output
-            # secret, which only exists after the merge's main run applies
-            # cloudflare-d1. The converge below is the real gate.
-            wait: false
+            title: "phase({{ .phase.name }}): d1, kv"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -967,11 +974,11 @@ phases:
     title: The worker fleet
     expectedMinutes: 31
     narrate:
-      start:  "Now the twelve-worker fleet — the longest stretch of the build, usually about {{ .meta.expectedMinutes }} minutes. Four of the workers bind to each other, so this pass deploys them without those bindings."
+      start:  "Now the database migrations and the twelve-worker fleet — the longest stretch of the build, usually about {{ .meta.expectedMinutes }} minutes. Four of the workers bind to each other, so this pass deploys them without those bindings."
       await:  "Twelve workers are deploying across two environments. This is the slow part; nothing is stuck."
       done:   "All twelve workers are live on stage and prod, minus the four feedback bindings the next phase puts back. {{ .meta.elapsed }}."
       failed: "The fleet did not deploy. The convergence log above names the worker that stopped it."
-    modules: [admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
+    modules: [db-migrate, admin-worker, admin-worker-tests, billing-worker, billing-worker-tests, config-worker, config-worker-tests, events-worker, events-worker-tests, identity-worker, identity-worker-tests, integrations-worker, integrations-worker-tests, membership-worker, membership-worker-tests, metering-worker, metering-worker-tests, notifications-worker, notifications-worker-tests, policy-worker, policy-worker-tests, projects-worker, projects-worker-tests, webhooks-worker, webhooks-worker-tests]
     requires:
       phases: [03-infrastructure]
       probe:
@@ -1022,7 +1029,8 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase({{ .phase.name }}): worker fleet (feedback edges stripped)"
-            wait: false
+            # Twelve workers' verify lanes, on two environments.
+            checkTimeoutSeconds: 3600
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1073,7 +1081,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase(04-workers): restore service-binding feedback edges"
-            wait: false
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1139,7 +1146,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase({{ .phase.name }}): api-edge"
-            wait: false
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1199,7 +1205,8 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "phase({{ .phase.name }}): web console"
-            wait: false
+            # Console builds are the heaviest lane in the product.
+            checkTimeoutSeconds: 2700
       await:
         - id: converge
           uses: orun.run/watch@v1

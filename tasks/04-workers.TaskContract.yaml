@@ -6,8 +6,9 @@
 apiVersion: orun.io/v1
 kind: TaskContract
 spec:
-  goal: The 12-worker fleet lands with service-binding feedback edges stripped so first-boot workers deploy in DAG order
+  goal: The database migrations and the 12-worker fleet land, with service-binding feedback edges stripped so first-boot workers deploy in DAG order
   affects:
+    - db-migrate
     - admin-worker
     - billing-worker
     - config-worker

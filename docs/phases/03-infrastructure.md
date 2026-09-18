@@ -7,14 +7,18 @@ every later phase consumes.
 
 ## What it lands
 
-`infra/terraform/`: `cloudflare-d1`, `cloudflare-kv`, and `infra/db-migrate`
-— each with a `terraform` (or `db-migrate`) component and the self-healing
-`adopt.tf` import machinery.
+`infra/terraform/`: `cloudflare-d1` and `cloudflare-kv` — each a `terraform`
+component with the self-healing `adopt.tf` import machinery.
 
-The merge's convergence applies them in DAG order: `cloudflare-d1 →
-db-migrate`, with `cloudflare-kv` in parallel. On success each apply
+The merge's convergence applies them in parallel. On success each apply
 lease-publishes its outputs to the project/env secret rungs:
 `WIRING_CLOUDFLARE_D1`, `WIRING_CLOUDFLARE_KV`.
+
+`infra/db-migrate` is data plane too, but it lands with
+[`04-workers`](04-workers.md): its PR lane plans the migrations against the
+database this phase creates, whose id exists only once this phase's merge has
+applied. Here, that lane was red on every fresh product and the phase could not
+be verified before it merged.
 
 This is the phase where being Cloudflare-only pays: D1 databases are created
 in seconds, so the phase that took ten minutes on a Postgres-backed baseline
@@ -46,12 +50,10 @@ tree. See [the phases README](README.md).
    reconcile, not a create: keys that exist are KEPT, and orphaned keys are
    re-made against the current ACTIVE connection. Each holds no value — a
    brokered secret is a pointer at a connection and a scope template.
-3. **place** → **land** → **converge** — the standard contract, with one
-   deliberate difference: the landing merges WITHOUT waiting on PR checks.
-   On a fresh product the PR's db-migrate plan lane is structurally red — it
-   resolves the database id from `cloudflare-d1`'s job-output secret, which
-   only exists once the merge's main run APPLIES `cloudflare-d1`. The
-   convergence watch is the real gate.
+3. **place** → **land** → **converge** — the standard contract: the landing
+   waits for the PR's terraform plan lanes (which resolve the minted keys on
+   the PR, over remote state) and merges only on green; the convergence then
+   applies.
 4. **verify** — an `orun.secrets/exists@v1` `await` hook asserts
    `WIRING_CLOUDFLARE_D1` and `WIRING_CLOUDFLARE_KV` exist on the stage env
    rung. A missing key means an apply did not publish — check that lane
