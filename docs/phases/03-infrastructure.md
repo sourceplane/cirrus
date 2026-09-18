@@ -55,9 +55,11 @@ tree. See [the phases README](README.md).
    the PR, over remote state) and merges only on green; the convergence then
    applies.
 4. **verify** — an `orun.secrets/exists@v1` `await` hook asserts
-   `WIRING_CLOUDFLARE_D1` and `WIRING_CLOUDFLARE_KV` exist on the stage env
-   rung. A missing key means an apply did not publish — check that lane
-   first. `04-workers` re-asserts the same two keys as its own
+   `WIRING_CLOUDFLARE_D1` and `WIRING_CLOUDFLARE_KV` exist on the project's
+   **stage and prod** environment rungs (`project` + `environments`, orun ≥
+   v2.58.8 — read at the workspace rung, where nothing is published, it could
+   never pass). A missing key is named per environment and means that
+   environment's apply did not publish — check that lane first. `04-workers` re-asserts the same two keys as its own
    `requires.probe`, so it will not start on a half-applied phase 03.
 
 ## Failure modes we have actually hit

@@ -101,8 +101,9 @@ jobs:
           # blueprint's `orun.run/watch@v1` `sha:` exists from v2.58.5, and an
           # older CLI refuses the whole document at parse; v2.58.6 is where a
           # landing's check wait covers the whole PR run; v2.58.7 knows
-          # orun.doctor/check@v1's `githubOwner`.
-          version: v2.58.7
+          # orun.doctor/check@v1's `githubOwner`; v2.58.8 reads
+          # orun.secrets/exists@v1's `environments`.
+          version: v2.58.8
       - name: repo-blueprint.yaml, read by the pinned CLI
         run: |
           set -euo pipefail

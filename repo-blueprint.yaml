@@ -983,11 +983,17 @@ phases:
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
             resumeBudget: 3
             waitSeconds: 1800
+        # WHERE THE WIRING IS PUBLISHED: each apply lease-publishes its outputs
+        # to the project's ENVIRONMENT rungs (stage and prod), not to the
+        # workspace. Read at the workspace rung, this parked with both keys
+        # published on both environments — orunbase-demo/altocumulus, live.
         - id: verify
           uses: orun.secrets/exists@v1
-          narrate: "The wiring secrets the workers read are in the workspace."
+          narrate: "The wiring secrets the workers read are published on stage and prod."
           with:
             keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+            project: "{{ .inputs.reponame }}"
+            environments: [stage, prod]
 
   - name: 04-workers
     title: The worker fleet
@@ -1005,6 +1011,8 @@ phases:
           uses: orun.secrets/exists@v1
           with:
             keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+            project: "{{ .inputs.reponame }}"
+            environments: [stage, prod]
     hooks:
       pre:
         - id: task
