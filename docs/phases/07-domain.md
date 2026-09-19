@@ -7,6 +7,20 @@ workers.dev.
 Skip it entirely until you own the domain — the baseline is fully
 functional on workers.dev URLs after phase 06.
 
+## What it does today — read this first
+
+**`cloudflare-domain` ships parked.** Its `component.yaml` declares
+`subscribe.environments: []`, so CI plans no lanes for it: the phase lands
+the component and its PR, and the convergence after the merge is a run with
+nothing in it, which reads green. The domain is not attached. This is the
+"a green run that deployed nothing" trap the other phases guard against with
+a probe; this phase has no probe to catch it, so its narration says so
+instead of claiming the domain resolves.
+
+Wiring it for real means, in the product, restoring the `subscribe` block the
+component carries commented out (and finishing the provider-v5 re-import its
+comment names), once the zone exists — then landing that as a normal PR.
+
 ## Prerequisite (hard)
 
 The product zone (e.g. `acme.dev`) must **already exist in the Cloudflare

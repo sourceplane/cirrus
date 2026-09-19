@@ -706,7 +706,7 @@ phases:
           with:
             kind: epic
             slug: "{{ .inputs.epicSlug }}"
-            name: "Baselining {{ .inputs.productname }}"
+            name: "Infra baselining — {{ .inputs.productname }}"
         - id: task
           uses: orun.task/ensure@v1
           with:
@@ -1084,10 +1084,10 @@ phases:
     title: The service bindings come back
     expectedMinutes: 5
     narrate:
-      start:  "Now putting back the four service bindings that had to be stripped for the fleet to deploy at all — billing, membership, events and notifications can see each other again."
-      await:  "Redeploying the four workers with their bindings in place."
-      done:   "The four feedback bindings are live. The fleet is wired the way the blueprint describes it."
-      failed: "The bindings did not go back. The four workers are deployed but cannot call each other."
+      start:  "Now putting back the two service bindings that had to be stripped for the fleet to deploy at all — billing to membership, and membership to notifications."
+      await:  "Redeploying billing and membership with their bindings in place."
+      done:   "The two feedback bindings are live. The fleet is wired the way the blueprint describes it."
+      failed: "The bindings did not go back. The workers are deployed, but billing and membership cannot call across the loop."
     modules: []
     requires:
       phases: [04-workers]
@@ -1116,7 +1116,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
-          narrate: "The four workers redeployed with their bindings."
+          narrate: "Billing and membership redeployed with their bindings."
           with:
             sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
@@ -1266,10 +1266,10 @@ phases:
     title: The custom domain
     expectedMinutes: 5
     narrate:
-      start:  "Now wiring {{ .inputs.productdomain }} — DNS records and custom domains in front of the edge and the console."
-      await:  "Waiting for Cloudflare to attach the custom domains."
-      done:   "{{ .inputs.productdomain }} resolves to the console, and api.{{ .inputs.productdomain }} to the edge."
-      failed: "The domain did not attach. Check that the zone for {{ .inputs.productdomain }} exists in this Cloudflare account."
+      start:  "Now placing the custom-domain component for {{ .inputs.productdomain }} — the zone and the console's custom domains."
+      await:  "Waiting for the convergence run that follows the domain PR."
+      done:   "The custom-domain component is in the repository. It subscribes to no environment yet, so nothing is attached until it does — docs/phases/07-domain.md says what to change."
+      failed: "The domain phase did not land. Check that the zone for {{ .inputs.productdomain }} exists in this Cloudflare account."
     modules: [cloudflare-domain]
     when: inputs.domain
     requires:
@@ -1308,7 +1308,7 @@ phases:
       await:
         - id: converge
           uses: orun.run/watch@v1
-          narrate: "Cloudflare applied the DNS and custom-domain records."
+          narrate: "The convergence run after the domain PR came back green."
           with:
             sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
