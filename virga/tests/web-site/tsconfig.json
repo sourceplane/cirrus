@@ -1,0 +1,20 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@site/contracts": ["../../packages/contracts/src/index.ts"],
+      "@site/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@web-site/*": ["../../apps/web-site/src/*.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../apps/web-site/src/lib/content.ts", "../../apps/web-site/src/lib/ranking.ts", "../../apps/web-site/src/lib/feeds.ts", "../../apps/web-site/src/lib/format.ts"],
+  "exclude": ["node_modules", "dist"]
+}

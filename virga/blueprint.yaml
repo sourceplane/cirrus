@@ -1,0 +1,49 @@
+# The virga blueprint card: what the console's Blueprints page renders and
+# the platform's bootstrap door consumes.
+apiVersion: orun.io/v1
+kind: Blueprint
+metadata:
+  name: virga
+  displayName: Virga — single-owner website baseline
+  description: >
+    A website with an audience on Cloudflare alone: a public Worker for the
+    write paths (subscribe, forms, upvotes, views), an internal mail Worker
+    for transactional email and newsletter broadcasts, and a Next.js site
+    whose sections come from Markdown in the repo — a launch directory, a
+    newsletter or a portfolio from the same tree. No console: the owner
+    ships from git and a CLI. One provider, one consent, one token.
+  tags: [website, newsletter, portfolio, launches, cloudflare, d1, nextjs]
+spec:
+  source:
+    repo: sourceplane/virga
+    tag: baseline-v1           # bumped by the baseline release process
+  requires:
+    # Cloudflare is the only provider connection a bootstrap needs — that is
+    # the whole point of this baseline. GitHub arrives as the App
+    # installation plus the repo link, not as a connection row.
+    integrations: [github, cloudflare]
+    apiKeyRole: admin          # secret writes need the admin floor
+  inputs:                      # collected via cockpit intake (AG-UI)
+    - key: reponame
+      label: Repo name
+      pattern: "^[a-z][a-z0-9-]{1,38}$"
+      askedBy: console         # needed before repo creation
+    - key: productname
+      label: Site display name
+      askedBy: agent
+    - key: productdomain
+      label: Site domain
+      askedBy: agent
+    - key: subdomain
+      label: workers.dev subdomain
+      askedBy: agent
+  bootstrap:
+    umbrella: flows/phases/00-all/workflow.yaml
+    agentBrief: flows/agent/BASELINE-TASK.md
+    expectedMinutes: 35
+    tokenChannel: ORUN_TOKEN_FILE   # the flows read the runtime's refreshed token
+  verify:
+    urls:
+      - "https://{reponame}-site-api-{env}.{subdomain}.workers.dev/health"
+      - "https://{reponame}-web-site-{env}.{subdomain}.workers.dev"
+    envs: [stage, prod]
