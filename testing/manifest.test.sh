@@ -368,11 +368,13 @@ for path in manifests:
     ensured, seen = [], set()
     for phase in bp_phases:
         for hook in uses(phase, "orun.task/ensure@v1"):
-            name = ((hook.get("with") or {}).get("milestone") or "")
-            name = name.replace("{{ .phase.name }}", phase.get("name", "")).strip()
-            if name and name not in seen:
-                seen.add(name)
-                ensured.append(name)
+            # Not `name`: that is the manifest's file name, which the summary
+            # line below prints (it printed the last milestone instead).
+            ms_name = ((hook.get("with") or {}).get("milestone") or "")
+            ms_name = ms_name.replace("{{ .phase.name }}", phase.get("name", "")).strip()
+            if ms_name and ms_name not in seen:
+                seen.add(ms_name)
+                ensured.append(ms_name)
 
     # A phase's `when:` is what made a milestone conditional; the umbrella
     # carried the same fact as a shell `[ != "true" ] ||` guard.
