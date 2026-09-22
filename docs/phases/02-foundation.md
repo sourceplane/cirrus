@@ -28,7 +28,7 @@ Identity comes from the repo's `.rebrand/values.json`, written once by
    archives the provenance lock. The tree was branded once by
    `01-scaffold`, so these files land already speaking the product's name.
 2. **land** — `orun.pr/land@v1` (a `post` hook): PR
-   `phase(02-foundation): shared packages`, waits for its verify lanes,
+   `feat(foundation): the thirteen shared packages`, waits for its verify lanes,
    merges.
 3. **converge** — `orun.run/watch@v1` (an `await` hook) waits for the main
    convergence run and auto-resumes transient lanes ×3.

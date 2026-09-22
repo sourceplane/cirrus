@@ -21,7 +21,7 @@ tree. See [the phases README](README.md).
 ## Steps
 
 1. **place** → **land** → **converge** — the standard contract
-   (PR `phase(06-console): web console`).
+   (PR `feat(console): the web console`).
 2. **verify** — an `orun.http/probe@v1` `await` hook: the console roots AND
    the edge `/health`, on stage and prod.
 

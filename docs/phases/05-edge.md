@@ -21,7 +21,7 @@ tree. See [the phases README](README.md).
 ## Steps
 
 1. **place** → **land** → **converge** — the standard contract
-   (PR `phase(05-edge): api-edge`).
+   (PR `feat(edge): the API edge in front of the fleet`).
 2. **verify** — an `orun.http/probe@v1` `await` hook probes
    `https://<repo>-api-edge-{stage,prod}.<subdomain>.workers.dev/health`
    and fails on any dead endpoint (the URLs are templated from the

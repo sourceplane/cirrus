@@ -46,7 +46,7 @@ tree. See [the phases README](README.md).
 ## Steps
 
 1. **place** → **land** → **converge** — the standard contract
-   (PR `phase(07-domain): custom domain`).
+   (PR `feat(domain): the custom-domain component`).
 
 The phase carries `when: inputs.domain`, so it is SKIPPED unless
 `--set domain=true`. A skipped phase does not block `08-docs`, which

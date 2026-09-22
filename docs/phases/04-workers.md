@@ -50,8 +50,8 @@ tree. See [the phases README](README.md).
    finish, and the phase says which.
 2. **place** — this phase's modules, then a `post` hook runs
    `tooling/bootstrap/cycle-break.mjs --strip`.
-3. **land** — PR `phase(04-workers): worker fleet (feedback edges
-   stripped)`; the PR's verify lanes are plan/build-only.
+3. **land** — PR `feat(workers): the migrations and the twelve-worker fleet,
+   feedback edges stripped`; the PR's verify lanes are plan/build-only.
 4. **converge** — the merge deploys the fleet (longest phase; budget 90m,
    auto-resumed ×3). Lanes resolve their `WIRING_*` secrets at claim time.
 5. **`04-workers-restore`** — a phase of its own, requiring `04-workers`:

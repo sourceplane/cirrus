@@ -147,10 +147,12 @@ spec:
       why: Connection fact, not a secret
       fact: true
 
-  # ── PREVIEW ONLY. Each phase's `orun.task/ensure@v1` hook opens
-  # these. Idempotent by identity — epic by slug, milestone by name-within-epic
-  # — so a re-run finds what it made before. The console renders the programme
-  # so an operator can see the shape of the work before pressing Build.
+  # ── PREVIEW ONLY. repo-blueprint.yaml's run-level `hooks.preInstantiate`
+  # opens these — the epic, every milestone in this order, every task — before
+  # the first phase places. Idempotent by identity — epic by slug, milestone by
+  # name-within-epic — so a re-run finds what it made before. The console
+  # renders the programme so an operator can see the shape of the work before
+  # pressing Build, and the same shape on the plane the moment it starts.
   programme:
     epicSlug: infra-baselining         # = repo-blueprint.yaml's `epicSlug` default
     epicName: "Infra baselining — {productname}"
