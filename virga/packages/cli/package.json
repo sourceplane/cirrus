@@ -1,0 +1,27 @@
+{
+  "name": "@site/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "virga": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && node scripts/bundle.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@site/eslint-config": "workspace:*",
+    "@site/tsconfig": "workspace:*",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.4",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@site/contracts": "workspace:*"
+  }
+}

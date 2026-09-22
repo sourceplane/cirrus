@@ -1,0 +1,42 @@
+# Pre-bootstrap verification: everything the workspace can prove about itself
+# with nothing but the repo — no workspace, no provider credentials, no orun.
+#
+# `ci.yml` (Orun plan/run, brokered Cloudflare credentials) takes over once
+# the product is bootstrapped; until then it is gated behind the `ORUN_CI`
+# repository variable and this workflow is the merge gate.
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verify-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Templated Workers render their wrangler config from the committed
+      # fixture; a template with an unresolved wiring token fails here, not
+      # at deploy time.
+      - run: pnpm run wire:fixture
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: node tooling/migrations/rechecksum.mjs --check

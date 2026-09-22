@@ -1,0 +1,61 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+
+metadata:
+  name: cloudflare-domain
+  description: Adopts the Cloudflare zone and attaches the custom domain to the environment's site Worker
+  labels:
+    domain: infra
+    scope: dns-and-custom-domains
+
+spec:
+  type: terraform
+  lifecycle: production
+  owner: platform
+  domain: infra
+
+  parameters:
+    orgName: sourceplane
+    stackName: cloudflare-domain
+    terraformDir: terraform
+    terraformVersion: "1.15.3"
+    repo: virga
+    baseDomain: virga.site
+    zoneMode: existing
+    workerNamePrefix: virga-web-site
+    # NOTE: `SITE_CUSTOM_DOMAIN` is intentionally NOT declared here. It is
+    # supplied per environment through
+    # `environments.<env>.parameterDefaults.terraform.SITE_CUSTOM_DOMAIN` in
+    # `intent.yaml` and reaches Terraform as TF_VAR_SITE_CUSTOM_DOMAIN. A
+    # default here would shadow that override in every environment and the
+    # apply would silently attach nothing.
+
+  dependsOn:
+    - component: web-site
+
+  secretEnv:
+    CLOUDFLARE_API_TOKEN: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    TF_VAR_cloudflare_account_id: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+
+  # PARKED BY DESIGN — no environment subscriptions, so no jobs are planned.
+  # A fresh product has no zone in the connected account, and
+  # `data.cloudflare_zone.existing` fails every plan with "no zone found".
+  # Phase 07 of the bootstrap restores the block below once the zone exists
+  # (see BOOTSTRAP.md § After the baseline is live).
+  #
+  # subscribe:
+  #   environments:
+  #     - name: stage
+  #       profile: plan-only
+  #       profileRules:
+  #         - profile: apply
+  #           when:
+  #             triggerRef: github-push-main
+  #
+  #     - name: prod
+  #       profile: plan-only
+  #       profileRules:
+  #         - profile: apply
+  #           when:
+  #             triggerRef: github-push-main
