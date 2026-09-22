@@ -182,11 +182,21 @@ redeploy marker every deploying phase writes before it lands), and
 
 ## Tracking the bootstrap as work (BT)
 
-Every phase's `pre` hook is an `orun.task/ensure@v1` that clubs a task
-under the `epicSlug` epic with the phase name as its milestone, so a run
-that starts fresh and a run that resumes find the same work. The contract
-templates live in `tasks/` at the repo root, one per landing, named by the
-hooks' `contract:` field. `gates: []` is a declaration: merge alone
+The whole programme is on the plane before the first phase places a file:
+the blueprint's run-level `hooks.preInstantiate` list (orun ≥ v2.60) opens
+the `epicSlug` epic with its description, one milestone per phase in phase
+order with the phase's verify assertions as exit criteria, and one task per
+landing with a brief — so a reader can open the epic while `01-scaffold` is
+still creating the repository. Every phase's `pre` hook is then an
+`orun.task/ensure@v1` on its own task: the same identity (title within the
+epic), so it finds rather than creates, and yields the key its landing binds
+the pull request to. A task title is an imperative sentence about the outcome
+("Deploy the worker fleet"); the pull request that lands it carries a
+conventional-commit title of its own (`feat(workers): …`). The milestone keeps
+the phase's name, which is the identity the engine's events, the plane's
+evidence and the console's rows meet on. The contract templates live in
+`tasks/` at the repo root, one per landing, named by the hooks' `contract:`
+field. `gates: []` is a declaration: merge alone
 finishes the task, because the main convergence is the gate the phase
 *watches*, not one the plane observes as a PR check. The templates are
 baseline machinery, never product content. The whole design:

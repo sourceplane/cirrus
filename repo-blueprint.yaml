@@ -634,6 +634,240 @@ modules:
           "domain": {{ if .domain }}true{{ else }}false{{ end }}
         }
 
+# ── THE WORK, UP FRONT ────────────────────────────────────────────────────
+# THE BOOTSTRAP IS WORK, SO IT LIVES WHERE WORK LIVES — and all of it is on
+# the plane before the first phase places a file. One epic, one milestone
+# per phase in the order the phases run, one task per landing: the whole
+# programme a reader can open while 01-scaffold is still creating the
+# repository, instead of a row appearing each time a phase was reached.
+#
+# `hooks.preInstantiate` (orun >= v2.60) runs under no phase, once per run,
+# on a resume too. Everything here is find-or-create BY IDENTITY — the epic
+# by slug, a milestone by name within its epic, a task by title within its
+# epic — so a second run, a resume and a redo all find what the first run
+# made. That is also why the milestones are created here IN ORDER and BEFORE
+# the tasks: the plane appends each new milestone after the last, and a task
+# that names a milestone the epic does not yet have would create it out of
+# order at the end.
+#
+# Each phase's own `pre` hook still runs `orun.task/ensure@v1` on its task.
+# That is the same identity, so it finds rather than creates, and it is how
+# the phase gets the task's KEY for its landing — `{{ .phase.name }}` renders
+# empty here, and the outputs of a run-level hook are not a phase's to read.
+#
+# Names, not phase ids. A task title is what a person reads in the work
+# surface, so it is an imperative sentence about the outcome; the pull
+# request that lands it carries a conventional-commit title of its own. The
+# MILESTONE keeps the phase's name (`04-workers`): it is the identity the
+# engine's phase events, the plane's evidence and the console's rows all
+# meet on, and the card's `programme.milestones` names the same list.
+hooks:
+  preInstantiate:
+    - id: epic
+      uses: orun.task/ensure@v1
+      with:
+        kind: epic
+        slug: "{{ .inputs.epicSlug }}"
+        name: "Infra baselining — {{ .inputs.productname }}"
+        description: >-
+          Everything the Cirrus baseline builds for {{ .inputs.productname }}
+          in {{ .inputs.githuborg }}/{{ .inputs.reponame }}: the repository,
+          the shared packages, the D1 and KV data plane, the twelve-worker
+          fleet, the API edge, the web console, the custom domain when one is
+          asked for, and the record of what went live. One milestone per
+          phase, in the order the phases run; one task per landing, each
+          bound to the pull request that lands it.
+        owner: me
+    # Milestones, in phase order. `exitCriteria` are the phase's own verify
+    # assertions — the same lines the task contracts' `doneWhen` carry.
+    - id: m01
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 01-scaffold
+        exitCriteria:
+          - repository created under {{ .inputs.githuborg }} and linked to the workspace
+          - the scaffold merged, main pinned as the default branch
+    - id: m02
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 02-foundation
+        exitCriteria:
+          - the thirteen shared packages on main, their verify lanes green
+    - id: m03
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 03-infrastructure
+        exitCriteria:
+          - D1 and KV applied on stage and prod
+          - WIRING_CLOUDFLARE_D1 and WIRING_CLOUDFLARE_KV published on stage and prod
+    - id: m04
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 04-workers
+        exitCriteria:
+          - migrations applied and all twelve workers converged on stage and prod
+          - the service-binding feedback edges restored and converged again
+    - id: m05
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 05-edge
+        exitCriteria:
+          - api-edge /health answers 200 on stage and prod
+    - id: m06
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 06-console
+        exitCriteria:
+          - the console root and the edge /health answer on stage and prod
+    - id: m07
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 07-domain
+        exitCriteria:
+          - the custom-domain component merged and its convergence green
+          - runs only when the build asks for a domain; otherwise it stays open and is skipped
+    - id: m08
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 08-docs
+        exitCriteria:
+          - ai/context/deployment.md on main matches the probed live URLs
+    # Tasks, one per landing, each under its milestone with the contract that
+    # says what finishing it means. The titles are the ones each phase's own
+    # `task` hook names, verbatim — that is the identity they are found by.
+    - id: t01
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 01-scaffold
+        name: "Scaffold the product repository"
+        brief: >-
+          Create {{ .inputs.githuborg }}/{{ .inputs.reponame }} and land its
+          foundations as the first pull request: the intent, CI, tooling and
+          the identity every later phase reads back, branded as
+          {{ .inputs.productname }}.
+        prefix: BASE
+        contract: tasks/01-scaffold.TaskContract.yaml
+    - id: t02
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 02-foundation
+        name: "Publish the shared packages"
+        brief: >-
+          Land the thirteen packages every worker builds on — contracts, the
+          database layer, the SDK, the policy engine and their tests — and
+          see their verify lanes build them green.
+        prefix: BASE
+        contract: tasks/02-foundation.TaskContract.yaml
+    - id: t03
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 03-infrastructure
+        name: "Provision the D1 and KV data plane"
+        brief: >-
+          Apply a D1 database and a KV namespace per environment through the
+          product's own convergence, and publish their ids as the wiring
+          secrets the workers read.
+        prefix: BASE
+        contract: tasks/03-infrastructure.TaskContract.yaml
+    - id: t04
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 04-workers
+        name: "Deploy the worker fleet"
+        brief: >-
+          Land the database migrations and the twelve-worker fleet with the
+          four service-binding feedback edges stripped, so first-boot workers
+          deploy in dependency order on stage and prod.
+        prefix: BASE
+        contract: tasks/04-workers.TaskContract.yaml
+    - id: t04r
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 04-workers
+        name: "Restore the service-binding feedback edges"
+        brief: >-
+          Put back the bindings the fleet had to deploy without — billing to
+          membership, membership to notifications — and redeploy the two
+          workers with them in place.
+        prefix: BASE
+        contract: tasks/04-workers-restore.TaskContract.yaml
+    - id: t05
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 05-edge
+        name: "Deploy the API edge"
+        brief: >-
+          Land the single front door in front of the fleet and see it answer
+          /health on stage and prod.
+        prefix: BASE
+        contract: tasks/05-edge.TaskContract.yaml
+    - id: t06
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 06-console
+        name: "Deploy the web console"
+        brief: >-
+          Land the Next.js console and see it answer on stage and prod,
+          talking to the edge.
+        prefix: BASE
+        contract: tasks/06-console.TaskContract.yaml
+    - id: t07
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 07-domain
+        name: "Bind the custom domain"
+        brief: >-
+          Land the custom-domain component for {{ .inputs.productdomain }} —
+          the zone and the console's custom domains. Its phase runs only when
+          the build asks for a domain.
+        prefix: BASE
+        contract: tasks/07-domain.TaskContract.yaml
+    - id: t08
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 08-docs
+        name: "Record the live deployment"
+        brief: >-
+          Probe every live URL one last time and write the deployment record
+          into the repository from what actually answered, not from what the
+          blueprint intended.
+        prefix: BASE
+        contract: tasks/08-docs.TaskContract.yaml
+
 # ── PHASES ────────────────────────────────────────────────────────────────
 # A phase is orun's own barrier over the module DAG — and, since BE1, the
 # whole of what a phase DOES. Each one declares what it is for a person
@@ -694,26 +928,20 @@ phases:
             pollSeconds: 20
     hooks:
       pre:
-        # THE EPIC IS THE BOOTSTRAP'S OWN CONTAINER, so the bootstrap makes it.
-        # Every phase's task clubs under `epicSlug`, and until this hook existed
-        # nothing created it — a fresh workspace answered the first phase with
-        # `epic: no epic with that ref, key or slug` and the run ended there.
-        # Found-or-created by slug, so a re-run and a resume land in the same
-        # epic rather than minting a second one; that is why the slug is an
-        # input and not a generated id.
-        - id: epic
-          uses: orun.task/ensure@v1
-          with:
-            kind: epic
-            slug: "{{ .inputs.epicSlug }}"
-            name: "Infra baselining — {{ .inputs.productname }}"
+        # The epic, every milestone and every task already exist — the
+        # run-level `hooks.preInstantiate` list above opened them before this
+        # phase began. Each phase's own `task` hook is the same find-or-create
+        # by title within the epic, so it FINDS the task and yields its key,
+        # which the landing below binds the pull request to. (Under an orun
+        # older than v2.60, which has no run-level pre list, this hook is what
+        # creates the task — same identity, same result, one phase late.)
         - id: task
           uses: orun.task/ensure@v1
           with:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): repo born"
+            name: "Scaffold the product repository"
             prefix: BASE
             contract: tasks/01-scaffold.TaskContract.yaml
       # The identity chain, moved here from `hooks.postInstantiate`. It was
@@ -818,7 +1046,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): repo born"
+            title: "feat(scaffold): the product repository, its CI and its identity"
 
   - name: 02-foundation
     title: The shared packages
@@ -839,7 +1067,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): shared packages"
+            name: "Publish the shared packages"
             prefix: BASE
             contract: tasks/02-foundation.TaskContract.yaml
       post:
@@ -876,7 +1104,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): shared packages"
+            title: "feat(foundation): the thirteen shared packages"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -938,7 +1166,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): d1, kv"
+            name: "Provision the D1 and KV data plane"
             prefix: BASE
             contract: tasks/03-infrastructure.TaskContract.yaml
         - id: secret-workers-deploy
@@ -1008,7 +1236,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): d1, kv"
+            title: "feat(infrastructure): D1 and KV on stage and prod"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1056,7 +1284,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): worker fleet (feedback edges stripped)"
+            name: "Deploy the worker fleet"
             prefix: BASE
             contract: tasks/04-workers.TaskContract.yaml
       post:
@@ -1093,7 +1321,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): worker fleet (feedback edges stripped)"
+            title: "feat(workers): the migrations and the twelve-worker fleet, feedback edges stripped"
             # Twelve workers' verify lanes, on two environments.
             checkTimeoutSeconds: 3600
       await:
@@ -1132,7 +1360,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: 04-workers
-            name: "phase(04-workers): restore service-binding feedback edges"
+            name: "Restore the service-binding feedback edges"
             prefix: BASE
             contract: tasks/04-workers-restore.TaskContract.yaml
       post:
@@ -1159,7 +1387,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase(04-workers): restore service-binding feedback edges"
+            title: "fix(workers): restore the service-binding feedback edges"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1202,7 +1430,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): api-edge"
+            name: "Deploy the API edge"
             prefix: BASE
             contract: tasks/05-edge.TaskContract.yaml
       post:
@@ -1227,7 +1455,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): api-edge"
+            title: "feat(edge): the API edge in front of the fleet"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1264,7 +1492,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): web console"
+            name: "Deploy the web console"
             prefix: BASE
             contract: tasks/06-console.TaskContract.yaml
       post:
@@ -1289,7 +1517,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): web console"
+            title: "feat(console): the web console"
             # Console builds are the heaviest lane in the product.
             checkTimeoutSeconds: 2700
       await:
@@ -1335,7 +1563,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "phase({{ .phase.name }}): custom domain"
+            name: "Bind the custom domain"
             prefix: BASE
             contract: tasks/07-domain.TaskContract.yaml
       post:
@@ -1364,7 +1592,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "phase({{ .phase.name }}): custom domain"
+            title: "feat(domain): the custom-domain component"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1397,7 +1625,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "docs(deployment): record live deployment state"
+            name: "Record the live deployment"
             prefix: BASE
             contract: tasks/08-docs.TaskContract.yaml
       post:
@@ -1410,7 +1638,7 @@ phases:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "docs(deployment): record live deployment state"
+            title: "docs(deployment): record the live deployment state"
       await:
         - id: verify
           uses: orun.http/probe@v1

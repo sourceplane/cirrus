@@ -66,21 +66,31 @@ the PR with the `Task:` trailer and the manifest block.
 
 ```
 epic     infra-baselining            "Infra baselining — <Product name>"   owner: the bootstrap principal (`me`)
-  ├─ milestone  01 — scaffold        exit: repo pushed + workspace-linked
-  │    └─ task BASE-1  phase(01-scaffold): repo born            branch orun/BASE-1-01-scaffold
-  ├─ milestone  02 — foundation      exit: verify lanes green
-  │    └─ task BASE-2  phase(02-foundation): shared packages    branch orun/BASE-2-02-foundation
-  ├─ milestone  03 — infrastructure  exit: WIRING_* secrets published on stage+prod
-  │    └─ task BASE-3  phase(03-infrastructure): d1, kv, db-migrate
-  ├─ milestone  04 — workers         exit: convergence green, bindings restored
-  │    ├─ task BASE-4  phase(04-workers): worker fleet (feedback edges stripped)   orun/BASE-4-04-workers
-  │    └─ task BASE-5  phase(04-workers): restore service-binding feedback edges   orun/BASE-5-04-workers-restore
-  ├─ milestone  05 — edge            exit: /health 200 on stage+prod
-  ├─ milestone  06 — console         exit: console + edge live
-  ├─ milestone  07 — domain          (created only when phase 07 runs)
-  └─ milestone  08 — docs            exit: committed manifest matches probed reality
-       └─ task BASE-n  docs(deployment): record live deployment state         orun/BASE-n-08-docs
+  ├─ milestone  01-scaffold          exit: repo created + linked, scaffold merged, main default
+  │    └─ task BASE-1  Scaffold the product repository            branch orun/BASE-1-01-scaffold
+  ├─ milestone  02-foundation        exit: verify lanes green
+  │    └─ task BASE-2  Publish the shared packages                branch orun/BASE-2-02-foundation
+  ├─ milestone  03-infrastructure    exit: WIRING_* secrets published on stage+prod
+  │    └─ task BASE-3  Provision the D1 and KV data plane
+  ├─ milestone  04-workers           exit: convergence green, bindings restored
+  │    ├─ task BASE-4  Deploy the worker fleet                    orun/BASE-4-04-workers
+  │    └─ task BASE-5  Restore the service-binding feedback edges orun/BASE-5-04-workers-restore
+  ├─ milestone  05-edge              exit: /health 200 on stage+prod
+  │    └─ task BASE-6  Deploy the API edge
+  ├─ milestone  06-console           exit: console + edge live
+  │    └─ task BASE-7  Deploy the web console
+  ├─ milestone  07-domain            exit: domain component merged (its phase runs only when asked for)
+  │    └─ task BASE-8  Bind the custom domain
+  └─ milestone  08-docs              exit: committed manifest matches probed reality
+       └─ task BASE-9  Record the live deployment                 orun/BASE-9-08-docs
 ```
+
+All of it is opened by the blueprint's run-level `hooks.preInstantiate`
+(orun ≥ v2.60) before the first phase places — the whole tree at once, in
+this order — and each phase's own `pre` hook then finds its task by title to
+bind the landing to it. A task title is an imperative sentence about the
+outcome; the landing PR carries a conventional-commit title of its own
+(`feat(workers): …`, `fix(workers): …`, `docs(deployment): …`).
 
 - **One epic per bootstrap**, slug `infra-baselining` by default
   (`--set epicslug=` overrides). A taken slug is *adopted*, not suffixed:
@@ -98,7 +108,9 @@ epic     infra-baselining            "Infra baselining — <Product name>"   own
   ≤ 6 chars by the key grammar). The task's `titleMirror` is the landing's
   PR title verbatim (`phase(03-infrastructure): d1, kv, db-migrate`), which
   is what makes find-or-create idempotent: `GET …/tasks?epic=<slug>` and
-  match on title. Every task is born with a contract:
+  match on title. (Since baseline-v12 the title is the task's own imperative
+  sentence rather than the PR title; the two are named side by side in the
+  blueprint and the identity rule is unchanged.) Every task is born with a contract:
   `goal` = the phase README's one-liner, `affects` = the components in the
   phase's `blueprint.yaml`, `doneWhen` = the milestone's exit criteria,
   `gates: []` with `gatesDefined: true` — the merge's main run is the gate
