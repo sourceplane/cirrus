@@ -960,6 +960,36 @@ phases:
             keys: [CLOUDFLARE_ACCOUNT_ID]
             template: account-id
       post:
+        # A RE-RUN PHASE MUST HAVE SOMETHING TO LAND. A convergence can fail
+        # AFTER its PR merged — a provider error, a starved runner pool, a
+        # smoke that raced route propagation past its retries — and the merge
+        # has already put every file this phase places on main. orun derives
+        # phase state from the tree, so a retried build sees the phase placed,
+        # and a forced re-run of it (`--phase`, `--redo` under `--resume`,
+        # the console's Retry) lands an EMPTY diff, while the product's CI
+        # plans `--changed` and deploys a component only when one of its
+        # files changed in the push. Nothing lands, nothing redeploys, and
+        # the operator is told the phase is fine.
+        #
+        # So before it stages, every phase that deploys components rewrites
+        # ONE trailing line in each of their component.yaml files —
+        # `# orun: redeploy <phase> <stamp>`, replaced rather than
+        # accumulated (the fleet used to carry this as hand-edited `# ci:
+        # re-trigger deploy` lines, duplicated by hand) — so the landing has a
+        # diff and exactly the phase's components are in the changed set. The
+        # components come from the phase's own task contract (`spec.affects`),
+        # so the deploy set and the task plane's statement of the work are one
+        # list. On a fresh run the files are new anyway and the line costs
+        # nothing. THE MARKER IS A DEPLOY TRIGGER, NOT STATE: nothing reads it
+        # back, and phase state stays derived from the tree, never stored in
+        # it. tooling/bootstrap/retouch.mjs carries the full account.
+        #
+        # Here too, though these are terraform roots: `orun plan --changed`
+        # plans a component by its changed files whatever its type, and
+        # re-applying an unchanged root is an empty plan, so a redo re-runs
+        # the lane that failed and changes nothing that did not.
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/03-infrastructure.TaskContract.yaml"]
         # Brand what this phase placed before it lands (see 02-foundation).
         - id: stage
           run: ["git", "add", "-A"]
@@ -1030,6 +1060,9 @@ phases:
             prefix: BASE
             contract: tasks/04-workers.TaskContract.yaml
       post:
+        # Give a re-run something to land (see 03-infrastructure).
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/04-workers.TaskContract.yaml"]
         # Brand what this phase placed before it lands (see 02-foundation).
         - id: stage
           run: ["git", "add", "-A"]
@@ -1103,6 +1136,20 @@ phases:
             prefix: BASE
             contract: tasks/04-workers-restore.TaskContract.yaml
       post:
+        # Give a re-run something to land (see 03-infrastructure). Two named
+        # components rather than the contract: tasks/04-workers-restore's
+        # `affects` states the unit of work as the whole fleet, but what this
+        # landing deploys is the two workers whose wrangler templates the
+        # restore rewrites — the `from` side of cycle-break.mjs's
+        # FEEDBACK_EDGES, kept in step with it by hand — and marking twelve
+        # would turn a fresh restore into a thirty-minute fleet redeploy to
+        # put two bindings back. A redo of THIS phase after a failed
+        # convergence finds the bindings already restored (the restore is a
+        # no-op), and the marker is what makes billing and membership
+        # redeploy with them. It names this phase, not 04-workers, so a file
+        # says which landing last asked for its deploy.
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--components", "billing-worker,membership-worker"]
         - id: restore
           run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/cycle-break.mjs", "--restore"]
         - id: land
@@ -1159,6 +1206,9 @@ phases:
             prefix: BASE
             contract: tasks/05-edge.TaskContract.yaml
       post:
+        # Give a re-run something to land (see 03-infrastructure).
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/05-edge.TaskContract.yaml"]
         # Brand what this phase placed before it lands (see 02-foundation).
         - id: stage
           run: ["git", "add", "-A"]
@@ -1218,6 +1268,9 @@ phases:
             prefix: BASE
             contract: tasks/06-console.TaskContract.yaml
       post:
+        # Give a re-run something to land (see 03-infrastructure).
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/06-console.TaskContract.yaml"]
         # Brand what this phase placed before it lands (see 02-foundation).
         - id: stage
           run: ["git", "add", "-A"]
@@ -1286,6 +1339,13 @@ phases:
             prefix: BASE
             contract: tasks/07-domain.TaskContract.yaml
       post:
+        # Give a re-run something to land (see 03-infrastructure).
+        # cloudflare-domain ships with `subscribe.environments: []`, so today
+        # its convergence plans no lane and the marker changes nothing; once
+        # an operator subscribes it (docs/phases/07-domain.md) a redo of this
+        # phase has to re-plan it, and the marker is how.
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/07-domain.TaskContract.yaml"]
         # Brand what this phase placed before it lands (see 02-foundation).
         - id: stage
           run: ["git", "add", "-A"]

@@ -128,6 +128,16 @@ Why it can run unattended:
   there), and `--resume` leaves a drifted phase placed rather than
   reverting your product's identity to `cirrus`. Re-place one deliberately
   with `--phase <name>`.
+- **A re-run phase always has something to land.** A convergence can
+  fail AFTER its PR merged, and the merge has already put every file the
+  phase places on main — so a plain re-run finds nothing to commit, and the
+  product's CI (`orun plan --changed`) redeploys nothing. Re-run the phase
+  (`--phase <name>`, `--redo <name>` under `--resume`, or the console's
+  Retry): its `retouch` hook (`tooling/bootstrap/retouch.mjs`) rewrites
+  `# orun: redeploy <phase> <stamp>` as the last line of each affected
+  `component.yaml`, so the landing has a diff and exactly the phase's
+  components redeploy. The line is a deploy trigger, never state: nothing
+  reads it back, and the invariant above holds.
 
 ## Prerequisites (once)
 
@@ -164,7 +174,9 @@ baseline's own business rather than a verb any bootstrap needs: git init /
 stage / restage and `pnpm install --lockfile-only` in `01-scaffold`,
 `tooling/rebrand/rebrand.mjs` (the identity rename, then `--verify`),
 `tooling/bootstrap/cycle-break.mjs` (strip and restore the service bindings
-across the two worker landings), and `hooks/render-deployment-docs.sh`
+across the two worker landings), `tooling/bootstrap/retouch.mjs` (the
+redeploy marker every deploying phase writes before it lands), and
+`hooks/render-deployment-docs.sh`
 (`08-docs`'s renderer). Each resolves the baseline checkout as
 `{{ .baseline.dir }}`, so a pinned clone pins them too.
 
