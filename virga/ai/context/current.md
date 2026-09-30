@@ -17,7 +17,7 @@ milestones VG0–VG7 are the whole programme.
   `wrangler deploy --dry-run`; the rebrand instantiates a second identity
   cleanly and that instance passes its own pipeline.
 - **What is NOT verified:** no Virga product has been bootstrapped; nothing
-  in this repo claims a live deployment until `flows/phases/08-docs` writes
+  in this repo claims a live deployment until the `08-docs` phase writes
   one into `deployment.md`.
 
 ## Next
@@ -25,8 +25,9 @@ milestones VG0–VG7 are the whole programme.
 Not a milestone — a **bootstrap**. VG0–VG7 are shipped and the workspace is
 green, but nothing has ever been deployed from this tree:
 
-1. Run `flows/phases/00-all` against a real workspace and Cloudflare account,
-   and record the real timings in `flows/phases/TIMINGS.md`.
+1. Run `orun new --blueprint repo-blueprint.yaml --run-hooks --resume` against
+   a real workspace and Cloudflare account, and record the real timings in
+   `docs/phases/TIMINGS.md` — every number there is still an estimate.
 2. Let phase 08 write `ai/context/deployment.md` from probed reality.
 3. Tag `baseline-v1` and point the platform's blueprint registry at the tag.
 

@@ -1,0 +1,70 @@
+name: Baseline CI
+
+# THE FACTORY'S OWN LANES — the tiers that test THIS REPOSITORY rather than a
+# product built from it: that the build document parses, that every component it
+# ships is placed by exactly one phase, that the card describes the build, and
+# that a product carries nothing it should not.
+#
+# ─── WHY THIS IS NOT IN ci.yml OR verify.yml ────────────────────────────────
+#
+# `repo-blueprint.yaml`'s `github-workflows` module copies the WHOLE `.github`
+# directory, so every workflow here travels into every product built from this
+# repository. These jobs run `testing/*.sh`, and `testing/` is deliberately not
+# placed — so in a product they would be steps that cannot pass, red on its very
+# first pull request, in a repository whose owner has no idea what a "blueprint"
+# is.
+#
+# The split is enforced, not remembered: `testing/coverage.test.sh` fails on any
+# workflow that reads a path under `testing/` and is not named in the
+# blueprint's `ignore` list, and `testing/leak.test.sh` fails on any product
+# lane that runs a path no module places.
+#
+# `ci.yml` keeps `plan` and `run` (the orun component lanes) and `verify.yml`
+# keeps install/typecheck/lint/test/build: a product genuinely needs both.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: baseline-ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # The baseline's contract suite, run directly rather than through a component.
+  # These scripts need bash, python3 and git and nothing else — no workspace
+  # install, no network, no credential. A 20-second job that certainly fails a
+  # pull request beats a two-minute one that certainly does not.
+  baseline-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Python + PyYAML
+        run: python3 -c 'import yaml' || pip install --quiet pyyaml
+      # Tier 0 — the build document is internally coherent.
+      - run: bash testing/coverage.test.sh
+      - run: bash testing/phases.test.sh
+      # Tier 1 — the card describes the build, and the product carries only
+      # what a product needs.
+      - run: bash testing/manifest.test.sh
+      - run: bash testing/leak.test.sh
+      # The tools the phases' hooks run, against this tree.
+      - run: bash testing/retouch.test.sh
+      - run: bash testing/tag-gate.test.sh
+
+  # The migration checksums. This lived in `verify.yml` and travelled into every
+  # product, where `tooling/migrations/` does not exist because no module places
+  # it — the lane could only be red. It is the baseline's own invariant, so it
+  # belongs here.
+  migration-checksums:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node tooling/migrations/rechecksum.mjs --check

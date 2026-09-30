@@ -1,0 +1,15 @@
+# Task contract template for the 05-api landing.
+# Unbound to a key on purpose: `orun task create --contract` seals and
+# attaches it to the key the allocator issues. gates: [] is a DECLARATION —
+# merge alone finishes this task; the main convergence is the gate the phase
+# WATCHES, not one the plane observes as a PR check.
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The site API — the one publicly routable Worker, carrying every write path a visitor reaches — is live on stage and prod
+  affects:
+    - site-api
+    - site-api-tests
+  doneWhen:
+    - site-api /health 200 on stage and prod
+  gates: []

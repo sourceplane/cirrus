@@ -39,4 +39,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
-      - run: node tooling/migrations/rechecksum.mjs --check
+      # NOTE: the migration-checksum check is NOT here. `tooling/migrations/`
+      # is baseline machinery that no module places, so in a product this step
+      # would be red on its first pull request — `.github` travels whole. It
+      # runs in `baseline.yml`, which stays behind. testing/leak.test.sh fails
+      # if it comes back.

@@ -12,7 +12,7 @@ and a CLI — not a multi-tenant console.
 |-------|-------|
 | Status | **In progress** — **All milestones shipped** (VG0–VG7); the baseline is complete and verified locally, and has not yet been bootstrapped |
 | Cluster | **VG** |
-| Owner(s) | `apps/*`, `packages/*`, `infra/*`, `tests/*`, `flows/*`, the spec pack |
+| Owner(s) | `apps/*`, `packages/*`, `infra/*`, `tests/*`, `tasks/*`, `testing/*`, `docs/phases/*`, the spec pack |
 | Target branch | `main` |
 | Builds on | Cirrus at `8f41d16`: the D1 seam, the migration runner, deploy-time wiring, the composition stack, the phased bootstrap |
 | Decisions locked | D1–D6 in `ai/context/decisions.md` |

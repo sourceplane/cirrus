@@ -1,0 +1,14 @@
+# Task contract template for the 08-docs landing.
+# Unbound to a key on purpose: `orun task create --contract` seals and
+# attaches it to the key the allocator issues. gates: [] is a DECLARATION —
+# merge alone finishes this task; the main convergence is the gate the phase
+# WATCHES, not one the plane observes as a PR check.
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: What went live is written down in the repository, rendered from the deployment rather than from the blueprint
+  affects: []
+  doneWhen:
+    - ai/context/deployment.md committed and matching probed reality
+    - every live URL answered on the final probe
+  gates: []

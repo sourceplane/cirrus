@@ -25,6 +25,9 @@
 
 TBD_08DOCS — names only, never values.
 
-## Provenance
+## Source revision
 
-TBD_08DOCS — the baseline commit this product was instantiated from.
+TBD_08DOCS — the tag and commit of the tree this repository was generated
+from, as `orun new` recorded it. Kept because an operator debugging a
+generated file needs to know which version generated it; worded so the
+file says nothing about a repository this one is not.

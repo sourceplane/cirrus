@@ -1,0 +1,15 @@
+# Task contract template for the 06-site landing.
+# Unbound to a key on purpose: `orun task create --contract` seals and
+# attaches it to the key the allocator issues. gates: [] is a DECLARATION —
+# merge alone finishes this task; the main convergence is the gate the phase
+# WATCHES, not one the plane observes as a PR check.
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The website is live on stage and prod with every content route prerendered
+  affects:
+    - web-site
+    - web-site-tests
+  doneWhen:
+    - the site answers on stage and prod
+  gates: []

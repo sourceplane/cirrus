@@ -61,7 +61,7 @@ composition types/parameters are the ones Cirrus proved.
 
 ## VG7 — Baseline machinery ✅
 
-`blueprint.yaml`, `repo-blueprint.yaml`, `flows/` re-targeted (01 scaffold …
+`blueprint.yaml`, `repo-blueprint.yaml`, `flows/` re-targeted (01 scaffold … — RETIRED in VG8, see below)
 08 docs, `00-all`, common, agent brief), `BOOTSTRAP.md`, docs close-out,
 `IMPLEMENTATION-STATUS.md` as-built.
 **Done when** no phase references a Cirrus-only component and the repo
