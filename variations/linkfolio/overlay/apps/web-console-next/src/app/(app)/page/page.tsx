@@ -82,7 +82,9 @@ export default function PageEditor() {
   const saveBlock = async (values: BlockSubmitValues) => {
     if (!editing) return;
     setSavingBlock(true);
-    const { kind: _kind, ...patch } = values;
+    // A block's kind is fixed at creation; the update payload must not carry it.
+    const { kind, ...patch } = values;
+    void kind;
     const r = await wrap(() => client.pages.updateBlock(editing.id, patch));
     setSavingBlock(false);
     if (!r.ok) {

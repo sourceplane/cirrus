@@ -1,7 +1,7 @@
 import { route } from "@subscriptions-worker/router";
 import type { Env } from "@subscriptions-worker/env";
 import type { Deps } from "@subscriptions-worker/deps";
-import type { Subscription, SubscriptionsRepository, TrackedSubscriptionStatus } from "@saas/db/subscriptions";
+import type { Subscription, SubscriptionsRepository } from "@saas/db/subscriptions";
 
 const NOW = new Date("2026-09-09T12:00:00.000Z");
 
