@@ -90,6 +90,47 @@ owns. An overlay file that **replaces** a baseline file is a copy taken when the
 overlay was extracted, so a later change to that baseline file is not in it —
 re-run `extract.sh` from a working copy rebased onto the new baseline.
 
+## Gaps
+
+Written 2026-10-01, when the five were first materialized into repositories of
+their own (`sourceplane/launchpad`, `linkfolio`, `streakly`, `subtally`,
+`pulsewatch`). Proven: each materializes from the blueprint with no factory
+file, and passes install, the wrangler fixtures, build, typecheck, lint and its
+tests locally; each repository's first push is green on `checks.yml`. Not
+proven, or known to be missing:
+
+- **None is attached to a workspace, so none has deployed.** Every `intent.yaml`
+  says `ws_CHANGE_ME`, the secret refs name a workspace called after the repo,
+  and `ORUN_CI` is unset. Each needs a workspace, the repo allow-listed in it,
+  Cloudflare and GitHub connected there on the account that owns the repo, and
+  then `ORUN_CI=true`. A workspace under the openproduct account is public and
+  requires a public repository; all five are private.
+- **They are products, not baselines.** None has a `repo-blueprint.yaml`,
+  `tasks/`, `testing/` or a tag line, and nothing can be bootstrapped from one.
+  Making one a baseline means maintaining a sixth factory in step with this one.
+- **Re-materializing replaces history.** `materialize.sh` writes a fresh
+  repository with one commit. A product that has grown commits of its own has no
+  path to a newer Cirrus except extracting its changes back into the overlay
+  first. `orun new upgrade` (a three-way re-render) is unexplored here.
+- **A stale overlay file is not detected.** An overlay file that replaces a
+  baseline file is a copy from when it was extracted; nothing compares it to the
+  baseline it replaced. The five `.gitignore` copies had silently reverted a
+  later change and were found by hand.
+- **`checks.yml` does not lint.** `--verify` does. A lint error added in a
+  product repository is not caught by that repository's CI.
+- **CodeQL flags the overlays.** Five copies of
+  `apps/web-console-next/src/lib/last-org.ts` raise
+  `js/clear-text-storage-of-sensitive-data`, the same alert the baseline's own
+  file already carries. Fix it in the baseline and re-extract, not five times.
+- **Each product records a baseline commit on an unmerged branch**
+  (`sourceplane/cirrus@9773bd0`). If that branch is deleted before it merges,
+  the trailer names a commit GitHub may no longer serve.
+- **This repository is itself not attached.** `sourceplane/cirrus` declares
+  workspace `ws_4975BJ7P` and is not allow-listed in it, so any pull request
+  whose plan selects a component fails every run lane with `this repo isn't
+  connected to Orun Cloud yet`. That is this repository's state, not the
+  pull request's change.
+
 ## Changing a variation
 
 Develop in a checkout of this baseline (so the product's code sits next to the
