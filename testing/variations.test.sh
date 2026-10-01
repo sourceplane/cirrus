@@ -24,6 +24,8 @@
 #   4. every overlay component is accounted for — it replaces a component a
 #      module places, or it is new and the baseline has no directory there.
 #      `coverage.test.sh` exempts overlays by rule and points here.
+#   5. intent.yaml keeps orun's catalog out of `variations/`, so an overlay
+#      component is never planned as this repository's own.
 #
 # It does NOT materialize a product: that needs orun, pnpm and minutes.
 # `materialize.sh <name> <out> --verify` is that test, and it asserts (3)
@@ -106,6 +108,25 @@ for name in ["_common", *names]:
             if (root / comp).exists():
                 bad(f"variations/{name}/overlay/{comp} replaces a baseline directory "
                     f"no module places — the product would get the overlay's half only")
+
+# ── 5. orun does not mistake an overlay for this repository ────────────────
+# orun's catalog resolver walks the WHOLE repository for component.yaml, not
+# only `discovery.roots`. Without an exclude, every overlay component is
+# planned and deployed as this repository's own, and the five overlay copies
+# of apps/api-edge share a name with the real one, which fails a cold
+# `orun plan --changed` outright:
+#
+#     failed to compute changed components: objcatalog: catalog
+#     "catalogs/current": objectstore: object not found
+#
+# That is this repository's own ci.yml `plan` lane, on every pull request and
+# on the convergence run after merge.
+intent = yaml.safe_load((root / "intent.yaml").read_text())
+excluded = (((intent.get("catalog") or {}).get("discovery") or {}).get("exclude")) or []
+if overlay_components and "variations" not in excluded:
+    bad("intent.yaml does not list `variations` under catalog.discovery.exclude — "
+        f"orun would catalog {overlay_components} overlay components as this "
+        "repository's, and the duplicate names fail `orun plan --changed`")
 
 if problems:
     print("FAIL: the variations and the blueprint disagree:", file=sys.stderr)
