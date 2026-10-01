@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.52.6
+          version: v2.56.2
       - env:
           # Surface the best-effort catalog auto-sync (execution.state.autopushCatalog).
           # A successful push prints "✓ pushed catalog …"; ORUN_VERBOSE also makes
@@ -83,7 +83,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: sourceplane/orun-action@v1.2.0
         with:
-          version: v2.52.6
+          version: v2.56.2
       # exec-id is the RUN id alone (no attempt suffix): a `gh run rerun
       # --failed` then RESUMES the same orun execution — jobs that succeeded in
       # a prior attempt stay completed, so re-run lanes' cross-job dependencies
@@ -98,10 +98,34 @@ jobs:
           # re-open it, so lanes wait out the race instead.
           retry_flag=""
           if [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then retry_flag="--retry"; fi
+          # EVERY RUN REPORTS TO THE PLATFORM, a pull request's included.
+          #
+          # A PR lane resolves its secrets like any other (a verify lane still
+          # reads the wiring its fixture stands in for, an infra lane plans
+          # against the real account), and a job's secret refs are resolved
+          # before its first step whatever its profile does — so a PR run
+          # without remote state failed every lane that declares one:
+          #
+          #   ✗ cloudflare-d1.stage.terraform: secret resolution failed: local
+          #     runs resolve secrets only from ORUN_SECRET_<KEY> overrides
+          #
+          # and a phase's PR could never be verified before it merged. This
+          # used to drop the state flag on PRs, on the belief that the backend
+          # refuses a pull_request OIDC token by design. It does not: the
+          # exchange's only gate is the repo link's CI settings (oidcEnabled,
+          # allowedRefPattern, allowedEnvironments — identity-worker
+          # oidc-exchange.ts), and the resource-hidden `not_found` seen at the
+          # time is exactly what an UNLINKED repository answers, push or PR.
+          # Remote state on a PR also puts the PR's runs in front of the
+          # platform, which renders runs on refs/pull/<n> as that PR's row.
+          # Fork PRs get no OIDC token from GitHub at all and still fail
+          # closed. Nothing mutating runs here: deploy/apply profiles are gated
+          # on triggerRef github-push-main.
+          state_flag="--remote-state"
           orun run \
             --plan plan.json \
             --runner github-actions \
-            --remote-state \
+            $state_flag \
             --job "${{ matrix.job-id }}" \
             --exec-id "${{ github.run_id }}" \
             $retry_flag
