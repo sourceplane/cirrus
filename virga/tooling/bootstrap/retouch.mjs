@@ -29,8 +29,8 @@
 // phase state is DERIVED from the tree, never stored in it — holds. Delete the
 // line and nothing is lost but the next redeploy's reason to happen.
 //
-//   node retouch.mjs --phase 04-workers --affects tasks/04-workers.TaskContract.yaml
-//   node retouch.mjs --phase 04-workers-restore --components billing-worker,membership-worker
+//   node retouch.mjs --phase 04-mail --affects tasks/04-mail.TaskContract.yaml
+//   node retouch.mjs --phase 05-api --components site-api,site-api-tests
 //
 // Options:
 //   --phase <name>          the phase the marker names (required)
@@ -45,8 +45,8 @@
 //
 // Runs in the product checkout (the phase hooks' working directory). A
 // component is found by the `metadata.name` its component.yaml declares, not
-// by directory: `apps/admin-worker` and `tests/admin-worker` both carry one,
-// and only the first is named `admin-worker`.
+// by directory: `apps/site-api` and `tests/site-api` both carry one, and they
+// are named `site-api` and `site-api-tests`.
 
 import * as fs from "node:fs";
 import * as path from "node:path";

@@ -1,0 +1,15 @@
+# Task contract template for the 01-scaffold landing.
+# Unbound to a key on purpose: `orun task create --contract` seals and
+# attaches it to the key the allocator issues. gates: [] is a DECLARATION —
+# merge alone finishes this task; the main convergence is the gate the phase
+# WATCHES, not one the plane observes as a PR check.
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The product repository exists, is branded, is linked to the workspace, and carries its root manifests and tooling
+  affects: []
+  doneWhen:
+    - the repository exists under the given owner and main is its default branch
+    - rebrand --verify passes against .rebrand/values.json
+    - intent.yaml names the product's own workspace, not the baseline's
+  gates: []

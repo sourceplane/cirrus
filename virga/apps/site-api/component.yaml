@@ -1,0 +1,76 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: site-api
+  description: Cloudflare Worker for the public site API (subscribers, forms, reactions, views, owner routes)
+spec:
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: site-runtime
+  path: apps/site-api
+  dependsOn:
+    - component: cloudflare-d1
+    - component: cloudflare-kv
+    - component: db-migrate
+    - component: mail-worker
+  # Wiring documents from orun secrets: lease-published by the infra
+  # components; wire-live renders the wrangler template from these.
+  secretEnv:
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://lumen/virga/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://lumen/virga/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_KV_STAGE: "secret://lumen/virga/stage/WIRING_CLOUDFLARE_KV"
+    WIRING_CLOUDFLARE_KV_PROD: "secret://lumen/virga/prod/WIRING_CLOUDFLARE_KV"
+
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+
+    turboFilter: "@site/site-api"
+    wranglerConfig: wrangler.jsonc
+
+    # Deploy-time wiring: wrangler.jsonc is rendered, never committed.
+    # Verify lanes render from wiring.fixture.json (offline); deploy lanes
+    # resolve real IDs from the lease-published wiring documents.
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: "cloudflare-d1,cloudflare-kv"
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    orgName: sourceplane
+    owner: sourceplane
+    repo: virga
+
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@site/site-api
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@site/site-api
+
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+
+    preDeployCommand: "echo 'No pre-deploy step configured.'"
+    migrationCommand: "echo 'Migrations run through the db-migrate component.'"
+    # The composition exports DEPLOYED_URL for the deployed worker.
+    smokeCommand: "health=$(curl -sf \"${DEPLOYED_URL}/health\") && echo \"${health}\" | grep -q '\"status\":\"ok\"'"
+  labels:
+    team: platform
+    layer: runtime
+    surface: site-api
+    runtime: cloudflare

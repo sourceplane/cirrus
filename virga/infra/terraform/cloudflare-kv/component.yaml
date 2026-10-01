@@ -1,0 +1,46 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+
+metadata:
+  name: cloudflare-kv
+  description: Provisions the Cloudflare KV namespace backing the site-api rate limiter (stage and prod)
+  labels:
+    domain: infra
+    scope: edge-rate-limit
+
+spec:
+  type: terraform
+  lifecycle: production
+  owner: platform
+  domain: infra
+
+  parameters:
+    orgName: sourceplane
+    stackName: cloudflare-kv
+    terraformDir: terraform
+    terraformVersion: "1.15.3"
+    repo: virga
+    # The wiring document (namespace id/title) is lease-published post-apply;
+    # the site-api deploy reads it back as WIRING_CLOUDFLARE_KV_<ENV>.
+    secretOutputs: "WIRING_CLOUDFLARE_KV=wiring"
+
+  secretEnv:
+    CLOUDFLARE_API_TOKEN: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    TF_VAR_cloudflare_account_id: "secret://lumen/virga/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+
+  subscribe:
+    environments:
+      - name: stage
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+
+      - name: prod
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main

@@ -1,0 +1,150 @@
+# The Virga blueprint card: what the console's Blueprints page renders and the
+# platform's bootstrap door consumes.
+#
+# THIS FILE IS NOT THE BUILD. `spec.bootstrap.blueprint` names the build
+# document — `repo-blueprint.yaml`, whose phases a runner places. This card is
+# what an operator reads and fills in before pressing Build, and
+# `testing/manifest.test.sh` compares every list below to the document that
+# actually does the thing, not to a copy of itself.
+apiVersion: orun.io/v1
+kind: Blueprint
+metadata:
+  name: virga
+  displayName: Virga — single-owner website baseline
+  description: >
+    A website with an audience on Cloudflare alone: a public Worker for the
+    write paths (subscribe, forms, upvotes, views), an internal mail Worker
+    for transactional email and newsletter broadcasts, and a Next.js site
+    whose sections come from Markdown in the repo — a launch directory, a
+    newsletter or a portfolio from the same tree. No console: the owner
+    ships from git and a CLI. One provider, one consent, one token.
+  tags: [website, newsletter, portfolio, launches, cloudflare, d1, nextjs]
+spec:
+  source:
+    repo: sourceplane/virga
+    # No `tag`. The registry row pins the version and fetches this file at it;
+    # a tag written here would be a second, staler answer to the same question.
+
+  # ── What the operator reads first ────────────────────────────────────────
+  overview:
+    lede: >
+      A website with an audience, on Cloudflare alone. The visitor is the only
+      user, so there is no console to build, log into or secure.
+    architecture:
+      - layer: Edge
+        items: [site-api, web-site]
+      - layer: Services
+        items: [mail-worker]
+      - layer: Data
+        items: [D1, KV]
+      - layer: Delivery
+        items: [GitHub Actions, db-migrate]
+    outcome:
+      - Live on stage and prod
+      - Migrations apply on merge
+      - Its own CI from the first phase
+
+  requires:
+    # Cloudflare is the only provider connection a bootstrap needs — that is
+    # the whole point of this baseline. GitHub arrives as the App installation
+    # plus the repo link, not as a connection row.
+    integrations: [github, cloudflare]
+    apiKeyRole: admin          # secret writes need the admin floor
+
+  # Keys are rebrand.mjs's own (camelCase), because `.rebrand/values.json` is
+  # what every phase reads the identity back from. repo-blueprint.yaml declares
+  # the same names; manifest.test.sh fails if the two drift.
+  inputs:
+    - key: repoName
+      label: Repo name
+      pattern: "^[a-z][a-z0-9-]{1,38}$"
+      # The console already has this: the operator picked the repository.
+      from: repo.name
+    - key: productName
+      label: Site display name
+      pattern: "^[A-Za-z0-9][A-Za-z0-9 .,'&-]{1,48}$"
+      help: The name visitors will see — in the header, the emails, the docs.
+      example: Acme Blog
+    - key: productDomain
+      label: Site domain
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+      help: The apex domain the site answers on. It does not need to exist yet unless you ask for 07-domain.
+      example: acme.blog
+    - key: githubOrg
+      label: GitHub organisation
+      pattern: "^[A-Za-z0-9][A-Za-z0-9-]*$"
+      help: The GitHub org or user the product repository is created under.
+      # DERIVED FROM THE CHOSEN REPOSITORY, not asked: the operator picks the
+      # product repo in step 1 and its owner IS this value. It is declared here
+      # because repo-blueprint.yaml marks it `required: true` — a build may
+      # declare more inputs than this card, but not require one nobody supplies.
+      from: repo.owner
+    - key: workersDevSubdomain
+      label: workers.dev subdomain
+      pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+      help: The workers.dev subdomain on the Cloudflare account this builds into.
+      example: acme
+    - key: repoPrivate
+      label: Private repository
+      type: bool
+      default: true
+      help: Visibility is the operator's choice, so it is asked rather than assumed.
+    - key: domain
+      label: Attach the custom domain
+      type: bool
+      default: false
+      help: Runs 07-domain. Requires the Cloudflare zone to already exist in the connected account.
+
+  # Transcribed from repo-blueprint.yaml's own `orun.integrations/reconcile@v1`
+  # hooks — their `keys:` and `template:` values — so the check compares this
+  # list to the document that mints them. The console renders them read-only:
+  # they are minted from the workspace's connections at build time, so no
+  # credential is ever typed, shown or stored. Keys that already exist are kept.
+  secrets:
+    - key: CLOUDFLARE_API_TOKEN
+      provider: cloudflare
+      template: workers-deploy
+      why: Workers + KV deploys
+    - key: CLOUDFLARE_D1_TOKEN
+      provider: cloudflare
+      template: d1-edit
+      why: D1 — the deploy token deliberately cannot touch it
+    - key: CLOUDFLARE_ACCOUNT_ID
+      provider: cloudflare
+      template: account-id
+      why: Connection fact, not a secret
+      fact: true
+
+  # ── PREVIEW ONLY. repo-blueprint.yaml's run-level `hooks.preInstantiate`
+  # opens these — the epic, every milestone in this order, every task — before
+  # the first phase places. Idempotent by identity, so a re-run finds what it
+  # made before.
+  programme:
+    epicSlug: site-baselining          # = repo-blueprint.yaml's `epicSlug` default
+    epicName: "Site baselining — {productName}"
+    milestones:
+      - name: 01-scaffold
+      - name: 02-foundation
+      - name: 03-infrastructure
+      - name: 04-mail
+      - name: 05-api
+      - name: 06-site
+      # 07-domain carries `when: inputs.domain` in repo-blueprint.yaml (it
+      # needs the Cloudflare zone to already exist), so its milestone is
+      # ensured only on a run that asks for it.
+      - name: 07-domain
+        when: domain
+      - name: 08-docs
+
+  bootstrap:
+    # THE BUILD DOCUMENT. There is no umbrella workflow and no agent brief:
+    # the `flows/` layer that carried them is retired, and this is the only
+    # entry point.
+    blueprint: repo-blueprint.yaml
+    expectedMinutes: 43
+    tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
+  verify:
+    urls:
+      - "https://{repoName}-site-api-{env}.{workersDevSubdomain}.workers.dev/health"
+      - "https://{repoName}-web-site-{env}.{workersDevSubdomain}.workers.dev"
+    envs: [stage, prod]

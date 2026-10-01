@@ -1,0 +1,22 @@
+{
+  "goal": "Cloudflare-only single-owner website baseline (site-api + mail-worker + web-site on Workers, D1, KV, Email Service)",
+  "active_milestone": "(none \u2014 VG0\u2013VG7 shipped)",
+  "current_task": "",
+  "last_verified": "2026-09-10T00:00:00Z",
+  "repo_health": "green",
+  "next_focus": "The baseline is complete and its offline gates pass. The next step is not a milestone but a BOOTSTRAP: run `orun new --blueprint repo-blueprint.yaml --run-hooks --resume` (orun >= v2.60) against a real workspace, record the timings in docs/phases/TIMINGS.md, and let 08-docs write ai/context/deployment.md from probed reality. Tiers 2 and 3 of the testing suite (a real `orun new` placement, and the rehearsal that builds and destroys a throwaway product) are not ported and are what the tag gate is waiting for; no baseline-vN can be cut until they exist. Candidates after that: Cloudflare Queues for large broadcasts, a subscriber import path, Turnstile on by default.",
+  "deferred": [],
+  "completed": [
+    "VG0",
+    "VG1",
+    "VG2",
+    "VG3",
+    "VG4",
+    "VG5",
+    "VG6",
+    "VG7"
+  ],
+  "task_agent": "",
+  "waiting_for_input": "false",
+  "notes": []
+}

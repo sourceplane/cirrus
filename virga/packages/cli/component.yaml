@@ -1,0 +1,26 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: cli
+spec:
+  type: turbo-package
+  lifecycle: production
+  owner: platform
+  domain: site-tools
+  subscribe:
+    environments:
+      - name: dev
+        profile: quick-check
+      - name: stage
+        profile: quick-check
+      - name: prod
+        profile: quick-check
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    buildCommand: pnpm exec turbo run build --filter=./
+    typecheckCommand: pnpm exec turbo run typecheck --filter=./
+  labels:
+    team: platform
+    layer: tools
+    surface: cli
