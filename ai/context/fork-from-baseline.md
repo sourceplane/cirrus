@@ -33,14 +33,14 @@ Consequences worth knowing before reading the code:
 
 | Field | Value |
 |---|---|
-| repoName | `cirrus` |
-| productName | Cirrus |
+| reponame | `cirrus` |
+| productname | Cirrus |
 | pascalName | `Cirrus` |
 | brandSlug | `cirrus` |
-| productDomain | `cirrus.app` |
-| apiBaseUrl | `https://api.cirrus.app` |
+| productdomain | `cirrus.app` |
+| apibaseurl | `https://api.cirrus.app` |
 | cliBin | `cirrus` |
-| workersDevSubdomain | `rahulvarghesepullely` |
+| subdomain | `rahulvarghesepullely` |
 | salesEmail | (baseline mailbox kept) |
 
 Org-owned identity is deliberately NOT rewritten: the GitHub org, the orun
@@ -49,11 +49,14 @@ mailboxes stay as they are.
 
 ## What carried over unchanged
 
-The bootstrap machinery: `flows/phases/*` (01→08 plus the `00-all`
-umbrella), `flows/common/*`, the agent brief, and the blueprint split. These
-were proven end-to-end on Lumen; Cirrus changes what phase 03 deploys, not
-how any phase runs. `flows/phases/TIMINGS.md` marks which timings are
-inherited measurements and which are Cirrus estimates awaiting a real run.
+The bootstrap machinery: the phase sequence `01-scaffold … 08-docs` and the
+contract each phase follows — place its modules, land them, watch the
+convergence, verify the outcome. It was proven end-to-end on Lumen as a shell
+layer over eight workflows; it is now one `repo-blueprint.yaml` read by
+`orun new`, which changes where the mechanism lives but not what any phase
+does. Cirrus changes what `03-infrastructure` deploys, not how any phase
+runs. `docs/phases/TIMINGS.md` marks which timings are inherited measurements
+and which are Cirrus estimates awaiting a real run.
 
 ## Operator checklist (what no script can do)
 
