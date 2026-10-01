@@ -1,9 +1,10 @@
 {
-  "repoName": "subtally",
-  "productName": "Subtally",
-  "productDomain": "subtally.app",
+  "reponame": "subtally",
+  "productname": "Subtally",
+  "productdomain": "subtally.app",
   "pascalName": "Subtally",
   "brandSlug": "subtally",
   "cliBin": "subtally",
-  "workersDevSubdomain": "your-workers-subdomain"
+  "subdomain": "your-workers-subdomain",
+  "githuborg": "sourceplane"
 }

@@ -1,9 +1,10 @@
 {
-  "repoName": "linkfolio",
-  "productName": "Linkfolio",
-  "productDomain": "linkfolio.app",
+  "reponame": "linkfolio",
+  "productname": "Linkfolio",
+  "productdomain": "linkfolio.app",
   "pascalName": "Linkfolio",
   "brandSlug": "linkfolio",
   "cliBin": "linkfolio",
-  "workersDevSubdomain": "your-workers-subdomain"
+  "subdomain": "your-workers-subdomain",
+  "githuborg": "sourceplane"
 }

@@ -35,7 +35,7 @@ build, typecheck and tests on every push.
 ## Making one real
 
 ```bash
-# 1. Materialize: product-only baseline files + overlay, rebranded, verified.
+# 1. Materialize: the blueprint's product files + overlay, rebranded, verified.
 tooling/variations/materialize.sh <name> ~/sourceplane/<name> --verify
 
 # 2. Create the repo (this baseline's tooling cannot: repo creation needs a
@@ -48,13 +48,47 @@ git remote add origin git@github.com:sourceplane/<name>.git
 git push -u origin main
 ```
 
-Then, to deploy: set `execution.state.workspace` in `intent.yaml` to the
-product's Orun Cloud workspace, allow-list the repo in that workspace, connect
-Cloudflare, and merge to `main`.
+**What a product is made of is not decided here.** `materialize.sh` asks
+`repo-blueprint.yaml` — `orun new --blueprint … --status --json`, the same
+derivation [`testing/leak.test.sh`](../testing/leak.test.sh) gates — and copies
+exactly the files the phases place. It used to carry a regex of its own, which
+went on excluding `flows/` after `flows/` was deleted and copied `tasks/`,
+`testing/`, `docs/phases/`, `hooks/` and the three factory workflows into every
+product. There is no list to keep in step now: a file reaches a product because
+a module places it or an overlay adds it, and for no other reason.
+[`testing/variations.test.sh`](../testing/variations.test.sh) holds the
+overlays and their identities to the blueprint on every pull request.
+
+Three consequences worth knowing:
+
+- **`values.json` is a set of blueprint inputs** (`reponame`, `productname`,
+  `productdomain`, `githuborg`, …), the same contract as
+  `tests/fixtures/acme.json`. A key the blueprint does not declare is refused.
+- **A product carries no baseline specs or docs.** No module places `specs/` or
+  `docs/`, so a variation that wants an epic plan or a runbook ships it in its
+  own overlay.
+- **The orun lanes are off until the repo is attached.** A bootstrapped product
+  has a workspace before it has a commit; a materialized one does not, so
+  `ci.yml`'s `plan` job is gated behind the repository variable `ORUN_CI` and
+  `checks.yml` is the only lane that runs on the first push.
+
+Then, to deploy: materialize with `--workspace <ws_…>` (or set
+`execution.state.workspace` in `intent.yaml` and the workspace segment of the
+`secret://` refs by hand), allow-list the repo in that workspace, connect
+Cloudflare and GitHub there, set `ORUN_CI` to `true`, and merge to `main`.
 
 `--verify` runs `pnpm install`, renders the wrangler fixtures, and runs build,
-typecheck and the test suite in the materialized repo. Drop it for a fast
-materialize with no checks.
+typecheck, lint and the test suite in the materialized repo. Drop it for a fast
+materialize with no checks. Needs `orun` (new enough for `orun new --status`),
+`python3`, `node`, `pnpm` and `git`.
+
+## When Cirrus moves
+
+A variation is a product of this baseline, not a baseline. When Cirrus changes,
+re-materialize and push the result; the overlay is the only thing a variation
+owns. An overlay file that **replaces** a baseline file is a copy taken when the
+overlay was extracted, so a later change to that baseline file is not in it —
+re-run `extract.sh` from a working copy rebased onto the new baseline.
 
 ## Changing a variation
 
