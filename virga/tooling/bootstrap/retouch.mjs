@@ -160,6 +160,16 @@ function indexComponents(root) {
     } catch {
       return;
     }
+    // A NESTED FACTORY IS NOT THIS ONE'S COMPONENTS. A directory below the root
+    // that carries its own `repo-blueprint.yaml` is a different baseline, and
+    // its components are placed and redeployed by ITS phases. Indexing them
+    // here is not merely wrong, it is FATAL: both trees name a component
+    // `db-migrate`, and the duplicate check below refuses the whole run.
+    //
+    // In a product there is no nested blueprint, so this costs nothing where
+    // the tool actually runs. It matters when the tool is run from a baseline
+    // checkout that develops a variation in-tree before splitting it out.
+    if (depth > 0 && fs.existsSync(path.join(dir, "repo-blueprint.yaml"))) return;
     for (const ent of entries) {
       const full = path.join(dir, ent.name);
       if (ent.isDirectory()) {
