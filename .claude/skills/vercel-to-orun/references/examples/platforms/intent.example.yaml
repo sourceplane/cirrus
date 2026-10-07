@@ -1,0 +1,88 @@
+apiVersion: sourceplane.io/v1
+kind: Intent
+
+metadata:
+  name: platforms
+  description: Multi-tenant subdomain starter, migrated from Vercel to Cloudflare Workers + KV
+  namespace: sourceplane
+
+execution:
+  state:
+    backendUrl: https://api-edge-prod.oruncloud.workers.dev
+    workspace: ws_XXXXXXXX   # the product's Orun workspace
+    requireOrg: true
+    autopushCatalog: true
+
+compositions:
+  sources:
+    # Same pinned catalog as sourceplane/cirrus — never a bare :latest.
+    - name: stack-tectonic
+      kind: oci
+      ref: oci://ghcr.io/sourceplane/stack-tectonic:0.18.1
+  resolution:
+    precedence:
+      - stack-tectonic
+    bindings:
+      terraform: stack-tectonic
+
+discovery:
+  roots:
+    - apps/
+    - infra/
+
+automation:
+  triggerBindings:
+    github-pull-request:
+      description: Pull request validation
+      on:
+        provider: github
+        event: pull_request
+        actions: [opened, synchronize, reopened, ready_for_review]
+        baseBranches: [main]
+      plan:
+        scope: changed
+        base: pull_request.base.sha
+        head: pull_request.head.sha
+    github-push-main:
+      description: Main branch convergence after merge
+      on:
+        provider: github
+        event: push
+        branches: [main]
+    local-development:
+      description: Local testing
+      on:
+        provider: local
+
+environments:
+  dev:
+    activation:
+      triggerRefs: [github-pull-request, github-push-main, local-development]
+    parameterDefaults:
+      terraform: { lane: verify, namespace: sourceplane, namespacePrefix: dev-, owner: sourceplane, repo: platforms }
+    policies:
+      requireApproval: "false"
+  stage:
+    activation:
+      triggerRefs: [github-pull-request, github-push-main]
+    parameterDefaults:
+      terraform: { lane: verify, namespace: sourceplane, namespacePrefix: stg-, owner: sourceplane, repo: platforms }
+    policies:
+      requireApproval: "false"
+  prod:
+    activation:
+      triggerRefs: [github-pull-request, github-push-main]
+    promotion:
+      dependsOn:
+        - environment: stage
+    parameterDefaults:
+      terraform: { lane: verify, namespace: sourceplane, namespacePrefix: prod-, owner: sourceplane, repo: platforms }
+    policies:
+      requireApproval: "false"
+
+repo:
+  displayName: platforms
+  docs:
+    overview: README.md
+    pages:
+      - { path: docs/migration/decisions.md, role: reference, title: Migration decisions }

@@ -1,0 +1,66 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: web
+  description: Multi-tenant Next.js app (formerly Vercel) on Cloudflare Workers + Static Assets via OpenNext
+spec:
+  # cloudflare-worker-turbo, not cloudflare-workers-assets-turbo: the assets
+  # type's schema (stack-tectonic 0.18.1) has no wiring/runtimeSecrets
+  # parameters, and this app binds KV + Durable Objects (SKILL.md Gate G3).
+  # An OpenNext build IS a Worker with an assets directory; `wrangler deploy`
+  # uploads both from the rendered wrangler.jsonc.
+  type: cloudflare-worker-turbo
+  lifecycle: production
+  owner: platform
+  domain: product
+  path: apps/web
+  # The KV namespaces must exist (and their wiring be published) before a
+  # deploy lane renders wrangler.jsonc from the template.
+  dependsOn:
+    - component: cloudflare-kv
+  secretEnv:
+    WIRING_CLOUDFLARE_KV_STAGE: "secret://sourceplane/platforms/stage/WIRING_CLOUDFLARE_KV"
+    WIRING_CLOUDFLARE_KV_PROD: "secret://sourceplane/platforms/prod/WIRING_CLOUDFLARE_KV"
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    turboFilter: "@platforms/web"
+    # Rendered, never committed: verify lanes render from the fixture, deploy
+    # lanes from the WIRING_CLOUDFLARE_KV_<ENV> secrets above.
+    wranglerConfig: wrangler.jsonc
+    wranglerTemplate: wrangler.template.jsonc
+    wiringComponents: "cloudflare-kv"
+    wiringEnvs: "stage,prod"
+    wiringFixture: wiring.fixture.json
+    orgName: sourceplane
+    owner: sourceplane
+    repo: platforms
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@platforms/web
+    typecheckCommand: pnpm exec turbo run typecheck --filter=@platforms/web
+    dryRunCommand: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc --env prod
+    deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
+    # The root page renders the tenant-creation form; its title is the marker.
+    smokeCommand: "html=$(curl -sfL \"https://platforms-web-${ORUN_ENVIRONMENT}.${WORKERS_DEV_SUBDOMAIN:-your-workers-subdomain}.workers.dev/\") && echo \"${html}\" | grep -q 'Platforms Starter Kit'"
+  labels:
+    team: platform
+    layer: delivery
+    runtime: cloudflare

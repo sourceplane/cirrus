@@ -1,0 +1,14 @@
+node_modules
+.next
+.open-next
+.wrangler
+.turbo
+.orun
+next-env.d.ts
+apps/web/wrangler.jsonc
+apps/web/cloudflare-env.d.ts
+.env*
+!.env.example
+
+# orun per-job staged workspaces
+.orun/runs/
