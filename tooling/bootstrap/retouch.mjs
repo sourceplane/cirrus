@@ -30,7 +30,7 @@
 // line and nothing is lost but the next redeploy's reason to happen.
 //
 //   node retouch.mjs --phase 04-workers --affects tasks/04-workers.TaskContract.yaml
-//   node retouch.mjs --phase 04-workers-restore --components billing-worker,membership-worker
+//   node retouch.mjs --phase 05-edge --components billing-worker,membership-worker
 //
 // Options:
 //   --phase <name>          the phase the marker names (required)

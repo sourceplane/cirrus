@@ -6,7 +6,7 @@
 apiVersion: orun.io/v1
 kind: TaskContract
 spec:
-  goal: The database migrations and the 12-worker fleet land, with service-binding feedback edges stripped so first-boot workers deploy in DAG order
+  goal: The database migrations and the 12-worker fleet land with every worker-to-worker service binding stripped, so the whole fleet deploys as one wave on stage and prod
   affects:
     - db-migrate
     - admin-worker
@@ -22,5 +22,5 @@ spec:
     - projects-worker
     - webhooks-worker
   doneWhen:
-    - convergence green with feedback edges stripped
+    - convergence green with every worker-to-worker binding stripped (first wave)
   gates: []

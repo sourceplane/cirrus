@@ -1,6 +1,6 @@
-# The phases — one blueprint, nine selections
+# The phases — one blueprint, six selections
 
-`repo-blueprint.yaml` declares nine phases that take a product from
+`repo-blueprint.yaml` declares six phases that take a product from
 **nothing** to a **live, documented baseline**. Run them one at a time at
 your own pace with `--phase <name>`, or run the whole sequence unattended
 with `--resume`. There is no umbrella workflow and no per-phase document:
@@ -10,8 +10,8 @@ them all.
 
 Each phase follows the same contract:
 
-> **place its modules → land them as a PR (merged immediately — the
-> convergence is the gate) → watch the deployment convergence
+> **place its modules → land them as a PR (checked by `plan`, then merged —
+> the convergence is the gate) → watch the deployment convergence
 > (auto-resumed) → verify it is actually deployed.**
 
 Run from the baseline checkout (the blueprint's source is `path: .`); the
@@ -24,17 +24,14 @@ before anything else can build or deploy. Each phase's `requires.phases`
 states this in the document, and the engine refuses a phase whose
 predecessor is not placed, naming it.
 
-Every phase lands as a pull request that is verified, then merged: each landing waits for its PR's own CI to finish green (the product's PR runs carry remote state, so lanes that need secrets resolve them on the PR too), and the convergence after the merge is still watched.
+Every phase lands as a pull request that is checked, then merged: each landing waits for its PR's own CI to finish green — and on a bootstrap branch (`orun/BASE-…`) that CI is `plan` alone (the intent, every component and composition resolve; the changed set is computed). The lanes are skipped on those pull requests because the merge runs every one of them on main a minute later, for real, and that convergence is what each phase watches to green before the next starts. Any other pull request in the product runs its lanes as before.
 
 | phase | lands | verified by |
 |---|---|---|
 | [`01-scaffold`](01-scaffold.md) | **GitHub repo created** + repo born: intent, CI, tooling, identity | repo pushed + workspace-linked |
-| [`02-foundation`](02-foundation.md) | 13 shared packages | verify lanes green |
-| [`03-infrastructure`](03-infrastructure.md) | d1, kv | published `WIRING_*` secrets |
-| [`04-workers`](04-workers.md) | db-migrate + the 12-worker fleet, service bindings stripped | convergence green |
-| [`04-workers-restore`](04-workers.md) | the bindings put back | convergence green |
-| [`05-edge`](05-edge.md) | api-edge | `/health` 200 on stage+prod |
-| [`06-console`](06-console.md) | web console | console + edge live |
+| [`02-foundation`](02-foundation.md) | 13 shared packages + the data plane (d1, kv) | convergence green + published `WIRING_*` secrets |
+| [`04-workers`](04-workers.md) | db-migrate + the 12-worker fleet, first wave: every worker-to-worker binding stripped, all deployed at once | convergence green |
+| [`05-edge`](05-edge.md) | second wave: every binding restored and the fleet redeployed, + api-edge + web console | `/health` and console live on stage+prod |
 | [`07-domain`](07-domain.md) | custom domain (OPTIONAL — `when: inputs.domain`) | convergence green |
 | [`08-docs`](08-docs.md) | live-deployment docs (manifest + operating contract) | committed manifest matches probed reality |
 
@@ -64,7 +61,7 @@ alone:
 
 ```bash
 orun new --blueprint repo-blueprint.yaml \
-  --out $HOME/sourceplane/acme --run-hooks --phase 03-infrastructure \
+  --out $HOME/sourceplane/acme --run-hooks --phase 02-foundation \
   --values ~/acme.values.yaml
 ```
 
@@ -86,7 +83,7 @@ export ORUN_TOKEN=… GITHUB_TOKEN=…
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/cirrus
 cd cirrus
 orun new --blueprint repo-blueprint.yaml --out /work/acme --run-hooks \
-  --phase 03-infrastructure --values /work/acme.values.yaml
+  --phase 02-foundation --values /work/acme.values.yaml
 ```
 
 Inside a baseline checkout the same command uses the local tree: the two
@@ -96,9 +93,25 @@ modes are the same files.
 
 `--resume` places every phase not already derived as done, in dependency
 order, honouring each barrier. Expected wall-clock on a clean run:
-**~50–65 minutes** (the two worker landings dominate; the Cloudflare-only
-data plane creates in seconds, which is where this baseline buys back its
-time).
+**~25–30 minutes** (an estimate until a rehearsal measures it). It was 50–65
+until the bootstrap stopped paying for the same work twice:
+
+- **Five landings, not eight.** The data plane lands with the packages
+  (`02-foundation`), and the binding restore and the console land with the
+  edge (`05-edge`). The numbering keeps its gaps (`03`, `06`) so the
+  surviving names stay the identities the task plane and `--phase` use.
+- **A landing's PR is checked, not rehearsed.** `plan` only; the lanes run
+  once, on main.
+- **The fleet deploys in two parallel waves** instead of a six-deep chain:
+  every worker-to-worker binding is stripped for the first deploy
+  (`cycle-break.mjs --strip --all`) and the peer `dependsOn` edges are
+  `dependencyMode: advisory`; `05-edge` restores the bindings and redeploys
+  the fleet at once.
+- **Stage and prod deploy side by side** during the bootstrap: `01-scaffold`
+  defers `prod.promotion` and `08-docs` restores it
+  (`tooling/bootstrap/promotion.mjs`).
+- **More lanes at once** (`max-parallel: 16`) and one shared pnpm store
+  cache across them.
 
 Why it can run unattended:
 
@@ -107,7 +120,7 @@ Why it can run unattended:
   (~4.5 m), OCI resolves retry transient 5xx, and `orun.run/watch@v1`
   auto-resumes failed lanes ×3 (`resumeBudget: 3`). A phase that failed
   partway resumes by simply being re-run.
-- **Waits are declared, not slept.** `03-infrastructure` waits on the
+- **Waits are declared, not slept.** `02-foundation` waits on the
   provider consent through `orun.doctor/check@v1` (up to 10 minutes), and
   `04-workers` will not start until `orun.secrets/exists@v1` finds both
   `WIRING_*` keys. A consent nobody has clicked is a *wait*, not a failure.
@@ -144,11 +157,11 @@ Why it can run unattended:
 1. `orun auth login --device` (approve at app.orun.dev/cli/device).
 2. A workspace for the product; note its `ws_…` id.
 3. The two integrations connected in that workspace — GitHub and
-   Cloudflare. `03-infrastructure` POLLS for these up to 10 minutes, so
+   Cloudflare. `02-foundation` POLLS for these up to 10 minutes, so
    you can click the consent while it waits.
 4. An **admin-role** API key. Note that the first credential WRITE is now
-   `03-infrastructure`'s secret reconcile: a builder/viewer key gets
-   through `01-scaffold` and `02-foundation` and dies at phase three with
+   `02-foundation`'s secret reconcile: a builder/viewer key gets
+   through `01-scaffold` and dies at phase two with
    the re-mint-as-admin hint. The shell layer probed this at minute two;
    restoring an early write-probe as a declared precondition is tracked as
    the epic's open question 14.
@@ -169,12 +182,13 @@ a closed registry inside the orun binary, not a script this repo ships:
 | `orun.integrations/reconcile@v1` | bring the brokered provider secrets to their declared state: keys that exist are KEPT, keys that are missing are minted against the ACTIVE connection. It never holds a value — a brokered secret is a pointer at a connection and a scope template |
 | `orun.http/probe@v1` | probe the live `/health` and console URLs |
 
-Ten hooks still `run:` a command, and those are the ones that are this
+The hooks that still `run:` a command are the ones that are this
 baseline's own business rather than a verb any bootstrap needs: git init /
 stage / restage and `pnpm install --lockfile-only` in `01-scaffold`,
 `tooling/rebrand/rebrand.mjs` (the identity rename, then `--verify`),
 `tooling/bootstrap/cycle-break.mjs` (strip and restore the service bindings
-across the two worker landings), `tooling/bootstrap/retouch.mjs` (the
+across the fleet's two waves), `tooling/bootstrap/promotion.mjs` (defer and
+restore the prod promotion gate), `tooling/bootstrap/retouch.mjs` (the
 redeploy marker every deploying phase writes before it lands), and
 `hooks/render-deployment-docs.sh`
 (`08-docs`'s renderer). Each resolves the baseline checkout as

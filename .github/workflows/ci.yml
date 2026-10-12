@@ -60,18 +60,51 @@ jobs:
   run:
     needs: plan
     runs-on: ubuntu-latest
-    if: ${{ needs.plan.outputs.job-matrix != '[]' && needs.plan.outputs.job-matrix != '' }}
+    # A BOOTSTRAP LANDING IS CHECKED, NOT REHEARSED. Every phase of the
+    # baseline bootstrap lands on a branch named for its task — the provenance
+    # pen's `orun/<KEY>-<slug>`, and the bootstrap's tasks are all `BASE-n` —
+    # and is merged by `orun.pr/land@v1` as soon as this workflow is green.
+    # On those pull requests `plan` above is the check: the intent, every
+    # component and every composition resolve, the changed set is computed,
+    # and the plan is uploaded. The lanes are not run there, because the merge
+    # runs every one of them again on main moments later, for real, and the
+    # bootstrap watches that convergence to green before the next phase — the
+    # PR pass was the same work twice, and a third of a bootstrap's wall-clock.
+    # Every other pull request runs its lanes exactly as before.
+    if: >-
+      ${{ needs.plan.outputs.job-matrix != '[]' && needs.plan.outputs.job-matrix != ''
+          && !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'orun/BASE-')) }}
     strategy:
       fail-fast: false
       # Stagger the fan-out: every lane hits the lease-bound resolve at job
-      # start, and an unbounded herd saturated it twice. The orun DAG already
-      # serializes dependents, so capped parallelism costs little wall-clock.
-      max-parallel: 8
+      # start, and an unbounded herd (fifty lanes) saturated it twice. Eight
+      # was that cap, and it became the bottleneck once the fleet's deploys
+      # stopped waiting on each other (dependencyMode: advisory on the peer
+      # edges): a waiting lane holds its slot, and lanes with nothing to wait
+      # for started up to ninety seconds late. Sixteen keeps the herd well
+      # under the size that saturated it.
+      max-parallel: 16
       matrix:
         include: ${{ fromJson(needs.plan.outputs.job-matrix) }}
     name: ${{ matrix.job-name }}
+    env:
+      # One pnpm store for every lane, restored below. Each lane installs the
+      # whole workspace with --frozen-lockfile; without this every one of them
+      # downloaded all ~500 packages from the registry again.
+      npm_config_store_dir: /home/runner/.pnpm-store
+      PNPM_STORE_DIR: /home/runner/.pnpm-store
     steps:
       - uses: actions/checkout@v6
+      # Keyed by the lockfile alone, so every lane of every run shares one
+      # entry until a dependency changes. The first lane to finish saves it;
+      # the rest find the key taken and skip the save.
+      - name: pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.pnpm-store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
       - uses: actions/download-artifact@v8
         with:
           name: orun-plan
