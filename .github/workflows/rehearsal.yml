@@ -71,7 +71,15 @@ jobs:
       - name: the workspace must be named
         run: |
           set -euo pipefail
-          : "${ORUN_REHEARSAL_WORKSPACE:?set the ORUN_REHEARSAL_WORKSPACE repository variable (a ws_… id for the REHEARSAL workspace, never a product's)}"
+          # Not `${VAR:?message}`: bash reads a single quote inside the word of
+          # that expansion as the start of a quoted string even under double
+          # quotes, and this step died with "unexpected EOF while looking for
+          # matching `''" on every nightly before the first `orun` call — which
+          # is how the variable being unset went unreported for a week.
+          if [ -z "$ORUN_REHEARSAL_WORKSPACE" ]; then
+            echo "✕ set the ORUN_REHEARSAL_WORKSPACE repository variable: a ws_… id for the REHEARSAL workspace, never a product's" >&2
+            exit 1
+          fi
           case "$ORUN_REHEARSAL_WORKSPACE" in
             ws_*) ;;
             *) echo "✕ ORUN_REHEARSAL_WORKSPACE is '$ORUN_REHEARSAL_WORKSPACE', which is not a ws_… id" >&2; exit 1 ;;
