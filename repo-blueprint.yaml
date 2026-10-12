@@ -50,8 +50,18 @@ inputs:
     description: CLI default API base (default https://api.<productdomain>).
   subdomain:
     type: string
-    default: "your-workers-subdomain"
-    description: workers.dev subdomain for app-config seams.
+    pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+    # REQUIRED, with no default. It used to default to the placeholder
+    # `your-workers-subdomain`, and a CLI build that forgot `--set subdomain=`
+    # was accepted and then failed forty minutes in: the console's deploy smoke
+    # and 05-edge's probes address `<worker>.<subdomain>.workers.dev`, and the
+    # placeholder resolves to nothing (curl exit 6, on every attempt the watch
+    # hook could buy). The baseline-v13 rehearsal on 2026-10-12 did exactly
+    # that. The console has always collected it; now the CLI refuses up front.
+    required: true
+    description: >-
+      The workers.dev subdomain of the Cloudflare account this builds into.
+      Keeping the baseline's own is supported (worker names are brand-prefixed).
   salesEmail:
     type: string
     default: ""
@@ -1185,7 +1195,7 @@ phases:
 
   - name: 04-workers
     title: The worker fleet
-    expectedMinutes: 8
+    expectedMinutes: 9
     narrate:
       start:  "Now the database migrations and the twelve-worker fleet, the longest stretch of the build — usually about {{ .meta.expectedMinutes }} minutes. The workers call each other, so this first wave deploys every one of them without those bindings, all at once."
       await:  "Twelve workers are deploying across two environments, side by side. This is the slow part; nothing is stuck."
@@ -1421,7 +1431,7 @@ phases:
   # and why its verify is the same probe 05-edge ends on.
   - name: 08-docs
     title: The deployment, recorded
-    expectedMinutes: 1
+    expectedMinutes: 3
     narrate:
       start:  "Now recording what was actually built — probing every URL and writing the deployment manifest into the repository."
       await:  "Probing the live endpoints one last time."

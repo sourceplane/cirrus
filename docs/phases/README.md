@@ -93,8 +93,9 @@ modes are the same files.
 
 `--resume` places every phase not already derived as done, in dependency
 order, honouring each barrier. Expected wall-clock on a clean run:
-**~25–30 minutes** (an estimate until a rehearsal measures it). It was 50–65
-until the bootstrap stopped paying for the same work twice:
+**~26 minutes**, measured once on `baseline-v13` (see [TIMINGS.md](TIMINGS.md)
+for the run and what it cost with a mistake in it). It was 50–65 until the
+bootstrap stopped paying for the same work twice:
 
 - **Five landings, not eight.** The data plane lands with the packages
   (`02-foundation`), and the binding restore and the console land with the

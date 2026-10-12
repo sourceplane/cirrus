@@ -61,6 +61,7 @@ spec:
         : "${ORUN_TOKEN:?the rehearsal workspace key did not resolve}"
         : "${CLOUDFLARE_API_TOKEN:?the rehearsal Cloudflare token did not resolve}"
         : "${CLOUDFLARE_ACCOUNT_ID:?the rehearsal Cloudflare account id did not resolve}"
+        : "${CLOUDFLARE_SUBDOMAIN:?the rehearsal Cloudflare workers.dev subdomain did not resolve}"
         : "${ORUN_REHEARSAL_WORKSPACE:?no rehearsal workspace — the lane must supply one, there is no default}"
         echo "RUN_PREFIX=scratch-${GITHUB_RUN_ID:-$(date -u +%s)}" >> "$GITHUB_ENV"
         echo "STATUS_FILE=${RUNNER_TEMP:-/tmp}/rehearsal.status" >> "$GITHUB_ENV"
@@ -100,6 +101,7 @@ spec:
           --set productdomain="rehearsal.invalid" \
           --set githuborg="{{.parameters.githuborg}}" \
           --set orunWorkspace="$ORUN_REHEARSAL_WORKSPACE" \
+          --set subdomain="$CLOUDFLARE_SUBDOMAIN" \
           | tee "$events"
         echo "build=${PIPESTATUS[0]}" >> "$STATUS_FILE"
       onFailure: continue
