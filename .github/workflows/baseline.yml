@@ -117,7 +117,8 @@ jobs:
             --set reponame=acme-cloud \
             --set "productname=Acme Cloud" \
             --set productdomain=acme.dev \
-            --set githuborg=acme-inc
+            --set githuborg=acme-inc \
+            --set subdomain=acme
       # Tier 1's leak gate. It derives what every phase WOULD place and gates
       # that set — so it needs orun, which is why it rides this job rather than
       # the bash-only one above.
