@@ -25,12 +25,20 @@ spec:
       - name: dev
         profile: verify
       - name: stage
+        # Peer edges are runtime calls, not deploy order: every binding target
+        # already exists once the fleet's first wave has deployed
+        # (cycle-break.mjs --strip --all), so nothing in this lane waits.
+        dependencyMode: advisory
         profile: verify
         profileRules:
           - profile: deploy
             when:
               triggerRef: github-push-main
       - name: prod
+        # Peer edges are runtime calls, not deploy order: every binding target
+        # already exists once the fleet's first wave has deployed
+        # (cycle-break.mjs --strip --all), so nothing in this lane waits.
+        dependencyMode: advisory
         profile: verify
         profileRules:
           - profile: deploy

@@ -124,7 +124,7 @@ spec:
       # has. It becomes a probe when the action does.
 
   # ── PREVIEW ONLY. `repo-blueprint.yaml`'s `integrations/reconcile` hooks
-  # mint these, brokered, during phase 03. ────────────────────────────────
+  # mint these, brokered, during phase 02. ────────────────────────────────
   # Transcribed from those hooks' own `keys:` and `template:` values, so
   # `testing/manifest.test.sh` compares this list to the document that mints
   # them rather than to a copy of itself — it used to compare against a shell
@@ -158,11 +158,12 @@ spec:
     epicName: "Infra baselining — {productname}"
     milestones:
       - name: 01-scaffold
+      # 03-infrastructure, 04-workers-restore and 06-console were folded into
+      # their neighbours' landings (02-foundation, 05-edge); the survivors
+      # keep their names, so the numbering has gaps.
       - name: 02-foundation
-      - name: 03-infrastructure
       - name: 04-workers
       - name: 05-edge
-      - name: 06-console
       # 07-domain carries `when: inputs.domain` in repo-blueprint.yaml (it
       # needs the Cloudflare zone to already exist), so its milestone is
       # ensured only on a run that asks for it. Declared with its condition
@@ -178,7 +179,11 @@ spec:
     # this repo at its pinned tag would have nothing to run. `manifestPath` in
     # the registry row names THIS file, the console card; it is not the build.
     blueprint: repo-blueprint.yaml
-    expectedMinutes: 60
+    # Was 60. The bootstrap now runs five landings instead of eight, checks a
+    # landing's PR with `plan` only, deploys the fleet in one wave instead of
+    # in dependency order, and deploys stage and prod side by side
+    # (docs/phases/TIMINGS.md). An estimate until a rehearsal measures it.
+    expectedMinutes: 30
     tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
     urls:
