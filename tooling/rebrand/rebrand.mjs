@@ -392,6 +392,13 @@ const RESIDUE_RE = new RegExp(
 const ALLOWED_RESIDUE = [
   /https:\/\/orun-api\.sourceplane\.ai/, // orun state backend
   /[A-Za-z0-9._%+-]+@sourceplane\.ai/, // company mailboxes
+  // The successor baseline, kept verbatim by PROTECTED above. Protecting a
+  // literal from the RENAME is only half of it: the post-rename sweep then
+  // sees the baseline word still standing in `sourceplane/cirrus-baseline`
+  // and calls it residue, which is exactly what it is for — so the same
+  // reference has to be allowed here too, or the retirement notice fails the
+  // rebrand it is meant to survive.
+  /sourceplane\/cirrus-baseline/,
 ];
 
 function sweep(files, allowedLiterals = []) {
