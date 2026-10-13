@@ -79,7 +79,8 @@ And what the workspace-scoped (`sk_`) token path surfaced, all fixed:
 3. Intent declares the project SLUG; config-surface and state routes take
    `prj_…` ids → CLI-side slug resolution (v2.52.2 secrets, v2.52.4 run).
    The lane pin in `ci.yml` must be ≥ v2.56.2 (the phase overlay's floor was
-   v2.56.0; v2.56.2 is where a branded tree stopped refusing its next phase).
+   v2.56.0; v2.56.2 is where a branded tree stopped refusing its next phase);
+   it is now ≥ v2.76.0, the first with `orun run --lane`.
 4. Step `timeout:` didn't kill grandchildren — a wedged git held the step's
    pipes past its deadline → process-group kill + WaitDelay (orun v2.52.3).
 5. git has NO transfer timeout → `http.lowSpeedLimit/Time` on every flow git.

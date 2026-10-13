@@ -26,7 +26,7 @@ where this baseline is cheaper than a Postgres-backed one.
 - GitHub org access (repo creation) and a machine with `git`, `gh`, `node`
   (≥20), `pnpm`, `python3`, and the `orun` CLI **≥ v2.58.11**. That is the
   floor for RUNNING the bootstrap; the product's own `ci.yml` lane pin is a
-  separate, lower floor (≥ v2.56.2). v2.56.0 carried the phase overlay (before
+  separate floor (≥ v2.76.0, the first with `orun run --lane`). v2.56.0 carried the phase overlay (before
   it there is no `--phase` and `hooks.{pre,post,await}` does not parse);
   v2.56.2 let a branded phase satisfy the next one's requirement; v2.58.4
   resolves a milestone name and a rendered bool; v2.58.5 is the first that
@@ -183,7 +183,7 @@ every phase's state and is the flag for that.
 
 | requirement | detail |
 |---|---|
-| image deps | `git`, `gh`, `node` (≥20), `pnpm`, `python3`, `curl`, `orun` ≥ v2.58.11 to run the bootstrap. The product's `ci.yml` lane pin (≥ v2.56.2) is its own floor |
+| image deps | `git`, `gh`, `node` (≥20), `pnpm`, `python3`, `curl`, `orun` ≥ v2.58.11 to run the bootstrap. The product's `ci.yml` lane pin (≥ v2.76.0, `orun run --lane`) is its own floor |
 | `ORUN_TOKEN` | orun access token; the typed actions authenticate with it (no login flow) |
 | `GITHUB_TOKEN` | fine-grained PAT: **read** on `sourceplane/cirrus` (the clone); on the PRODUCT repo: **contents write** (pushes), **pull-requests write** (landings), **actions read+write** (`orun.run/watch@v1` watches runs and auto-resumes via `gh run rerun`), **checks read**; **repo create** on the org if `01-scaffold` creates the repo (or pre-create it — supported) |
 | pinning | the clone's `--branch <tag>` pins EVERYTHING: the blueprint, its modules, and the hooks' scripts all come from that one commit. Use a tag for reproducible bootstraps; `main` for latest |

@@ -12,8 +12,9 @@ This is the only phase that takes identity inputs.
 The repo ROOT — no deployable components yet:
 
 - `intent.yaml` (workspace AND project written in), `.github/workflows/ci.yml`
-  (resume-capable CI: exec-id = run id, conditional `--retry`,
-  `max-parallel: 8`, lane pin orun ≥ v2.56.2)
+  (resume-capable CI: exec-id = run id, conditional `--retry`, one GitHub
+  job per lane (`execution.lanes` auto, `orun run --lane`),
+  `max-parallel: 16`, lane pin orun ≥ v2.76.0)
 - `tooling/` — ONLY what product builds use: `eslint`, `tsconfig`, `wire`
 - `ai/context/` — fresh, product-only agent context: `current.md`,
   `decisions.md`, `open-risks.md`, plus the `operations.md` contract and

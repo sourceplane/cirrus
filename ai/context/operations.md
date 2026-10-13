@@ -47,16 +47,18 @@ cloud link → `orun workspace use` selection.
   (works with user sessions and workspace-scoped `ORUN_TOKEN`s alike).
 - Project SLUGS in the intent are resolved to `prj_…` ids by the CLI
   (orun ≥ v2.52.4). The CI lane pin in `.github/workflows/ci.yml` must
-  stay ≥ v2.56.2 — the floor rose with the phase overlay (v2.56.0) and again
-  when a branded tree turned out to refuse its own next phase (v2.56.2), not
-  with this fix.
+  stay ≥ v2.76.0 — CI runs `orun run --lane`, which v2.76.0 introduced. (It
+  rose before with the phase overlay, v2.56.0, and again when a branded tree
+  refused its own next phase, v2.56.2 — not with this fix.)
 
 ## How deployment works
 
 1. Merge (or push) to `main`.
 2. CI (`.github/workflows/ci.yml`) runs `orun plan --changed` — only
-   components whose files changed are planned — then fans each planned
-   job into a matrix lane running `orun run --remote-state` with
+   components whose files changed are planned — then fans the plan's
+   lanes (`execution.lanes`, auto mode: up to 16 GitHub jobs, each running
+   one or more orun jobs; every job still reports its own check run) into a
+   matrix, each running `orun run --lane <id> --remote-state` with
    credential-free OIDC auth (the exchange resolves this repo's bound
    workspace/project server-side).
 3. Terraform state lives in the Orun Cloud HTTP state backend — no local
