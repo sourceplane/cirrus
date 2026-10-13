@@ -15,7 +15,7 @@ execution:
     # run that resolves no workspace fails fast (specs/oidc-ci-tenancy §4.1).
     # `workspace` is the leading spelling in orun v2.20.0 (a ws_ Workspace ID,
     # slug, or legacy org_ id); it supersedes the deprecated `org:` alias.
-    workspace: ws_4975BJ7P
+    workspace: ws_KWQ45Z6M
     requireOrg: true
     # Push/sync the resolved catalog to orun-cloud after a successful plan on the
     # default branch, keeping the org-global catalog head fresh without an
