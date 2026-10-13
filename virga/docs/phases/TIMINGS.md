@@ -13,14 +13,20 @@ evidence.
 | phase | estimate | basis |
 |---|---|---|
 | `01-scaffold` | 2 m | measured on Cirrus; the work is identical (repo create + one landing) |
-| `02-foundation` | 6 m | Cirrus's 13 packages took ~9 m; Virga has 5 |
-| `03-infrastructure` | 3 m | measured on Cirrus. D1 and KV create in seconds; the wait is the convergence around them |
+| `02-foundation` | 7 m | the 6 m the packages were estimated at, plus the 3 m the data plane was, minus a landing's ~4 m fixed cost and the overlap of running both in one convergence |
 | `04-mail` | 12 m | one Worker plus the migration run. Cirrus's 12-worker landing took ~20 m |
-| `05-api` | 8 m | one Worker plus route propagation on two environments |
-| `06-site` | 9 m | the Next.js build dominates; Cirrus's console phase took ~10 m |
+| `05-api` | 11 m | the 8 m the API was estimated at plus the 9 m the site was, minus a landing's ~4 m fixed cost. The site still deploys after the API — the edge survives the fold — so only the landing is saved, not the ordering |
 | `07-domain` | 4 m | measured on Cirrus, and skipped by default here |
 | `08-docs` | 3 m | measured on Cirrus (a render, a landing and a probe) |
-| **total, `--resume`, no domain** | **~43 m** | sum of the above |
+| **total, `--resume`, no domain** | **~35 m** | sum of the above |
+
+The two folds (`03-infrastructure` into `02-foundation`, `06-site` into
+`05-api`) account for the drop from ~43 m. A landing's fixed cost — place, PR,
+merge, a convergence of its own — is the ~4 m each fold removes, and it is the
+one number in this table taken from cirrus's own run record of a real
+bootstrap rather than from an estimate. The plan-only bootstrap PR and the
+advisory pull-request edges should take more off, and nothing here claims
+them: they are not in these estimates at all.
 
 Replace a row with a measured number the first time a real bootstrap produces
 one, and say in the basis column which run it came from. An estimate that has

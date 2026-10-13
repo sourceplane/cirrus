@@ -2,7 +2,7 @@
 
 How to go from **nothing** to a **fully deployed, documented site** (the
 Terraform data plane, the two Workers, the public site — live on stage and
-prod) with eight phases of one build document plus ONE provider consent.
+prod) with six phases of one build document plus ONE provider consent.
 
 The bootstrap is `repo-blueprint.yaml`, read by `orun new`. There is no
 umbrella workflow and no per-phase document: a phase is a SELECTION on that
@@ -41,7 +41,7 @@ orun new --blueprint repo-blueprint.yaml \
 ```
 
 `--resume` places every phase not already derived as done, in dependency
-order, honouring each barrier. Expected wall-clock on a clean run: **~43
+order, honouring each barrier. Expected wall-clock on a clean run: **~35
 minutes** (and see [docs/phases/TIMINGS.md](docs/phases/TIMINGS.md) for which
 of those numbers are measured and which are still estimates — today, all of
 them are estimates).
@@ -66,7 +66,7 @@ domain: false                  # true also runs 07-domain (needs the zone)
 
 ```bash
 orun new --blueprint repo-blueprint.yaml \
-  --out ~/sourceplane/acme-blog --run-hooks --phase 03-infrastructure \
+  --out ~/sourceplane/acme-blog --run-hooks --phase 02-foundation \
   --values ~/acme-blog.values.yaml
 ```
 
@@ -98,11 +98,11 @@ own two context pages. None of this baseline's machinery ships —
 
 The workspace needs its two integrations connected once (GitHub on the account
 that will OWN the repo, and Cloudflare). `01-scaffold` and
-`03-infrastructure` POLL for them through `orun.doctor/check@v1` for up to ten
+`02-foundation` POLL for them through `orun.doctor/check@v1` for up to ten
 minutes, so the consent can be clicked while a phase waits: a consent nobody
 has granted yet is a WAIT, not a failure. If the Cloudflare token's permission
 groups omit D1 Write, the `d1-edit` mint is refused
-(`parent_grant_insufficient`) and `03-infrastructure` stops with that message
+(`parent_grant_insufficient`) and `02-foundation` stops with that message
 — re-issue the token with D1 Write, re-connect, and re-run the phase. The
 secret reconcile is idempotent: keys that exist are KEPT, only missing ones are
 minted.
@@ -130,7 +130,7 @@ are the same files.
 | requirement | detail |
 |---|---|
 | image deps | `git`, `gh`, `node` (≥ 22.5), `python3`, `curl`, `orun` ≥ v2.60 |
-| `ORUN_TOKEN` | orun access token, admin role (the secret write in `03-infrastructure` is the floor) |
+| `ORUN_TOKEN` | orun access token, admin role (the secret write in `02-foundation` is the floor) |
 | `GITHUB_TOKEN` | fine-grained PAT: on the PRODUCT repo **contents write**, **pull-requests write**, **actions read+write**, **checks read**; **repo create** on the org, because `01-scaffold` creates it |
 | pinning | the clone's tag pins the blueprint AND every script `{{ .baseline.dir }}` resolves. Use a tag for reproducible bootstraps |
 | classic-token caveat | a CLASSIC PAT additionally needs the `workflow` scope to push `.github/workflows/`; fine-grained PATs need only `contents: write` |
@@ -174,12 +174,12 @@ are the same files.
 | Symptom | Cause → fix |
 |---|---|
 | Preflight times out on connections | Consent not granted yet — console → Integrations, then re-run the flow (idempotent). |
-| Secrets listed `orphaned` | Their connection was revoked/replaced. Re-connect the provider and re-run `03-infrastructure`: `orun.integrations/reconcile@v1` re-mints only the missing keys, against the ACTIVE connection. |
+| Secrets listed `orphaned` | Their connection was revoked/replaced. Re-connect the provider and re-run `02-foundation`: `orun.integrations/reconcile@v1` re-mints only the missing keys, against the ACTIVE connection. |
 | D1 or KV lane: resource name already taken | The account already has `<repo>-<env>`. Adoption imports it at plan time when it is the *same* product re-bootstrapping; otherwise rename or delete the stray resource. |
 | Convergence run fails, lanes look transient | `orun.run/watch@v1` already auto-resumes ×3 (`resumeBudget: 3`); `gh run rerun --failed` is a true resume if you need a fourth. |
 | Worker verify lane: missing `WIRING_*` secret | Its Terraform upstream has not applied (check that lane first) — inside one convergence run the DAG guarantees order; across manual partial runs it does not. |
 | D1 lane or db-migrate: `Authentication error (10000)` | The lane resolved `CLOUDFLARE_API_TOKEN` (workers-deploy), which cannot touch D1. Both D1 components must bind `CLOUDFLARE_D1_TOKEN`. |
-| Secret WRITE fails `not_found` while listings work | The API key's role is below ADMIN (resource-hiding masks the denial). Re-mint the key with the admin role and re-run `03-infrastructure`; the reconcile is idempotent. |
+| Secret WRITE fails `not_found` while listings work | The API key's role is below ADMIN (resource-hiding masks the denial). Re-mint the key with the admin role and re-run `02-foundation`; the reconcile is idempotent. |
 | site-api `/health` answers `degraded` | The Worker is up but D1 is not reachable — check phase 03 applied and `WIRING_CLOUDFLARE_D1` resolves. |
 | Site smoke fails right after the FIRST deploy | workers.dev route propagation race — the deploy lane's smoke retries with backoff; a resume clears older pins. |
 | Environment cannot observe GitHub Actions (gh 403) | Landings and the convergence watch fall back to plain REST automatically. If even REST Actions is blocked, run the phase without `--run-hooks` and land it yourself — then verify out-of-band before the next phase. |

@@ -3,7 +3,7 @@
 **Lands:** `infra/db-migrate`, `apps/mail-worker`, `tests/mail-worker`.
 
 The migration runner applies every migration to the databases
-`03-infrastructure` created, then the mail Worker deploys against them.
+`02-foundation` created, then the mail Worker deploys against them.
 
 ## It will not start until the wiring is published
 

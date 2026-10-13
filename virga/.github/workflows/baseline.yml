@@ -1,9 +1,10 @@
 name: Baseline CI
 
 # THE FACTORY'S OWN LANES — the tiers that test THIS REPOSITORY rather than a
-# product built from it: that the build document parses, that every component it
-# ships is placed by exactly one phase, that the card describes the build, and
-# that a product carries nothing it should not.
+# product built from it: that the build document parses AND that a real engine
+# accepts it, that every component it ships is placed by exactly one phase, that
+# the card describes the build, and that a product carries nothing it should not
+# and can build what it does carry.
 #
 # ─── WHY THIS IS NOT IN ci.yml OR verify.yml ────────────────────────────────
 #
@@ -55,6 +56,29 @@ jobs:
       # The tools the phases' hooks run, against this tree.
       - run: bash testing/retouch.test.sh
       - run: bash testing/tag-gate.test.sh
+
+  # TIER 2 — the engine's opinion of the build document, which no amount of
+  # YAML reading can stand in for. It needs orun, node and pnpm, and its last
+  # step reaches the npm registry, so it is its own job rather than six more
+  # steps on a twenty-second one. It caught two hard refusals the day it was
+  # written (`orun.pr/land@v1` has no `repo` parameter; `type: bool` is not a
+  # type) that every tier-0 and tier-1 gate had been green through for weeks.
+  placement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+      - name: Python + PyYAML
+        run: python3 -c 'import yaml' || pip install --quiet pyyaml
+      # The version the product's own lanes pin, so the gate answers for the
+      # engine a product will actually meet. `--phase` needs >= v2.56.
+      - uses: sourceplane/orun-action@v1.2.0
+        with:
+          version: v2.56.2
+      - run: bash testing/placement.test.sh
 
   # The migration checksums. This lived in `verify.yml` and travelled into every
   # product, where `tooling/migrations/` does not exist because no module places

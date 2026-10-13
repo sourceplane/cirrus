@@ -30,6 +30,11 @@ if not phases:
 
 order = [ph["name"] for ph in phases]
 index = {name: i for i, name in enumerate(order)}
+by_name = {ph["name"]: ph for ph in phases}
+# A phase out of sequence is a barrier in the wrong place.
+if order != sorted(order):
+    bad(f"phases are declared out of order ({', '.join(order)}); the document's "
+        f"order IS the execution order")
 phase_of = {}
 for ph in phases:
     for m in ph.get("modules") or []:
@@ -64,6 +69,63 @@ for name, m in sorted(modules.items()):
         if index[there] > index[here]:
             bad(f"module {name} (phase {here}) dependsOn {dep} (phase {there}) — "
                 f"the edge points FORWARD across a barrier and cannot be satisfied")
+
+# 2b. THE PARTITION HAS NOT DRIFTED. Points 1 and 2 check that the graph
+#     HOLDS; they cannot tell a deliberate reshuffle from a module that slid
+#     into the wrong phase, because both still hold. So the partition is
+#     declared here, and a module that moves has to move here too — which is
+#     the moment someone reads why.
+#
+#     Taken from cirrus's own gate, which grew this check when the bootstrap
+#     folded eight landings into five (43ca81b).
+WAS = {
+    "01-scaffold": ["ai-deployment", "ai-operations", "discovery-roots", "github-workflows", "rebrand-values", "root-gitignore", "root-intent", "root-kiox", "root-kiox-lock", "root-package-json", "root-pnpm-lock", "root-pnpm-workspace", "root-readme", "root-turbo", "tooling-eslint", "tooling-tsconfig", "tooling-wire"],
+    "02-foundation": ["cli", "cli-tests", "contracts", "db", "db-tests", "shared", "testing"],
+    "03-infrastructure": ["cloudflare-d1", "cloudflare-kv"],
+    "04-mail": ["db-migrate", "mail-worker", "mail-worker-tests"],
+    "05-api": ["site-api", "site-api-tests"],
+    "06-site": ["web-site", "web-site-tests"],
+    "07-domain": ["cloudflare-domain"],
+    "08-docs": [],
+}
+# FOLDED, deliberately: a landing has a fixed cost — place, PR, merge, a
+# convergence of its own — so a phase that bought nothing with its own landing
+# lands with its neighbour. The data plane rides the packages' landing (no
+# package reads D1, and Terraform builds no package), and the website rides the
+# API's (the ordering survives in the DAG: web-site dependsOn site-api). The
+# modules move WHOLE — nothing is lost, and nothing else may move with them.
+# The numbering keeps its gaps so the surviving names stay the identities the
+# task plane, the milestones and `--phase` use.
+FOLDED = {"03-infrastructure": "02-foundation", "06-site": "05-api"}
+# A phase that places nothing: its whole output is hook-rendered.
+HOOK_ONLY = {"08-docs"}
+
+for gone, into in FOLDED.items():
+    if gone in index:
+        bad(f"phase {gone} is declared again, but it is folded into {into}")
+for name, was in WAS.items():
+    if name in FOLDED:
+        continue
+    if name not in index:
+        bad(f"phase {name} is gone, and it is not declared folded")
+        continue
+    now = sorted(by_name[name].get("modules") or [])
+    folded_in = [m for gone, into in FOLDED.items() if into == name for m in WAS[gone]]
+    want = sorted(was + folded_in)
+    if now != want:
+        moved_in = sorted(set(now) - set(want))
+        moved_out = sorted(set(want) - set(now))
+        bad(f"phase {name}'s modules drifted: "
+            f"{'+' + ','.join(moved_in) if moved_in else ''}"
+            f"{' ' if moved_in and moved_out else ''}"
+            f"{'-' + ','.join(moved_out) if moved_out else ''} — "
+            f"update WAS/FOLDED here and say why, or put it back")
+for name in index:
+    if name not in WAS:
+        bad(f"phase {name} is new and undeclared — add it to WAS here")
+for name in HOOK_ONLY:
+    if name in index and (by_name[name].get("modules") or []):
+        bad(f"phase {name} is declared hook-only but now places modules")
 
 # 3. `requires.phases` is the execution order, stated. A phase may only require
 #    one that runs before it, and the numbering must agree with the sequence.
@@ -132,6 +194,20 @@ for ph in phases:
         if not (ph.get("narrate") or {}).get(key):
             bad(f"phase {ph['name']} has no narrate.{key}")
 
+# 7. EVERY PHASE HAS A PAGE AND EVERY PAGE HAS A PHASE. What can drift out
+#    from under a reader is `docs/phases/`: a page for a phase nobody runs, or
+#    a phase nobody documented. A folded phase's page goes with it — its story
+#    is told on the page of the phase it was folded into.
+docs_dir = root / "docs" / "phases"
+if docs_dir.exists():
+    pages = {f.stem for f in docs_dir.glob("*.md")} - {"README", "TIMINGS"}
+    for ph in phases:
+        if ph["name"] not in pages:
+            bad(f"phase {ph['name']} has no docs/phases/{ph['name']}.md")
+    for page in sorted(pages - set(order)):
+        bad(f"docs/phases/{page}.md documents no phase — fold it into the "
+            f"page of the phase that absorbed it, or add the phase")
+
 if problems:
     print("FAIL: the phase graph does not hold:", file=sys.stderr)
     for p in problems:
@@ -141,6 +217,7 @@ if problems:
 print(f"   {len(phases)} phases in execution order: {' -> '.join(order)}")
 print(f"   {len(modules)} modules, each in one phase, no edge pointing forward")
 print(f"   {len(contracts)} task contracts, each affecting only its own phase's components")
+print(f"   the partition matches WAS + FOLDED; every phase has a page")
 PY
 
 echo "phases.test.sh: ok"

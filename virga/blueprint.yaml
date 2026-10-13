@@ -122,13 +122,14 @@ spec:
   programme:
     epicSlug: site-baselining          # = repo-blueprint.yaml's `epicSlug` default
     epicName: "Site baselining — {productName}"
+    # Six landings, not eight: the data plane lands with the packages and the
+    # website with the API. The numbering keeps its gaps (`03`, `06`) so the
+    # surviving names stay the identities the task plane and `--phase` use.
     milestones:
       - name: 01-scaffold
       - name: 02-foundation
-      - name: 03-infrastructure
       - name: 04-mail
       - name: 05-api
-      - name: 06-site
       # 07-domain carries `when: inputs.domain` in repo-blueprint.yaml (it
       # needs the Cloudflare zone to already exist), so its milestone is
       # ensured only on a run that asks for it.
@@ -141,7 +142,7 @@ spec:
     # the `flows/` layer that carried them is retired, and this is the only
     # entry point.
     blueprint: repo-blueprint.yaml
-    expectedMinutes: 43
+    expectedMinutes: 35
     tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
     urls:

@@ -21,7 +21,7 @@ with three deployables:
 ## Live deployment
 
 <!-- 08-docs:begin -->
-_Not yet recorded — run the `08-docs` phase after `06-site` to fill this
+_Not yet recorded — run the `08-docs` phase, the last landing, to fill this
 section from verified live state._
 <!-- 08-docs:end -->
 
@@ -41,8 +41,9 @@ section from verified live state._
 
 This baseline births new sites through the phased bootstrap
 (**[BOOTSTRAP.md](BOOTSTRAP.md)** → [docs/phases/](docs/phases/README.md)):
-eight idempotent workflows — scaffold, foundation, infrastructure, mail, api,
-site, optional domain, docs — each landing a verified slice. Sites receive
+six idempotent phases of one build document — scaffold; foundation (the
+packages and the data plane); mail; api (the public Worker and the site);
+optional domain; docs — each landing a verified slice. Sites receive
 **product-only content** (source, infra, CI, their own docs); none of this
 baseline's machinery ships.
 

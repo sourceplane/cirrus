@@ -1,6 +1,6 @@
-# The phases — one blueprint, eight selections
+# The phases — one blueprint, six selections
 
-`repo-blueprint.yaml` declares eight phases that take a website from
+`repo-blueprint.yaml` declares six phases that take a website from
 **nothing** to a **live, documented baseline**. Run them one at a time at your
 own pace with `--phase <name>`, or the whole sequence unattended with
 `--resume`. There is no umbrella workflow and no per-phase blueprint: a phase
@@ -9,9 +9,9 @@ later, from a fresh container the same operation as running them all.
 
 Each phase follows the same contract:
 
-> **place its modules → land them as a PR (merged immediately — the
-> convergence is the gate) → watch the deployment convergence (auto-resumed)
-> → verify it is actually deployed.**
+> **place its modules → land them as a PR (checked by `plan`, then merged —
+> the convergence is the gate) → watch the deployment convergence
+> (auto-resumed) → verify it is actually deployed.**
 
 Run from the baseline checkout (the blueprint's source is `path: .`); the
 product repo is wherever `--out` points.
@@ -26,11 +26,9 @@ placed, naming it.
 | phase | lands | verified by |
 |---|---|---|
 | [`01-scaffold`](01-scaffold.md) | **GitHub repo created** + repo born: intent, CI, tooling, identity | repo pushed + workspace-linked |
-| [`02-foundation`](02-foundation.md) | the five shared packages | verify lanes green |
-| [`03-infrastructure`](03-infrastructure.md) | d1, kv | published `WIRING_*` secrets |
+| [`02-foundation`](02-foundation.md) | the five shared packages + the data plane (d1, kv) | convergence green + published `WIRING_*` secrets |
 | [`04-mail`](04-mail.md) | db-migrate + the internal mail Worker | convergence green |
-| [`05-api`](05-api.md) | site-api, the one public Worker | `/health` 200 on stage+prod |
-| [`06-site`](06-site.md) | the Next.js site on Workers + Static Assets | site answers on stage+prod |
+| [`05-api`](05-api.md) | site-api, the one public Worker, + the Next.js site on Workers + Static Assets | `/health` 200 and the site answering on stage+prod |
 | [`07-domain`](07-domain.md) | custom domain (OPTIONAL — `when: inputs.domain`) | convergence green |
 | [`08-docs`](08-docs.md) | live-deployment docs (manifest + operating contract) | committed manifest matches probed reality |
 
@@ -70,7 +68,7 @@ file is easier than repeating `--set`.
 
 ```bash
 orun new --blueprint repo-blueprint.yaml \
-  --out $HOME/sourceplane/acme-blog --run-hooks --phase 03-infrastructure \
+  --out $HOME/sourceplane/acme-blog --run-hooks --phase 02-foundation \
   --values ~/acme-blog.values.yaml
 ```
 
@@ -91,15 +89,41 @@ export ORUN_TOKEN=… GITHUB_TOKEN=…
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/virga
 cd virga
 orun new --blueprint repo-blueprint.yaml --out /work/acme-blog --run-hooks \
-  --phase 03-infrastructure --values /work/acme-blog.values.yaml
+  --phase 02-foundation --values /work/acme-blog.values.yaml
 ```
 
 ## Unattended: `--resume`
 
 `--resume` places every phase not already derived as done, in dependency
-order, honouring each barrier. Expected wall-clock on a clean run: **~45
+order, honouring each barrier. Expected wall-clock on a clean run: **~35
 minutes** (see [TIMINGS.md](TIMINGS.md) — and note which of those numbers are
-still estimates).
+still estimates; none of them has been measured on this baseline).
+
+It was ~43 until the bootstrap stopped paying for the same work twice. Four of
+the five changes cirrus made (`43ca81b`) apply here:
+
+- **Six landings, not eight.** The data plane lands with the packages
+  (`02-foundation`) and the website with the API (`05-api`). The numbering
+  keeps its gaps (`03`, `06`) so the surviving names stay the identities the
+  task plane and `--phase` use.
+- **A landing's PR is checked, not rehearsed.** On a bootstrap branch
+  (`orun/SITE-…`) the product's CI runs `plan` alone and skips the lanes,
+  because the merge runs every one of them on main a minute later, for real,
+  and that convergence is what each phase watches. Every other pull request
+  runs its lanes as before.
+- **Pull requests wait on nothing.** `dev` is `dependencyMode: advisory` (no
+  component deploys to it), and the components that keep ordered edges on main
+  are advisory on `github-pull-request` — a pull request deploys nothing, so
+  nothing on one waits.
+- **Stage and prod deploy side by side** during the bootstrap: `01-scaffold`
+  defers `prod.promotion` and `08-docs` restores it, byte-for-byte
+  (`tooling/bootstrap/promotion.mjs`).
+
+The fifth — cirrus's two-wave fleet, where every worker-to-worker binding is
+stripped for a first parallel deploy and restored in a second — buys this
+baseline nothing and is deliberately not taken. See *Why there is no
+`-restore` phase* above: with one backwards-pointing binding there is no chain
+to flatten.
 
 Why it can run unattended:
 
@@ -107,7 +131,7 @@ Why it can run unattended:
   plain REST when `gh` is degraded, smokes retry route propagation, and
   `orun.run/watch@v1` auto-resumes failed lanes ×3 (`resumeBudget: 3`). A
   phase that failed partway resumes by simply being re-run.
-- **Waits are declared, not slept.** `03-infrastructure` waits on the provider
+- **Waits are declared, not slept.** `02-foundation` waits on the provider
   consent through `orun.doctor/check@v1` (up to 10 minutes), and `04-mail`
   will not start until `orun.secrets/exists@v1` finds both `WIRING_*` keys. A
   consent nobody has clicked is a *wait*, not a failure.
@@ -141,10 +165,10 @@ Why it can run unattended:
 1. `orun auth login --device`.
 2. A workspace for the product; note its `ws_…` id.
 3. The two integrations connected in that workspace — GitHub (on the account
-   that will OWN the repo) and Cloudflare. `03-infrastructure` POLLS for these
+   that will OWN the repo) and Cloudflare. `02-foundation` POLLS for these
    up to 10 minutes, so you can click the consent while it waits.
 4. An **admin-role** API key. The first credential WRITE is
-   `03-infrastructure`'s secret reconcile: a builder/viewer key gets through
+   `02-foundation`'s secret reconcile: a builder/viewer key gets through
    `01-scaffold` and `02-foundation` and dies at phase three.
 
 ## The mechanism, as typed actions

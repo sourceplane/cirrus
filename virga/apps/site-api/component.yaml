@@ -27,12 +27,24 @@ spec:
       - name: dev
         profile: verify
       - name: stage
+        # A pull request deploys nothing, so nothing on one waits; a merge
+        # keeps the ordering (the data plane, the migrations, the API).
+        dependencyRules:
+          - mode: advisory
+            when:
+              triggerRef: github-pull-request
         profile: verify
         profileRules:
           - profile: deploy
             when:
               triggerRef: github-push-main
       - name: prod
+        # A pull request deploys nothing, so nothing on one waits; a merge
+        # keeps the ordering (the data plane, the migrations, the API).
+        dependencyRules:
+          - mode: advisory
+            when:
+              triggerRef: github-pull-request
         profile: verify
         profileRules:
           - profile: deploy

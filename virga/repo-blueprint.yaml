@@ -59,7 +59,7 @@ inputs:
     default: "your-workers-subdomain"
     description: workers.dev subdomain, used by the site build and by every deploy smoke and probe.
   repoPrivate:
-    type: bool
+    type: boolean
     default: true
     description: Whether orun.repo/ensure creates the product repo private. Visibility is the operator's choice, so it is asked rather than assumed.
   orunWorkspace:
@@ -78,7 +78,7 @@ inputs:
       The epic every phase clubs its task under. Found by slug, so a fresh
       run and a resumed run find the same work.
   domain:
-    type: bool
+    type: boolean
     default: false
     description: >-
       Whether to run 07-domain. It needs the Cloudflare zone to already
@@ -413,13 +413,6 @@ hooks:
         name: 02-foundation
         exitCriteria:
           - the five shared packages on main, their verify lanes green
-    - id: m03
-      uses: orun.task/ensure@v1
-      with:
-        kind: milestone
-        epic: "{{ .inputs.epicSlug }}"
-        name: 03-infrastructure
-        exitCriteria:
           - WIRING_CLOUDFLARE_D1 and WIRING_CLOUDFLARE_KV published on stage and prod
     - id: m04
       uses: orun.task/ensure@v1
@@ -437,13 +430,6 @@ hooks:
         name: 05-api
         exitCriteria:
           - site-api /health 200 on stage and prod
-    - id: m06
-      uses: orun.task/ensure@v1
-      with:
-        kind: milestone
-        epic: "{{ .inputs.epicSlug }}"
-        name: 06-site
-        exitCriteria:
           - the site answers on stage and prod, its content routes prerendered
     - id: m07
       uses: orun.task/ensure@v1
@@ -479,18 +465,9 @@ hooks:
         kind: task
         epic: "{{ .inputs.epicSlug }}"
         milestone: 02-foundation
-        name: "Land the shared packages"
+        name: "Land the shared packages and provision the data plane"
         prefix: SITE
         contract: tasks/02-foundation.TaskContract.yaml
-    - id: t03
-      uses: orun.task/ensure@v1
-      with:
-        kind: task
-        epic: "{{ .inputs.epicSlug }}"
-        milestone: 03-infrastructure
-        name: "Provision the D1 and KV data plane"
-        prefix: SITE
-        contract: tasks/03-infrastructure.TaskContract.yaml
     - id: t04
       uses: orun.task/ensure@v1
       with:
@@ -506,18 +483,9 @@ hooks:
         kind: task
         epic: "{{ .inputs.epicSlug }}"
         milestone: 05-api
-        name: "Deploy the public site API"
+        name: "Deploy the public site API and the website"
         prefix: SITE
         contract: tasks/05-api.TaskContract.yaml
-    - id: t06
-      uses: orun.task/ensure@v1
-      with:
-        kind: task
-        epic: "{{ .inputs.epicSlug }}"
-        milestone: 06-site
-        name: "Deploy the website"
-        prefix: SITE
-        contract: tasks/06-site.TaskContract.yaml
     - id: t07
       uses: orun.task/ensure@v1
       with:
@@ -631,6 +599,22 @@ phases:
           run: ["git", "add", "-A"]
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        # STAGE AND PROD DEPLOY SIDE BY SIDE UNTIL THE BOOTSTRAP IS DONE.
+        # Taken from cirrus (43ca81b). intent.yaml gates prod behind stage
+        # (`environments.prod.promotion.dependsOn: [stage]`), which orun plans
+        # as an in-run edge from every prod job to the same component's stage
+        # job, so every prod deploy waits out its own stage deploy and each
+        # convergence is twice as long. During a bootstrap both environments
+        # are empty and every phase is watched to green before the next starts,
+        # so the gate protects nothing yet: it is deferred here and restored by
+        # 08-docs, the last landing. tooling/bootstrap/promotion.mjs encodes
+        # the removed text in its marker, so the restore is byte-for-byte, and
+        # both directions are idempotent.
+        - id: promotion
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/promotion.mjs", "--defer"]
+        # Re-stage so `git ls-files` and `rebrand --verify` see the rewrite.
+        - id: promotion-restage
+          run: ["git", "add", "-A"]
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         # The repo has to exist before there is anywhere to land.
@@ -641,6 +625,46 @@ phases:
             owner: "{{ .inputs.githubOrg }}"
             name: "{{ .inputs.repoName }}"
             private: "{{ .inputs.repoPrivate }}"
+        # THE REPOSITORY MUST BE THE WORKSPACE'S before anything lands in it,
+        # or the product's own CI cannot reach the platform. Every convergence
+        # lane authenticates over GitHub OIDC and the platform resolves that
+        # token through the repo link; with no link, every lane of the first
+        # real convergence dies before running a step:
+        #
+        #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+        #     Not found (code: not_found)
+        #
+        # Cirrus has carried this pair since BE4 and this baseline did not —
+        # it took `repo` and dropped `link`, which no Virga run had yet reached
+        # a convergence to notice. Taken now (cirrus 80b265b, VG11).
+        #
+        # `link` may be refused where the credential cannot write links (a
+        # workspace key) and the platform has linked the repository already, so
+        # `link` is best effort and `check` is the gate: an unlinked repository
+        # stops here, naming the fix, instead of an hour later in every lane.
+        - id: link
+          run:
+            - bash
+            - -c
+            - |
+              orun cloud link --org "$1" || true
+              orun cloud check --org "$1" || {
+                echo "$2 is not linked to workspace $1 — its CI cannot authenticate. Link it (orun cloud link --org $1, or the console's Git Repos) and re-run this phase." >&2
+                exit 1
+              }
+            - link
+            - "{{ .inputs.orunWorkspace }}"
+            - "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+        # EVERY PHASE IS A PULL REQUEST THAT IS CHECKED, THEN MERGED. No
+        # landing below says `wait: false`: each waits for its PR's own CI and
+        # merges only on green. But on a bootstrap branch (`orun/SITE-…`) that
+        # run is the BASIC check only — `plan` resolves the intent, every
+        # component and every composition and computes the changed set, and the
+        # lanes are skipped (.github/workflows/ci.yml) — because the merge runs
+        # every one of them on main a minute later, for real, and the
+        # convergence after each merge is what this bootstrap watches to green
+        # before the next phase. The PR pass was the same work twice and a
+        # third of the wall-clock (cirrus 43ca81b).
         - id: land
           uses: orun.pr/land@v1
           narrate: "The scaffold PR is merged into main."
@@ -649,73 +673,36 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "feat(scaffold): the repository is born"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
 
   - name: 02-foundation
-    title: The shared packages
-    description: contracts, db, shared, testing and the CLI, with their own test suites.
-    expectedMinutes: 6
+    title: The shared packages and the data plane
+    description: contracts, db, shared, testing and the CLI with their own test suites, and beside them a D1 database and a KV namespace per environment.
+    expectedMinutes: 7
     narrate:
-      start:  "The shared packages now — contracts, the D1 data access, the CLI. Nothing deploys in this phase; it is what everything later is built out of."
-      await:  "Waiting for the packages' verify lanes."
-      done:   "The five shared packages are on main with their verify lanes green. {{ .meta.elapsed }}."
-      failed: "A package did not build. The verify lane above names the file."
-    modules: [shared, contracts, db, testing, cli, db-tests, cli-tests]
+      start:  "The shared packages now — contracts, the D1 data access, the CLI — and beside them the data layer itself: a D1 database and a KV namespace per environment. This is the first phase that touches Cloudflare. Usually about {{ .meta.expectedMinutes }} minutes."
+      await:  "The packages are building and Terraform is applying D1 and KV. Both run in the same convergence."
+      done:   "The shared packages are on main with their lanes green, and D1 and KV exist on stage and prod with their ids published for the Workers to read. {{ .meta.elapsed }}."
+      failed: "The packages or the data layer did not come up. The failing lane above names which, and a provider error is in its log."
+    # TWO LANDINGS FOLDED INTO ONE, taken from cirrus (43ca81b). The packages
+    # and the data plane were separate phases — 02-foundation and
+    # 03-infrastructure — and each paid a whole landing (place, PR, merge, a
+    # convergence of its own) for work that never depended on the other: no
+    # package in this baseline reads D1, and Terraform builds none of the
+    # packages. One landing runs both in one convergence, side by side.
+    #
+    # The numbering keeps its gap: `03` is not reused, so the surviving phase
+    # names stay the identities the task plane, the milestones and `--phase`
+    # already use.
+    #
+    # db-migrate is still NOT here, though it is data plane: it plans the
+    # migrations against the database `cloudflare-d1` creates, whose id is a
+    # job-output secret that exists only once this phase's merge has applied.
+    # It lands with 04-mail, the first phase that reads the database.
+    modules: [shared, contracts, db, testing, cli, db-tests, cli-tests, cloudflare-d1, cloudflare-kv]
+    # The first phase that DEPLOYS. `requires.probe` asks reality the question
+    # a lock file cannot answer: are both provider connections live right now?
     requires:
       phases: [01-scaffold]
-    hooks:
-      pre:
-        - id: task
-          uses: orun.task/ensure@v1
-          with:
-            kind: task
-            epic: "{{ .inputs.epicSlug }}"
-            milestone: "{{ .phase.name }}"
-            name: "Land the shared packages"
-            prefix: SITE
-            contract: tasks/02-foundation.TaskContract.yaml
-      post:
-        - id: stage
-          run: ["git", "add", "-A"]
-        - id: rebrand
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
-        - id: restage
-          run: ["git", "add", "-A"]
-        - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
-        - id: pnpm-lockfile
-          run: ["pnpm", "install", "--lockfile-only"]
-        - id: land
-          uses: orun.pr/land@v1
-          narrate: "The foundation PR is merged into main."
-          with:
-            task: "{{ .phase.hooks.task.outputs.key }}"
-            epic: "{{ .inputs.epicSlug }}"
-            branchSlug: "{{ .phase.name }}"
-            title: "feat(foundation): the shared packages"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
-      await:
-        - id: converge
-          uses: orun.run/watch@v1
-          narrate: "The packages' lanes came back green."
-          with:
-            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
-            resumeBudget: 3
-            waitSeconds: 1800
-
-  - name: 03-infrastructure
-    title: The data infrastructure
-    description: A D1 database and a KV namespace per environment, their ids published as wiring secrets.
-    expectedMinutes: 3
-    narrate:
-      start:  "Now the data layer — a D1 database and a KV namespace per environment. This is the first phase that touches Cloudflare."
-      await:  "Terraform is applying. D1 and KV create in seconds; the wait is the convergence run around them."
-      done:   "D1 and KV exist on stage and prod, and their ids are published as wiring secrets for the Workers to read. {{ .meta.elapsed }}."
-      failed: "The data layer did not come up. The convergence log above carries the provider's own error."
-    modules: [cloudflare-d1, cloudflare-kv]
-    requires:
-      phases: [02-foundation]
       probe:
         - id: providers
           uses: orun.doctor/check@v1
@@ -732,13 +719,15 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "Provision the D1 and KV data plane"
+            name: "Land the shared packages and provision the data plane"
             prefix: SITE
-            contract: tasks/03-infrastructure.TaskContract.yaml
+            contract: tasks/02-foundation.TaskContract.yaml
         # Brokered, never held: each key is a pointer at the ACTIVE Cloudflare
         # connection and a scope template. Keys that exist are KEPT; missing
-        # ones are minted. The d1-edit mint is refused unless the account
-        # token's permission groups include D1 Write — see BOOTSTRAP.md.
+        # ones are minted. One hook per template on purpose — these three are
+        # three different scopes, and the deploy token deliberately cannot
+        # touch D1. The d1-edit mint is refused unless the account token's
+        # permission groups include D1 Write — see BOOTSTRAP.md.
         - id: secret-workers-deploy
           uses: orun.integrations/reconcile@v1
           with:
@@ -759,7 +748,7 @@ phases:
             template: account-id
       post:
         - id: retouch
-          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/03-infrastructure.TaskContract.yaml"]
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/02-foundation.TaskContract.yaml"]
         - id: stage
           run: ["git", "add", "-A"]
         - id: rebrand
@@ -772,17 +761,16 @@ phases:
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
-          narrate: "The infrastructure PR is merged into main."
+          narrate: "The packages and data-plane PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "feat(infrastructure): D1 and KV on stage and prod"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            title: "feat(foundation): the shared packages, and D1 and KV on stage and prod"
       await:
         - id: converge
           uses: orun.run/watch@v1
-          narrate: "Terraform applied and the convergence run came back green."
+          narrate: "The packages built, Terraform applied, and the convergence run came back green."
           with:
             sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
@@ -807,9 +795,9 @@ phases:
       failed: "The schema or the mail Worker did not land. The convergence log above says which."
     modules: [db-migrate, mail-worker, mail-worker-tests]
     requires:
-      phases: [03-infrastructure]
-      # The Workers read their D1 and KV ids from the wiring secrets phase
-      # three published. A consent nobody has clicked is a WAIT, not a
+      phases: [02-foundation]
+      # The Workers read their D1 and KV ids from the wiring secrets
+      # 02-foundation published. A consent nobody has clicked is a WAIT, not a
       # failure, and so is a secret not yet published.
       secrets:
         - id: wiring
@@ -852,7 +840,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "feat(mail): the schema and the mail Worker"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -864,15 +851,27 @@ phases:
             waitSeconds: 2400
 
   - name: 05-api
-    title: The public site API
-    description: The one publicly routable Worker — subscribe, confirm, forms, reactions, views, rankings.
-    expectedMinutes: 8
+    title: The public site API and the website
+    description: The one publicly routable Worker, and the Next.js site in front of it.
+    expectedMinutes: 11
     narrate:
-      start:  "The site API — the only Worker the internet reaches. It binds to the mail Worker phase four deployed."
-      await:  "Waiting for the API to deploy and answer /health on both environments. About {{ .meta.expectedMinutes }} minutes."
-      done:   "The site API is live on stage and prod, answering /health. {{ .meta.elapsed }}."
-      failed: "The site API did not come up. The deploy log above says why."
-    modules: [site-api, site-api-tests]
+      start:  "The site API — the only Worker the internet reaches — and the site itself, in one landing. The API binds to the mail Worker phase four deployed; the site health-checks the API, so the convergence deploys them in that order. Usually about {{ .meta.expectedMinutes }} minutes."
+      await:  "Waiting for the API to answer /health and the site to build, prerender and deploy, on both environments."
+      done:   "The API answers /health and the site is live, on stage and prod. {{ .meta.elapsed }}."
+      failed: "The API or the site did not come up. The failing lane above names which, and its log says why."
+    # TWO LANDINGS FOLDED INTO ONE, taken from cirrus (43ca81b), where the
+    # console folded into the edge for the same reason. A landing costs about
+    # four minutes whatever it carries — place, PR, merge, a convergence of
+    # its own — and that was the whole of what a separate `06-site` bought.
+    #
+    # The ORDER is not lost by folding: web-site still `dependsOn: site-api`
+    # (its deploy smoke health-checks the API, so the API must be live first),
+    # and one convergence honours that edge exactly as two did. What goes away
+    # is the second landing's fixed cost, not the ordering.
+    #
+    # The numbering keeps its gap: `06` is not reused, so the surviving names
+    # stay the identities the task plane, the milestones and `--phase` use.
+    modules: [site-api, site-api-tests, web-site, web-site-tests]
     requires:
       phases: [04-mail]
     hooks:
@@ -883,7 +882,7 @@ phases:
             kind: task
             epic: "{{ .inputs.epicSlug }}"
             milestone: "{{ .phase.name }}"
-            name: "Deploy the public site API"
+            name: "Deploy the public site API and the website"
             prefix: SITE
             contract: tasks/05-api.TaskContract.yaml
       post:
@@ -901,17 +900,16 @@ phases:
           run: ["pnpm", "install", "--lockfile-only"]
         - id: land
           uses: orun.pr/land@v1
-          narrate: "The API PR is merged into main."
+          narrate: "The API and site PR is merged into main."
           with:
             task: "{{ .phase.hooks.task.outputs.key }}"
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
-            title: "feat(api): the public site API"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            title: "feat(api): the public site API, and the website in front of it"
       await:
         - id: converge
           uses: orun.run/watch@v1
-          narrate: "The API deployed and the convergence run came back green."
+          narrate: "The API and the site deployed and the convergence run came back green."
           with:
             sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
             repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
@@ -919,71 +917,11 @@ phases:
             waitSeconds: 1800
         - id: verify
           uses: orun.http/probe@v1
-          narrate: "Both /health endpoints answered."
+          narrate: "Both /health endpoints and both sites answered."
           with:
             urls:
               - "https://{{ .inputs.repoName }}-site-api-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
               - "https://{{ .inputs.repoName }}-site-api-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
-
-  - name: 06-site
-    title: The website
-    description: Next.js on Workers and Static Assets, its sections rendered from the Markdown in content/.
-    expectedMinutes: 9
-    narrate:
-      start:  "The site itself. A section renders only when its content folder has files, so the same tree is a directory, a newsletter or a portfolio."
-      await:  "Waiting for the site to build, prerender and deploy on both environments."
-      done:   "The site is live on stage and prod. {{ .meta.elapsed }}."
-      failed: "The site did not come up. The build log above names the route."
-    modules: [web-site, web-site-tests]
-    requires:
-      phases: [05-api]
-    hooks:
-      pre:
-        - id: task
-          uses: orun.task/ensure@v1
-          with:
-            kind: task
-            epic: "{{ .inputs.epicSlug }}"
-            milestone: "{{ .phase.name }}"
-            name: "Deploy the website"
-            prefix: SITE
-            contract: tasks/06-site.TaskContract.yaml
-      post:
-        - id: retouch
-          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/06-site.TaskContract.yaml"]
-        - id: stage
-          run: ["git", "add", "-A"]
-        - id: rebrand
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
-        - id: restage
-          run: ["git", "add", "-A"]
-        - id: rebrand-verify
-          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
-        - id: pnpm-lockfile
-          run: ["pnpm", "install", "--lockfile-only"]
-        - id: land
-          uses: orun.pr/land@v1
-          narrate: "The site PR is merged into main."
-          with:
-            task: "{{ .phase.hooks.task.outputs.key }}"
-            epic: "{{ .inputs.epicSlug }}"
-            branchSlug: "{{ .phase.name }}"
-            title: "feat(site): the website on Workers and Static Assets"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
-      await:
-        - id: converge
-          uses: orun.run/watch@v1
-          narrate: "The site deployed and the convergence run came back green."
-          with:
-            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
-            resumeBudget: 3
-            waitSeconds: 1800
-        - id: verify
-          uses: orun.http/probe@v1
-          narrate: "The site answered on both environments."
-          with:
-            urls:
               - "https://{{ .inputs.repoName }}-web-site-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
               - "https://{{ .inputs.repoName }}-web-site-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"
 
@@ -999,7 +937,7 @@ phases:
       failed: "The domain did not attach. The usual cause is a zone the account does not hold."
     modules: [cloudflare-domain]
     requires:
-      phases: [06-site]
+      phases: [05-api]
     hooks:
       pre:
         - id: task
@@ -1032,7 +970,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "feat(domain): the custom domain in front of the site"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
       await:
         - id: converge
           uses: orun.run/watch@v1
@@ -1058,7 +995,7 @@ phases:
     # filled in here.
     modules: []
     requires:
-      phases: [06-site]
+      phases: [05-api]
     hooks:
       pre:
         - id: task
@@ -1073,6 +1010,19 @@ phases:
       post:
         - id: render
           run: ["bash", "{{ .baseline.dir }}/hooks/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
+        # THE PROMOTION GATE COMES BACK HERE, on the last landing. 01-scaffold
+        # deferred it so stage and prod could deploy side by side through the
+        # bootstrap; from this merge on, a change reaches prod only after it
+        # deployed to stage, which is the right rule for a product that is
+        # live. The restore is byte-for-byte and idempotent, and it is a change
+        # to intent.yaml's `environments` section alone, which `orun plan
+        # --changed` maps to no component: this landing deploys nothing.
+        #
+        # The gate is deferred, never dropped. A bootstrap that stops before
+        # this phase leaves the marker in intent.yaml, and `promotion.mjs
+        # --restore` (or a re-run of 08-docs) is the whole fix.
+        - id: promotion
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/promotion.mjs", "--restore"]
         - id: land
           uses: orun.pr/land@v1
           narrate: "The deployment record is merged into main."
@@ -1081,7 +1031,6 @@ phases:
             epic: "{{ .inputs.epicSlug }}"
             branchSlug: "{{ .phase.name }}"
             title: "docs(deployment): record the live deployment state"
-            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
       await:
         - id: verify
           uses: orun.http/probe@v1

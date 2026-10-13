@@ -88,6 +88,9 @@ environments:
         - github-pull-request
         - github-push-main
         - local-development
+    # dev only ever verifies (no component deploys to it), so nothing in it
+    # has to wait for anything: every dev job starts the moment a runner does.
+    dependencyMode: advisory
     parameterDefaults:
       terraform:
         lane: verify

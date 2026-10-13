@@ -3,10 +3,14 @@
 # attaches it to the key the allocator issues. gates: [] is a DECLARATION —
 # merge alone finishes this task; the main convergence is the gate the phase
 # WATCHES, not one the plane observes as a PR check.
+#
+# This contract absorbed the retired 03-infrastructure landing's: the packages
+# and the data plane never depended on each other, so they land together and
+# one task states the whole of that landing's work.
 apiVersion: orun.io/v1
 kind: TaskContract
 spec:
-  goal: The five shared packages — contracts, db, shared, testing, cli — are on main with their verify lanes green
+  goal: The five shared packages — contracts, db, shared, testing, cli — are on main with their verify lanes green, and the data plane (D1 and KV) is provisioned on stage and prod with its outputs published
   affects:
     - contracts
     - db
@@ -15,6 +19,9 @@ spec:
     - cli
     - db-tests
     - cli-tests
+    - cloudflare-d1
+    - cloudflare-kv
   doneWhen:
     - every package's verify lane green on main
+    - WIRING_CLOUDFLARE_D1 and WIRING_CLOUDFLARE_KV published on stage and prod
   gates: []
