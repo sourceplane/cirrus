@@ -11,7 +11,7 @@ Cloudflare D1 as the database, so Cloudflare is the only provider in the loop.
 
 <!-- 08-docs:begin -->
 _Not yet recorded — run [`08-docs`](docs/phases/08-docs.md) after
-`06-console` to fill this section from verified live state
+`05-edge` to fill this section from verified live state
 ([manifest](ai/context/deployment.md) · [operating contract](ai/context/operations.md))._
 <!-- 08-docs:end -->
 

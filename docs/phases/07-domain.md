@@ -5,7 +5,7 @@ routing terraform that puts the product on `<productdomain>` instead of
 workers.dev.
 
 Skip it entirely until you own the domain — the baseline is fully
-functional on workers.dev URLs after phase 06.
+functional on workers.dev URLs after phase 05.
 
 ## What it does today — read this first
 
@@ -50,7 +50,7 @@ tree. See [the phases README](README.md).
 
 The phase carries `when: inputs.domain`, so it is SKIPPED unless
 `--set domain=true`. A skipped phase does not block `08-docs`, which
-requires `06-console` rather than this one.
+requires `05-edge` rather than this one.
 
 ## Verify / done means
 

@@ -12,8 +12,13 @@ layer is now a typed action inside the binary, which is why the version floor
 matters and why a phase can be run alone, months later, from a fresh
 container.
 
-Target wall-clock: **under an hour**. The long pole is the worker fleet's
-two landings — the Cloudflare-only data plane creates in seconds, which is
+Target wall-clock: **about half an hour** (it was under an hour; a rehearsal
+has yet to measure the new number). Five landings instead of eight, each
+pull request checked by `plan` alone because its merge runs the lanes on
+main anyway, the worker fleet deployed in two parallel waves instead of in
+binding order, and stage and prod deployed side by side until `08-docs`
+restores the promotion gate — [docs/phases/README.md](docs/phases/README.md)
+has the account. The Cloudflare-only data plane creates in seconds, which is
 where this baseline is cheaper than a Postgres-backed one.
 
 ## 0. What you need
@@ -51,7 +56,7 @@ where this baseline is cheaper than a Postgres-backed one.
 - **The repo allow-listed in the workspace** (console → Settings → Git
   repos). This is the ONE console action a workspace-scoped token cannot
   self-heal (`cloud link` is refused for them) — do it up front or
-  `03-infrastructure`'s provider check will stop and ask for it. Everything
+  `02-foundation`'s provider check will stop and ask for it. Everything
   else is headless.
 
 ## 1. One command: `--resume`
@@ -86,9 +91,12 @@ every phase after `01-scaffold` brands the tree — derives as `drifted`, and
 
 ## 1b. Or phase by phase — the same document, at your pace
 
-The phases are `01-scaffold`, `02-foundation`, `03-infrastructure`,
-`04-workers`, `04-workers-restore`, `05-edge`, `06-console`, `07-domain`
-(only when `--set domain=true`), `08-docs`. Each is idempotent, each follows
+The phases are `01-scaffold`, `02-foundation` (the packages and the D1/KV
+data plane), `04-workers` (the fleet's first wave, bindings stripped),
+`05-edge` (the bindings restored, the edge and the console), `07-domain`
+(only when `--set domain=true`), `08-docs`. The gaps in the numbering are
+phases folded into a neighbour's landing (`03-infrastructure`,
+`04-workers-restore`, `06-console`). Each is idempotent, each follows
 one contract — **place its modules → land them → watch the convergence →
 verify the outcome** — and each carries its own narration. Full guide:
 [docs/phases/README.md](docs/phases/README.md), with a detailed page per
@@ -107,8 +115,8 @@ orun new --blueprint repo-blueprint.yaml --out ~/sourceplane/acme --run-hooks \
 # (a --values file is easier than repeating --set):
 orun new --blueprint repo-blueprint.yaml --out ~/sourceplane/acme --run-hooks \
   --phase 02-foundation --values ~/acme.values.yaml
-# … 03 (infra), 04 (workers), 04-workers-restore, 05 (edge), 06 (console),
-#    08 (docs); 07 (domain) only with domain=true.
+# … 04 (workers), 05 (bindings, edge, console), 08 (docs);
+#    07 (domain) only with domain=true.
 ```
 
 Three flags shape a run:
@@ -127,12 +135,12 @@ presents it as a copy of anything. That promise is a test —
 set.
 
 The workspace needs its two integrations connected once (GitHub and
-Cloudflare). `03-infrastructure`'s `requires.probe` polls for up to 10
+Cloudflare). `02-foundation`'s `requires.probe` polls for up to 10
 minutes, so the consent can be clicked while it waits:
 
 - **Cloudflare**: paste the Account API token (in-console recipe). If the
   token's permission groups omit D1 Write, the `d1-edit` mint is refused
-  (`parent_grant_insufficient`) and `03-infrastructure` stops with that
+  (`parent_grant_insufficient`) and `02-foundation` stops with that
   message — re-issue the token with D1 Write, re-connect, and re-run the
   phase. Its three secret hooks are a *reconcile*: keys that exist are kept,
   keys that are missing are re-minted against the ACTIVE connection.
@@ -252,10 +260,10 @@ not one is worse than a gate that says what it is.
 
 | Symptom | Cause → fix |
 |---|---|
-| `03-infrastructure` waits on connections, then stops | Consent not granted yet — console → Integrations, then re-run the phase (idempotent). The probe is a *wait*, not a failure: a consent nobody has clicked is not a broken build. |
+| `02-foundation` waits on connections, then stops | Consent not granted yet — console → Integrations, then re-run the phase (idempotent). The probe is a *wait*, not a failure: a consent nobody has clicked is not a broken build. |
 | A phase refuses with `requires: 02-foundation (pending)` | Its predecessor has not been placed into this `--out`. Run that phase, or `--resume`. A predecessor that is `drifted` SATISFIES the requirement — its files are all there. |
 | `--resume` prints "leaving 01-scaffold as placed" | Expected after branding. Every file is present but differs from the blueprint, so the phase is `drifted` and re-placing it would revert your product's identity. Re-place one deliberately with `--phase <name>`. |
-| Secrets listed `orphaned` | Their connection was revoked/replaced (e.g. OAuth app scopes changed). Re-connect the provider and re-run `--phase 03-infrastructure`: `orun.integrations/reconcile@v1` re-mints only the missing keys against the ACTIVE connection. |
+| Secrets listed `orphaned` | Their connection was revoked/replaced (e.g. OAuth app scopes changed). Re-connect the provider and re-run `--phase 02-foundation`: `orun.integrations/reconcile@v1` re-mints only the missing keys against the ACTIVE connection. |
 | Secret WRITE fails `not_found` while listings work | The API key's role is below ADMIN (resource-hiding masks the denial). Re-mint the key with the admin role; the reconcile says so in the error and is idempotent. |
 | D1 or KV lane: resource name already taken | The account already has `<repo>-<env>`. Adoption imports it at plan time when it's the *same* product re-bootstrapping; otherwise rename or delete the stray resource. |
 | Terraform: resource already exists (10014 etc.) with empty platform state | `adopt.tf` handles this by importing at plan time — present in the d1 and kv roots. Roots without adoption must be state-migrated or the resource deleted. |

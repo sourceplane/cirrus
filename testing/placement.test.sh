@@ -220,7 +220,7 @@ name_after_brand="$(python3 -c "import json;print(json.load(open('$seq/package.j
 [ "$name_after_brand" = "acme-cloud" ] \
   || fail "after branding, package.json name is $name_after_brand, not the product's"
 
-for ph in 02-foundation 03-infrastructure 04-workers 05-edge 06-console 07-domain; do
+for ph in 02-foundation 04-workers 05-edge 07-domain; do
   if ! orun new --blueprint "$root/repo-blueprint.yaml" --out "$seq" --phase "$ph" \
        "${sets[@]}" > "$scratch/p-$ph.log" 2>&1; then
     fail "phase $ph refused after the rebrand: $(tail -1 "$scratch/p-$ph.log")"

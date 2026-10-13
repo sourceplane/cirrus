@@ -27,7 +27,17 @@
 //
 // Modes:
 //   --strip     break the cycle (idempotent: skips edges already stripped)
-//   --restore   put the bindings back (idempotent: no-op if none stripped)
+//   --strip --all
+//               strip EVERY worker->worker service binding in the fleet, not
+//               just the feedback edges. This is what 04-workers runs: with no
+//               binding naming another worker, no worker's first deploy needs
+//               another to exist, so the whole fleet deploys in one parallel
+//               wave instead of the six-deep chain the bindings imply. The
+//               second wave (--restore, in 05-edge) redeploys every worker
+//               with its bindings at once, when every target already exists.
+//   --restore   put the bindings back (idempotent: no-op if none stripped).
+//               Restores every marker in every worker template, whichever
+//               mode stripped it.
 //   --check     report which edges are currently stripped (exit 0)
 
 import * as fs from "node:fs";
@@ -44,12 +54,39 @@ const FEEDBACK_EDGES = [
 const MARKER = "@cycle-break";
 
 function usage() {
-  console.error("usage: cycle-break.mjs --strip | --restore | --check");
+  console.error("usage: cycle-break.mjs --strip [--all] | --restore | --check");
   process.exit(2);
 }
 
 function wranglerPath(component) {
   return path.join("apps", component, "wrangler.template.jsonc");
+}
+
+// Every worker placed in this tree, by directory name. A binding may TARGET
+// any of them (policy-worker has no template — nothing to strip in it — but
+// half the fleet binds to it); only those with a template can be stripped.
+function workers() {
+  if (!fs.existsSync("apps")) return [];
+  return fs.readdirSync("apps").filter((d) => d.endsWith("-worker")).sort();
+}
+
+// The workers whose templates `--all` strips and restore/check visit.
+function fleet() {
+  return workers().filter((d) => fs.existsSync(wranglerPath(d)));
+}
+
+function allEdges() {
+  const edges = [];
+  for (const from of fleet()) {
+    for (const to of workers()) if (to !== from) edges.push({ from, to });
+  }
+  return edges;
+}
+
+// The templates restore/check read: the feedback edges' sources plus the
+// whole fleet, de-duplicated.
+function templatesToVisit() {
+  return [...new Set([...FEEDBACK_EDGES.map((e) => e.from), ...fleet()])];
 }
 
 // Find the [start, end) span of the service-binding object whose `service`
@@ -86,9 +123,9 @@ function findBindingSpan(text, toComponent, fromIndex) {
   return { start, end };
 }
 
-function strip() {
+function strip(all) {
   let total = 0;
-  for (const { from, to } of FEEDBACK_EDGES) {
+  for (const { from, to } of all ? allEdges() : FEEDBACK_EDGES) {
     const file = wranglerPath(from);
     if (!fs.existsSync(file)) {
       console.warn(`cycle-break --strip: ${file} absent — skipping ${from} -> ${to}`);
@@ -102,15 +139,25 @@ function strip() {
       if (!span) break;
       const slice = text.slice(span.start, span.end);
       const b64 = Buffer.from(slice, "utf8").toString("base64");
-      const marker = `// ${MARKER}:${from}->${to}:${b64}`;
-      text = text.slice(0, span.start) + marker + text.slice(span.end);
+      // A marker is a LINE comment, so nothing may follow it on its line. When
+      // the removed object's closing brace was directly followed by another
+      // marker (an earlier strip in the same array took the leading comma),
+      // the two would fuse into one comment and restore could not split them.
+      // Break the line, and say so in the marker so restore takes the break
+      // back out: `+nl` markers own the newline after them.
+      const rest = text.slice(span.end);
+      const nl = !/^[ \t]*(\r?\n|$)/.test(rest);
+      const marker = `// ${MARKER}${nl ? "+nl" : ""}:${from}->${to}:${b64}${nl ? "\n" : ""}`;
+      text = text.slice(0, span.start) + marker + rest;
       removed++;
     }
     if (removed > 0) {
       fs.writeFileSync(file, text);
       console.log(`cycle-break --strip: ${from} -> ${to}: removed ${removed} binding(s) in ${file}`);
       total += removed;
-    } else {
+    } else if (!all) {
+      // Under --all most pairs never had a binding; only the named feedback
+      // edges are worth reporting as "already stripped".
       console.log(`cycle-break --strip: ${from} -> ${to}: already stripped (no live binding)`);
     }
   }
@@ -122,16 +169,18 @@ function strip() {
 }
 
 function restore() {
-  const re = new RegExp(`// ${MARKER}:[a-z0-9-]+->[a-z0-9-]+:([A-Za-z0-9+/=]+)`, "g");
+  // `+nl` markers inserted the line break that follows them; take it back.
+  const re = new RegExp(`// ${MARKER}(\\+nl)?:[a-z0-9-]+->[a-z0-9-]+:([A-Za-z0-9+/=]+)(\\n)?`, "g");
   let total = 0;
-  for (const { from } of FEEDBACK_EDGES) {
+  for (const from of templatesToVisit()) {
     const file = wranglerPath(from);
     if (!fs.existsSync(file)) continue;
     let text = fs.readFileSync(file, "utf8");
     let count = 0;
-    text = text.replace(re, (_m, b64) => {
+    text = text.replace(re, (_m, plusNl, b64, lineBreak) => {
       count++;
-      return Buffer.from(b64, "base64").toString("utf8");
+      const original = Buffer.from(b64, "base64").toString("utf8");
+      return plusNl || !lineBreak ? original : original + lineBreak;
     });
     if (count > 0) {
       fs.writeFileSync(file, text);
@@ -147,9 +196,9 @@ function restore() {
 }
 
 function check() {
-  const re = new RegExp(`// ${MARKER}:([a-z0-9-]+->[a-z0-9-]+):`, "g");
+  const re = new RegExp(`// ${MARKER}(?:\\+nl)?:([a-z0-9-]+->[a-z0-9-]+):`, "g");
   let any = false;
-  for (const { from } of FEEDBACK_EDGES) {
+  for (const from of templatesToVisit()) {
     const file = wranglerPath(from);
     if (!fs.existsSync(file)) continue;
     const text = fs.readFileSync(file, "utf8");
@@ -162,7 +211,8 @@ function check() {
 }
 
 const mode = process.argv[2];
-if (mode === "--strip") strip();
+const all = process.argv.slice(3).includes("--all");
+if (mode === "--strip") strip(all);
 else if (mode === "--restore") restore();
 else if (mode === "--check") check();
 else usage();

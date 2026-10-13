@@ -71,7 +71,13 @@ WAS = {
 # is likewise new — the empty apps/infra/packages/tests roots orun's repo-scale
 # gate requires, which the scaffold flow used to create with a mkdir.
 ADDED = {"01-scaffold": ["discovery-roots"]}
-HOOK_ONLY = {"04-workers-restore", "08-docs"}
+# FOLDED, deliberately: a landing has a fixed cost, so a phase whose deploy
+# never waited on its neighbour's lands WITH it. The data plane rides the
+# packages' landing, and the console the edge's (the binding restore that was
+# the hook-only `04-workers-restore` rides it too). The modules move whole —
+# nothing is lost, and nothing else is allowed to move with them.
+FOLDED = {"03-infrastructure": "02-foundation", "06-console": "05-edge"}
+HOOK_ONLY = {"08-docs"}
 
 by_name = {p["name"]: p for p in phases}
 names = [p["name"] for p in phases]
@@ -82,12 +88,18 @@ if names != sorted(names):
         f"order; a phase out of sequence is a barrier in the wrong place.")
 
 # ── the partition has not drifted ─────────────────────────────────────────
+for gone, into in FOLDED.items():
+    if gone in by_name:
+        bad(f"phase {gone} is declared again, but it is folded into {into}")
 for name, was in WAS.items():
+    if name in FOLDED:
+        continue
     if name not in by_name:
         bad(f"phase {name} is gone — the bootstrap ran it before BE1")
         continue
     now = sorted(by_name[name].get("modules") or [])
-    want = sorted(was + ADDED.get(name, []))
+    folded_in = [m for gone, into in FOLDED.items() if into == name for m in WAS[gone]]
+    want = sorted(was + ADDED.get(name, []) + folded_in)
     if now != want:
         moved_in = sorted(set(now) - set(want))
         moved_out = sorted(set(want) - set(now))
@@ -154,9 +166,9 @@ for p in phases:
 # This replaces BE1's "every flows/phases folder has a phase declared here".
 # The folders are gone (BE4), and the thing that can now drift out from under
 # a reader is `docs/phases/`: a page for a phase nobody runs, or a phase
-# nobody documented. `04-workers-restore` is deliberately covered by
-# `04-workers.md` — the two landings are one story.
-DOC_SHARED = {"04-workers-restore": "04-workers"}
+# nobody documented. A folded phase's page goes with it: its story is told on
+# the page of the phase it was folded into.
+DOC_SHARED = {}
 docs_dir = root / "docs" / "phases"
 pages = {f.stem for f in docs_dir.glob("*.md")} - {"README", "TIMINGS"}
 for p in phases:

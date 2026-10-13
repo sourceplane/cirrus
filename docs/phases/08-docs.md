@@ -19,24 +19,34 @@ No secret VALUE is ever read or written — inventories are names/statuses.
 ## Steps
 
 1. **place** — this phase's modules (`ai-deployment`, `ai-operations`).
-2. **docs** — a `post` hook runs `hooks/render-deployment-docs.sh` from the
+2. **promotion** — a `post` hook runs `tooling/bootstrap/promotion.mjs
+   --restore`: `01-scaffold` deferred intent.yaml's `prod.promotion` gate so
+   every bootstrap convergence deployed stage and prod side by side, and this
+   last landing puts it back — from here on a change reaches prod only after
+   it deployed to stage. The change is to intent.yaml's `environments`
+   section only, which `orun plan --changed` maps to no component, so it
+   redeploys nothing. **A bootstrap that stops before this phase leaves the
+   gate deferred** (a `# @promotion-deferred` line under `prod:` in
+   intent.yaml): re-run `08-docs`, or run `node
+   tooling/bootstrap/promotion.mjs --restore` in the product repo and land it.
+3. **docs** — a `post` hook runs `hooks/render-deployment-docs.sh` from the
    baseline checkout: it probes the four public URLs (plus the custom domain
    when `productdomain` is set), lists secrets/integrations by name, and
    renders the files above. The script itself refuses to finish if a
    `TBD_08DOCS` placeholder survives.
-3. **land** — `orun.pr/land@v1`. A docs-only landing plans ZERO deploy
+4. **land** — `orun.pr/land@v1`. A docs-only landing plans ZERO deploy
    lanes, so this phase has no convergence to watch — it is the one phase
    whose `await` is a probe alone.
-4. **verify** — an `orun.http/probe@v1` `await` hook re-probes the URLs the
+5. **verify** — an `orun.http/probe@v1` `await` hook re-probes the URLs the
    manifest claims, trusting nothing the render step said about them.
 
-`08-docs` requires `06-console`, not `07-domain`, so a bootstrap that skips
+`08-docs` requires `05-edge`, not `07-domain`, so a bootstrap that skips
 the custom domain still reaches it. Re-run it after `07-domain` to pick up
 the domain URLs.
 
 ## When to run (and re-run)
 
-- Right after [phase 06](06-console.md) — the "working baseline"
+- Right after [phase 05](05-edge.md) — the "working baseline"
   moment — to record it.
 - Again after [phase 07](07-domain.md) so the manifest picks up
   the custom-domain URLs.

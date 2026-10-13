@@ -359,9 +359,10 @@ for path in manifests:
     # ── programme: BOTH or NEITHER, against the blueprint's own hooks ─────
     #
     # A milestone is what a phase CLUBS ITS TASK UNDER, which the phase states
-    # as `orun.task/ensure@v1`'s `milestone:`. Reading that is why nine phases
-    # correctly produce eight milestones: `04-workers-restore` names
-    # `04-workers`, because it is the second landing of one unit of work.
+    # as `orun.task/ensure@v1`'s `milestone:`, which is why a phase that is
+    # the second landing of one unit of work would name its predecessor's
+    # milestone rather than one of its own (`04-workers-restore` did, before
+    # the bootstrap folded it into `05-edge`).
     #
     # Distinct, in phase order. The old check grepped the umbrella's
     # `ensure-milestone` lines for the same list.
