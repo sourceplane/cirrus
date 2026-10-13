@@ -663,6 +663,57 @@ modules:
 # meet on, and the card's `programme.milestones` names the same list.
 hooks:
   preInstantiate:
+    # THIS BASELINE IS RETIRED, AND A RETIRED BASELINE REFUSES RATHER THAN
+    # PRODUCES. The successor is sourceplane/cirrus-baseline — an instantiation
+    # of this tree that was bootstrapped, deployed and promoted, which is how a
+    # baseline line advances.
+    #
+    # A notice in README.md is not enough on its own, and the reason is worth
+    # keeping: README.md is placed into every product by the `root-readme`
+    # module, and the rename rewrites the baseline's name inside it. A product
+    # built from here would open with "RETIRED AS A BASELINE — the baseline
+    # moved to sourceplane/acme-cloud-baseline", claiming the product itself is
+    # a retired baseline and naming a repository that does not exist.
+    # `testing/leak.test.sh` does not catch it: it checks the NEVER paths and
+    # the provenance of the shipped context files, not README prose.
+    #
+    # So the refusal is here, before the first file is placed, and it names the
+    # successor. It is the FIRST run-level hook, so nothing — not the epic, not
+    # a milestone, not a task — is opened in the task plane for a build that is
+    # not going to happen.
+    #
+    # Hooks-off placement (`orun new` without --run-hooks, which is what
+    # testing/placement.test.sh does) does NOT run this, by design: the tier-2
+    # gate must still be able to exercise the document offline. The escape
+    # hatch is deliberate and loud rather than secret, for the one legitimate
+    # case of rebuilding an old product against the tree it came from.
+    - id: retired
+      run:
+        - bash
+        - -c
+        - |
+          if [ "${CIRRUS_ALLOW_RETIRED_BASELINE:-}" = "i-know-it-is-retired" ]; then
+            echo "cirrus: building from a RETIRED baseline because CIRRUS_ALLOW_RETIRED_BASELINE is set." >&2
+            exit 0
+          fi
+          cat >&2 <<'MSG'
+          ✕ sourceplane/cirrus is RETIRED as a baseline and will not instantiate.
+
+            Build from the successor instead:
+
+              sourceplane/cirrus-baseline
+
+            It is this tree, bootstrapped and deployed, then promoted to be the
+            baseline — with the factory and a declared identity. Tags
+            baseline-v6 … baseline-v13 remain resolvable here; no new version is
+            cut from this repository.
+
+            Products already built from here are unaffected.
+
+            To rebuild an old product against the tree it actually came from:
+              CIRRUS_ALLOW_RETIRED_BASELINE=i-know-it-is-retired
+          MSG
+          exit 1
     - id: epic
       uses: orun.task/ensure@v1
       with:

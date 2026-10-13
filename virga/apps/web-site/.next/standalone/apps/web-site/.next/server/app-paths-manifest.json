@@ -1,0 +1,17 @@
+{
+  "/robots.txt/route": "app/robots.txt/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js",
+  "/rss.xml/route": "app/rss.xml/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/[page]/page": "app/[page]/page.js",
+  "/confirm/page": "app/confirm/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/launches/[slug]/page": "app/launches/[slug]/page.js",
+  "/launches/page": "app/launches/page.js",
+  "/posts/[slug]/page": "app/posts/[slug]/page.js",
+  "/posts/page": "app/posts/page.js",
+  "/projects/page": "app/projects/page.js",
+  "/subscribe/page": "app/subscribe/page.js",
+  "/unsubscribe/page": "app/unsubscribe/page.js"
+}

@@ -163,6 +163,10 @@ function trackedFiles() {
 // token with a company mailbox.
 
 const PROTECTED = [
+  // The successor baseline. A fixed external repository, not this tree's
+  // identity: the retirement notice must keep pointing at the real thing
+  // rather than at `sourceplane/<product>-baseline`, which does not exist.
+  /sourceplane\/cirrus-baseline/g,
   /https:\/\/orun-api\.sourceplane\.ai/g, // orun state backend (intent.yaml)
   /sourceplane\.io/g, // manifest apiVersion, owned by the orun tooling
   /[A-Za-z0-9._%+-]+@sourceplane\.ai/g, // company mailboxes
