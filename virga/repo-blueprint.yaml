@@ -1,0 +1,1043 @@
+apiVersion: orun.dev/v1
+kind: Blueprint
+metadata:
+  name: virga-baseline
+  description: >-
+    Virga as a Blueprint of itself — instantiate a new single-owner website
+    repo (launch directory, newsletter, portfolio) from the Virga baseline.
+    Eight phases take a product from nothing to a live, documented site. Run
+    one at a time with `--phase <name>` or the whole sequence with
+    `--resume`; see docs/phases/README.md for the contract every phase
+    follows, and BOOTSTRAP.md for the operator checklist no script can
+    perform.
+
+# ── INPUTS ────────────────────────────────────────────────────────────────
+# The instance-identity contract, consumed by tooling/rebrand/rebrand.mjs via
+# the `.rebrand/values.json` the `rebrand-values` module templates. Key names
+# are rebrand.mjs's own (camelCase) and blueprint.yaml's card declares the
+# same ones — testing/manifest.test.sh fails if the two ever drift.
+#
+# Org-owned identity (the orun state backend, the `sourceplane.io`
+# apiVersion) is intentionally NOT an input — the rebrand tool protects it.
+# `orunWorkspace` is the one exception and is re-tenanted by its own hook,
+# because a product whose CI claims the baseline's workspace is a product
+# claiming another tenant.
+inputs:
+  repoName:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+    required: true
+    description: Repo slug (e.g. acme-blog) — intent metadata.name, D1 database names, worker resource prefixes.
+  productName:
+    type: string
+    required: true
+    description: Human display name (e.g. "Acme Blog") — the site's name and the deploy smoke marker.
+  productDomain:
+    type: string
+    required: true
+    description: Product domain (e.g. acme.blog) — BASE_DOMAIN, custom domains, the mail sending subdomain.
+  githubOrg:
+    type: string
+    required: true
+    description: >-
+      GitHub owner the product repo is created under. 01-scaffold waits for
+      the App installation on THIS owner before it creates anything: the
+      platform learns of a pull request only through the installation on the
+      account that owns the repository, so a workspace connected to some
+      other account would pass "github is connected" and then file none of
+      the product's landings.
+  brandSlug:
+    type: string
+    default: ""
+    description: Cloudflare worker resource prefix (default repoName).
+  cliBin:
+    type: string
+    default: ""
+    description: CLI binary name + env-var prefix source (default repoName).
+  workersDevSubdomain:
+    type: string
+    default: "your-workers-subdomain"
+    description: workers.dev subdomain, used by the site build and by every deploy smoke and probe.
+  repoPrivate:
+    type: boolean
+    default: true
+    description: Whether orun.repo/ensure creates the product repo private. Visibility is the operator's choice, so it is asked rather than assumed.
+  orunWorkspace:
+    type: string
+    default: ""
+    description: >-
+      Orun Cloud workspace ID (ws_…) for this instance's remote state. Unset,
+      it is the workspace the build runs in (`from: workspace`); with none
+      anywhere, 01-scaffold writes a placeholder that fails loudly rather
+      than silently cross-tenanting.
+    from: workspace
+  epicSlug:
+    type: string
+    default: "site-baselining"
+    description: >-
+      The epic every phase clubs its task under. Found by slug, so a fresh
+      run and a resumed run find the same work.
+  domain:
+    type: boolean
+    default: false
+    description: >-
+      Whether to run 07-domain. It needs the Cloudflare zone to already
+      exist, so it is off unless asked for; the phase carries the condition
+      as its own `when:`.
+
+# ── SOURCES ───────────────────────────────────────────────────────────────
+sources:
+  - name: baseline
+    kind: dir
+    path: .
+
+# Derived build output, and the factory's own files, that the baseline must
+# never carry into an instance.
+#
+# WHAT `ignore` ACTUALLY EXCLUDES: orun matches an entry two ways, and which
+# one depends on the entry. A pattern with no glob metacharacter is compared
+# against each path SEGMENT; only a pattern containing one is compared against
+# the whole relative path. So `apps/site-api/wrangler.jsonc` on its own would
+# match nothing — it needs the glob. testing/coverage.test.sh asserts this for
+# every entry here rather than trusting the reading.
+ignore:
+  - dist
+  - coverage
+  - .turbo
+  - .next
+  - .open-next
+  - .wrangler
+  - node_modules
+  # Locally-rendered, gitignored artifacts: `orun new` snapshots the working
+  # tree, not the git index, so without these it would copy whatever the
+  # operator happens to have built — and an instance would ship with the
+  # BASELINE's resolved binding IDs baked in.
+  - "**/apps/*/wrangler.jsonc"
+  - "*.tsbuildinfo"
+  # THE FACTORY'S OWN LANES. `github-workflows` copies the whole of `.github`,
+  # so without these two entries every product built from this baseline would
+  # carry them — and they run `testing/*.sh`, which no module places. Four
+  # steps that cannot pass, red on the product's first pull request, in a
+  # repository whose owner has no idea what a blueprint is.
+  # testing/coverage.test.sh fails if a lane reading `testing/` is not here.
+  - "**/.github/workflows/baseline.yml"
+  - "**/.github/workflows/tag.yml"
+
+# ── MODULES ───────────────────────────────────────────────────────────────
+# One module per component (or per root file), with dependsOn edges transcribed
+# from the component manifests: declared dependsOn, service bindings, wiring
+# components, workspace package deps, and tests-follow-subject.
+#
+# The root is split into single-file modules rather than one module with an
+# `include:` list. That is not cosmetic. The include form placed `ai/`,
+# `specs/`, `flows/`, `BOOTSTRAP.md` and both blueprints into every product —
+# so every site built from this baseline shipped this repository's planning
+# state and the whole factory. testing/leak.test.sh now fails on exactly that.
+modules:
+  # ── the identity file every later phase reads back ───────────────────────
+  - name: rebrand-values
+    mode: template
+    files:
+      ".rebrand/values.json": |
+        {
+          "repoName": "{{ .repoName }}",
+          "productName": "{{ .productName }}",
+          "productDomain": "{{ .productDomain }}"{{ if .brandSlug }},
+          "brandSlug": "{{ .brandSlug }}"{{ end }}{{ if .cliBin }},
+          "cliBin": "{{ .cliBin }}"{{ end }},
+          "workersDevSubdomain": "{{ .workersDevSubdomain }}",
+          "orunWorkspace": "{{ .orunWorkspace }}",
+          "githubOrg": "{{ .githubOrg }}",
+          "epicSlug": "{{ .epicSlug }}",
+          "domain": {{ if .domain }}true{{ else }}false{{ end }}
+        }
+
+  # ── root files (single-file copies). intent.yaml, package.json et al. carry
+  #    instance identity; they are copied verbatim and rewritten in place by
+  #    the `rebrand` hook — its rename map is the authority, not a template.
+  - name: root-intent
+    mode: copy
+    source: baseline
+    from: intent.yaml
+    to: intent.yaml
+  - name: root-package-json
+    mode: copy
+    source: baseline
+    from: package.json
+    to: package.json
+  - name: root-pnpm-workspace
+    mode: copy
+    source: baseline
+    from: pnpm-workspace.yaml
+    to: pnpm-workspace.yaml
+  - name: root-pnpm-lock
+    mode: copy
+    source: baseline
+    from: pnpm-lock.yaml
+    to: pnpm-lock.yaml
+  - name: root-turbo
+    mode: copy
+    source: baseline
+    from: turbo.json
+    to: turbo.json
+  - name: root-kiox
+    mode: copy
+    source: baseline
+    from: kiox.yaml
+    to: kiox.yaml
+  - name: root-kiox-lock
+    mode: copy
+    source: baseline
+    from: kiox.lock
+    to: kiox.lock
+  - name: root-gitignore
+    mode: copy
+    source: baseline
+    from: .gitignore
+    to: .gitignore
+  - name: root-readme
+    mode: copy
+    source: baseline
+    from: README.md
+    to: README.md
+  - name: github-workflows
+    mode: copy
+    source: baseline
+    from: .github
+    to: .github
+
+  # The two context pages a product genuinely owns: its operating contract and
+  # the deployment manifest 08-docs writes. Named one file at a time, because
+  # copying `ai/context/` wholesale is how a product came to ship the
+  # baseline's decisions, open risks and provenance.
+  - name: ai-operations
+    mode: copy
+    source: baseline
+    from: ai/context/operations.md
+    to: ai/context/operations.md
+  - name: ai-deployment
+    mode: copy
+    source: baseline
+    from: ai/context/deployment.md
+    to: ai/context/deployment.md
+
+  # ── the empty discovery roots, declared ──────────────────────────────────
+  #    orun's repo-scale gate — and later `orun plan` in the product's own CI
+  #    — discovers apps/, infra/, packages/ and tests/, which by design are
+  #    empty until later phases fill them. A missing root is a hard gate
+  #    failure, so this used to be a mkdir in a shell preamble. A file the
+  #    tree needs in order to be valid is what a module is for.
+  - name: discovery-roots
+    mode: template
+    files:
+      "apps/.gitkeep": ""
+      "infra/.gitkeep": ""
+      "packages/.gitkeep": ""
+      "tests/.gitkeep": ""
+
+  # ── shared tooling ───────────────────────────────────────────────────────
+  - name: tooling-tsconfig
+    mode: copy
+    source: baseline
+    from: tooling/tsconfig
+    to: tooling/tsconfig
+  - name: tooling-eslint
+    mode: copy
+    source: baseline
+    from: tooling/eslint
+    to: tooling/eslint
+  - name: tooling-wire
+    mode: copy
+    source: baseline
+    from: tooling/wire
+    to: tooling/wire
+
+  # ── shared packages ──────────────────────────────────────────────────────
+  - name: shared
+    mode: copy
+    source: baseline
+    from: packages/shared
+    to: packages/shared
+    dependsOn: [tooling-eslint, tooling-tsconfig]
+  - name: contracts
+    mode: copy
+    source: baseline
+    from: packages/contracts
+    to: packages/contracts
+    dependsOn: [tooling-eslint, tooling-tsconfig]
+  - name: db
+    mode: copy
+    source: baseline
+    from: packages/db
+    to: packages/db
+    dependsOn: [tooling-eslint, tooling-tsconfig]
+  - name: testing
+    mode: copy
+    source: baseline
+    from: packages/testing
+    to: packages/testing
+    dependsOn: [contracts, db]
+  - name: cli
+    mode: copy
+    source: baseline
+    from: packages/cli
+    to: packages/cli
+    dependsOn: [contracts]
+  - name: db-tests
+    mode: copy
+    source: baseline
+    from: tests/db
+    to: tests/db
+    dependsOn: [db, testing]
+  - name: cli-tests
+    mode: copy
+    source: baseline
+    from: tests/cli
+    to: tests/cli
+    dependsOn: [cli, contracts]
+
+  # ── infrastructure ───────────────────────────────────────────────────────
+  - name: cloudflare-d1
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-d1
+    to: infra/terraform/cloudflare-d1
+  - name: cloudflare-kv
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-kv
+    to: infra/terraform/cloudflare-kv
+  - name: db-migrate
+    mode: copy
+    source: baseline
+    from: infra/db-migrate
+    to: infra/db-migrate
+    dependsOn: [cloudflare-d1, db]
+  - name: cloudflare-domain
+    mode: copy
+    source: baseline
+    from: infra/terraform/cloudflare-domain
+    to: infra/terraform/cloudflare-domain
+
+  # ── workers ──────────────────────────────────────────────────────────────
+  - name: mail-worker
+    mode: copy
+    source: baseline
+    from: apps/mail-worker
+    to: apps/mail-worker
+    dependsOn: [cloudflare-d1, contracts, db, shared, db-migrate]
+  - name: mail-worker-tests
+    mode: copy
+    source: baseline
+    from: tests/mail-worker
+    to: tests/mail-worker
+    dependsOn: [mail-worker, contracts, db, testing]
+  - name: site-api
+    mode: copy
+    source: baseline
+    from: apps/site-api
+    to: apps/site-api
+    dependsOn: [cloudflare-d1, cloudflare-kv, contracts, db, shared, db-migrate, mail-worker]
+  - name: site-api-tests
+    mode: copy
+    source: baseline
+    from: tests/site-api
+    to: tests/site-api
+    dependsOn: [site-api, contracts, db, testing]
+
+  # ── the site ─────────────────────────────────────────────────────────────
+  - name: web-site
+    mode: copy
+    source: baseline
+    from: apps/web-site
+    to: apps/web-site
+    dependsOn: [contracts, site-api]
+  - name: web-site-tests
+    mode: copy
+    source: baseline
+    from: tests/web-site
+    to: tests/web-site
+    dependsOn: [web-site, contracts]
+
+# ── THE WORK, UP FRONT ────────────────────────────────────────────────────
+# THE BOOTSTRAP IS WORK, SO IT LIVES WHERE WORK LIVES — and all of it is on
+# the plane before the first phase places a file. One epic, one milestone per
+# phase in the order the phases run, one task per landing: the whole programme
+# a reader can open while 01-scaffold is still creating the repository,
+# instead of a row appearing each time a phase was reached.
+#
+# `hooks.preInstantiate` (orun >= v2.60) runs under no phase, once per run, on
+# a resume too. Everything here is find-or-create BY IDENTITY — the epic by
+# slug, a milestone by name within its epic, a task by title within its epic —
+# so a second run, a resume and a redo all find what the first run made. That
+# is also why the milestones are created here IN ORDER and BEFORE the tasks:
+# the plane appends each new milestone after the last, and a task that names a
+# milestone the epic does not yet have would create it out of order at the end.
+#
+# Each phase's own `pre` hook still runs `orun.task/ensure@v1` on its task.
+# That is the same identity, so it finds rather than creates, and it is how the
+# phase gets the task's KEY for its landing — `{{ .phase.name }}` renders empty
+# here, and the outputs of a run-level hook are not a phase's to read.
+hooks:
+  preInstantiate:
+    - id: epic
+      uses: orun.task/ensure@v1
+      with:
+        kind: epic
+        slug: "{{ .inputs.epicSlug }}"
+        name: "Site baselining — {{ .inputs.productName }}"
+        description: >-
+          Everything the Virga baseline builds for {{ .inputs.productName }}
+          in {{ .inputs.githubOrg }}/{{ .inputs.repoName }}: the repository,
+          the shared packages, the D1 and KV data plane, the mail Worker, the
+          public site API, the Next.js site, the custom domain when one is
+          asked for, and the record of what went live. One milestone per
+          phase, in the order the phases run; one task per landing, each
+          bound to the pull request that lands it.
+        owner: me
+
+    - id: m01
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 01-scaffold
+        exitCriteria:
+          - repository created under {{ .inputs.githubOrg }} and linked to the workspace
+          - the scaffold merged, main pinned as the default branch
+    - id: m02
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 02-foundation
+        exitCriteria:
+          - the five shared packages on main, their verify lanes green
+          - WIRING_CLOUDFLARE_D1 and WIRING_CLOUDFLARE_KV published on stage and prod
+    - id: m04
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 04-mail
+        exitCriteria:
+          - the migration runner applied and the mail Worker deployed on stage and prod
+    - id: m05
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 05-api
+        exitCriteria:
+          - site-api /health 200 on stage and prod
+          - the site answers on stage and prod, its content routes prerendered
+    - id: m07
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 07-domain
+        exitCriteria:
+          - the custom domain resolves to the site on prod
+    - id: m08
+      uses: orun.task/ensure@v1
+      with:
+        kind: milestone
+        epic: "{{ .inputs.epicSlug }}"
+        name: 08-docs
+        exitCriteria:
+          - the committed deployment manifest matches probed reality
+
+    # One task per landing. Same identity the phases' own `task` hooks use
+    # (title within the epic), so those FIND these rather than creating.
+    - id: t01
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 01-scaffold
+        name: "Scaffold the product repository"
+        prefix: SITE
+        contract: tasks/01-scaffold.TaskContract.yaml
+    - id: t02
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 02-foundation
+        name: "Land the shared packages and provision the data plane"
+        prefix: SITE
+        contract: tasks/02-foundation.TaskContract.yaml
+    - id: t04
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 04-mail
+        name: "Deploy the migration runner and the mail Worker"
+        prefix: SITE
+        contract: tasks/04-mail.TaskContract.yaml
+    - id: t05
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 05-api
+        name: "Deploy the public site API and the website"
+        prefix: SITE
+        contract: tasks/05-api.TaskContract.yaml
+    - id: t07
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 07-domain
+        name: "Attach the custom domain"
+        prefix: SITE
+        contract: tasks/07-domain.TaskContract.yaml
+    - id: t08
+      uses: orun.task/ensure@v1
+      with:
+        kind: task
+        epic: "{{ .inputs.epicSlug }}"
+        milestone: 08-docs
+        name: "Record the live deployment"
+        prefix: SITE
+        contract: tasks/08-docs.TaskContract.yaml
+
+# ── PHASES ────────────────────────────────────────────────────────────────
+# Eight selections on this one artifact. The phase NUMBER is the execution
+# order, `requires.phases` states it in the document, and the engine refuses a
+# phase whose predecessor is not placed — naming it. Each phase follows the
+# same contract: place its modules → land them as a PR (merged immediately,
+# the convergence is the gate) → watch the convergence → verify it is
+# actually deployed.
+#
+# THERE IS NO `-restore` PHASE HERE, and that is Virga's shape rather than an
+# omission. Cirrus strips and restores service bindings across two worker
+# landings because its fleet's bindings are cyclic — a worker cannot deploy
+# against a service that does not exist yet, and in a cycle none of them can
+# go first. Virga has exactly one binding, site-api → MAIL_WORKER, and it
+# points backwards: 04-mail lands the mail Worker, 05-api lands the site API
+# against it. A one-directional edge needs no cycle broken, so
+# tooling/bootstrap/cycle-break.mjs has no job in this baseline and is not
+# carried.
+phases:
+  - name: 01-scaffold
+    title: The repo is born
+    description: Root manifests, tooling, CI, the identity file, and the empty discovery roots.
+    expectedMinutes: 2
+    narrate:
+      start:  "Creating the repository and writing its foundations — intent, CI, tooling, and the identity every later phase reads back. About {{ .meta.expectedMinutes }} minutes."
+      await:  "Waiting for the first push to settle on main."
+      done:   "{{ .inputs.repoName }} exists on GitHub with {{ .meta.files }} files on main, branded as {{ .inputs.productName }}. That took {{ .meta.elapsed }}."
+      failed: "The repository did not get off the ground. The log above says where it stopped."
+    modules: [ai-deployment, ai-operations, discovery-roots, github-workflows, rebrand-values, root-gitignore, root-intent, root-kiox, root-kiox-lock, root-package-json, root-pnpm-lock, root-pnpm-workspace, root-readme, root-turbo, tooling-eslint, tooling-tsconfig, tooling-wire]
+    # THE PLATFORM MUST BE ABLE TO SEE THE REPOSITORY BEFORE IT EXISTS. Every
+    # phase lands a pull request that files under its task, and the platform
+    # learns of a PR only through the GitHub App installation on the account
+    # that OWNS the repository. So the owner's connection is asked for here,
+    # before a repository is created, and waited for like any other consent.
+    requires:
+      probe:
+        - id: github
+          uses: orun.doctor/check@v1
+          with:
+            providers: [github]
+            githubOwner: "{{ .inputs.githubOrg }}"
+            waitSeconds: 600
+            pollSeconds: 20
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Scaffold the product repository"
+            prefix: SITE
+            contract: tasks/01-scaffold.TaskContract.yaml
+      # The identity chain. rebrand.mjs enumerates the tree with
+      # `git ls-files`, so the output has to be a git repo with a populated
+      # index BEFORE it runs. `git add -A` only stages; the landing commits.
+      post:
+        - id: git-init
+          run: ["git", "init", "-q"]
+        - id: git-stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        # Re-tenant the fork. rebrand.mjs classifies the orun state backend as
+        # org-owned and deliberately leaves it untouched, so intent.yaml would
+        # keep the BASELINE's `workspace:` — the fork's CI would then claim
+        # another tenant's workspace on every remote op. Hook argv is not
+        # templated, so the value travels through .rebrand/values.json, which
+        # IS a rendered template.
+        - id: orun-workspace
+          run:
+            - node
+            - -e
+            - |
+              const fs = require("fs");
+              const values = JSON.parse(fs.readFileSync(".rebrand/values.json", "utf8"));
+              const ws = String(values.orunWorkspace || "").trim() || "ws_SET_ME";
+              const before = fs.readFileSync("intent.yaml", "utf8");
+              const after = before.replace(/^(\s*workspace:\s*).*$/m, "$1" + ws);
+              if (after === before) {
+                console.error("orun-workspace: no `workspace:` line in intent.yaml — refusing to guess");
+                process.exit(1);
+              }
+              fs.writeFileSync("intent.yaml", after);
+              console.log(
+                ws === "ws_SET_ME"
+                  ? "orun-workspace: wrote placeholder ws_SET_ME — set your Orun Cloud workspace before enabling remote state"
+                  : "orun-workspace: intent.yaml workspace -> " + ws,
+              );
+        # Re-stage so `git ls-files` and `rebrand --verify` see the rewritten tree.
+        - id: git-restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        # STAGE AND PROD DEPLOY SIDE BY SIDE UNTIL THE BOOTSTRAP IS DONE.
+        # Taken from cirrus (43ca81b). intent.yaml gates prod behind stage
+        # (`environments.prod.promotion.dependsOn: [stage]`), which orun plans
+        # as an in-run edge from every prod job to the same component's stage
+        # job, so every prod deploy waits out its own stage deploy and each
+        # convergence is twice as long. During a bootstrap both environments
+        # are empty and every phase is watched to green before the next starts,
+        # so the gate protects nothing yet: it is deferred here and restored by
+        # 08-docs, the last landing. tooling/bootstrap/promotion.mjs encodes
+        # the removed text in its marker, so the restore is byte-for-byte, and
+        # both directions are idempotent.
+        - id: promotion
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/promotion.mjs", "--defer"]
+        # Re-stage so `git ls-files` and `rebrand --verify` see the rewrite.
+        - id: promotion-restage
+          run: ["git", "add", "-A"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        # The repo has to exist before there is anywhere to land.
+        - id: repo
+          uses: orun.repo/ensure@v1
+          narrate: "The repository exists at {{ .inputs.githubOrg }}/{{ .inputs.repoName }}."
+          with:
+            owner: "{{ .inputs.githubOrg }}"
+            name: "{{ .inputs.repoName }}"
+            private: "{{ .inputs.repoPrivate }}"
+        # THE REPOSITORY MUST BE THE WORKSPACE'S before anything lands in it,
+        # or the product's own CI cannot reach the platform. Every convergence
+        # lane authenticates over GitHub OIDC and the platform resolves that
+        # token through the repo link; with no link, every lane of the first
+        # real convergence dies before running a step:
+        #
+        #   ✕ remote state auth (oidc exchange): OIDC exchange rejected:
+        #     Not found (code: not_found)
+        #
+        # Cirrus has carried this pair since BE4 and this baseline did not —
+        # it took `repo` and dropped `link`, which no Virga run had yet reached
+        # a convergence to notice. Taken now (cirrus 80b265b, VG11).
+        #
+        # `link` may be refused where the credential cannot write links (a
+        # workspace key) and the platform has linked the repository already, so
+        # `link` is best effort and `check` is the gate: an unlinked repository
+        # stops here, naming the fix, instead of an hour later in every lane.
+        - id: link
+          run:
+            - bash
+            - -c
+            - |
+              orun cloud link --org "$1" || true
+              orun cloud check --org "$1" || {
+                echo "$2 is not linked to workspace $1 — its CI cannot authenticate. Link it (orun cloud link --org $1, or the console's Git Repos) and re-run this phase." >&2
+                exit 1
+              }
+            - link
+            - "{{ .inputs.orunWorkspace }}"
+            - "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+        # EVERY PHASE IS A PULL REQUEST THAT IS CHECKED, THEN MERGED. No
+        # landing below says `wait: false`: each waits for its PR's own CI and
+        # merges only on green. But on a bootstrap branch (`orun/SITE-…`) that
+        # run is the BASIC check only — `plan` resolves the intent, every
+        # component and every composition and computes the changed set, and the
+        # lanes are skipped (.github/workflows/ci.yml) — because the merge runs
+        # every one of them on main a minute later, for real, and the
+        # convergence after each merge is what this bootstrap watches to green
+        # before the next phase. The PR pass was the same work twice and a
+        # third of the wall-clock (cirrus 43ca81b).
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The scaffold PR is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "feat(scaffold): the repository is born"
+
+  - name: 02-foundation
+    title: The shared packages and the data plane
+    description: contracts, db, shared, testing and the CLI with their own test suites, and beside them a D1 database and a KV namespace per environment.
+    expectedMinutes: 7
+    narrate:
+      start:  "The shared packages now — contracts, the D1 data access, the CLI — and beside them the data layer itself: a D1 database and a KV namespace per environment. This is the first phase that touches Cloudflare. Usually about {{ .meta.expectedMinutes }} minutes."
+      await:  "The packages are building and Terraform is applying D1 and KV. Both run in the same convergence."
+      done:   "The shared packages are on main with their lanes green, and D1 and KV exist on stage and prod with their ids published for the Workers to read. {{ .meta.elapsed }}."
+      failed: "The packages or the data layer did not come up. The failing lane above names which, and a provider error is in its log."
+    # TWO LANDINGS FOLDED INTO ONE, taken from cirrus (43ca81b). The packages
+    # and the data plane were separate phases — 02-foundation and
+    # 03-infrastructure — and each paid a whole landing (place, PR, merge, a
+    # convergence of its own) for work that never depended on the other: no
+    # package in this baseline reads D1, and Terraform builds none of the
+    # packages. One landing runs both in one convergence, side by side.
+    #
+    # The numbering keeps its gap: `03` is not reused, so the surviving phase
+    # names stay the identities the task plane, the milestones and `--phase`
+    # already use.
+    #
+    # db-migrate is still NOT here, though it is data plane: it plans the
+    # migrations against the database `cloudflare-d1` creates, whose id is a
+    # job-output secret that exists only once this phase's merge has applied.
+    # It lands with 04-mail, the first phase that reads the database.
+    modules: [shared, contracts, db, testing, cli, db-tests, cli-tests, cloudflare-d1, cloudflare-kv]
+    # The first phase that DEPLOYS. `requires.probe` asks reality the question
+    # a lock file cannot answer: are both provider connections live right now?
+    requires:
+      phases: [01-scaffold]
+      probe:
+        - id: providers
+          uses: orun.doctor/check@v1
+          with:
+            providers: [github, cloudflare]
+            githubOwner: "{{ .inputs.githubOrg }}"
+            waitSeconds: 600
+            pollSeconds: 20
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Land the shared packages and provision the data plane"
+            prefix: SITE
+            contract: tasks/02-foundation.TaskContract.yaml
+        # Brokered, never held: each key is a pointer at the ACTIVE Cloudflare
+        # connection and a scope template. Keys that exist are KEPT; missing
+        # ones are minted. One hook per template on purpose — these three are
+        # three different scopes, and the deploy token deliberately cannot
+        # touch D1. The d1-edit mint is refused unless the account token's
+        # permission groups include D1 Write — see BOOTSTRAP.md.
+        - id: secret-workers-deploy
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_API_TOKEN]
+            template: workers-deploy
+        - id: secret-d1-edit
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_D1_TOKEN]
+            template: d1-edit
+        - id: secret-account-id
+          uses: orun.integrations/reconcile@v1
+          with:
+            provider: cloudflare
+            keys: [CLOUDFLARE_ACCOUNT_ID]
+            template: account-id
+      post:
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/02-foundation.TaskContract.yaml"]
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The packages and data-plane PR is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "feat(foundation): the shared packages, and D1 and KV on stage and prod"
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          narrate: "The packages built, Terraform applied, and the convergence run came back green."
+          with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+            waitSeconds: 1800
+        - id: verify
+          uses: orun.secrets/exists@v1
+          narrate: "The wiring secrets the Workers read are published on stage and prod."
+          with:
+            keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+            project: "{{ .inputs.repoName }}"
+            environments: [stage, prod]
+
+  - name: 04-mail
+    title: The migration runner and the mail Worker
+    description: The D1 schema applied, and the internal mail Worker the site API binds to.
+    expectedMinutes: 12
+    narrate:
+      start:  "The schema and the mail Worker. The migration runner applies every migration to the databases phase three created, then the mail Worker deploys against them."
+      await:  "Waiting for the migrations to apply and the mail Worker to deploy on both environments."
+      done:   "The schema is applied and the mail Worker is deployed on stage and prod. {{ .meta.elapsed }}."
+      failed: "The schema or the mail Worker did not land. The convergence log above says which."
+    modules: [db-migrate, mail-worker, mail-worker-tests]
+    requires:
+      phases: [02-foundation]
+      # The Workers read their D1 and KV ids from the wiring secrets
+      # 02-foundation published. A consent nobody has clicked is a WAIT, not a
+      # failure, and so is a secret not yet published.
+      secrets:
+        - id: wiring
+          uses: orun.secrets/exists@v1
+          with:
+            keys: [WIRING_CLOUDFLARE_D1, WIRING_CLOUDFLARE_KV]
+            project: "{{ .inputs.repoName }}"
+            environments: [stage, prod]
+            waitSeconds: 600
+            pollSeconds: 20
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Deploy the migration runner and the mail Worker"
+            prefix: SITE
+            contract: tasks/04-mail.TaskContract.yaml
+      post:
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/04-mail.TaskContract.yaml"]
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The mail PR is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "feat(mail): the schema and the mail Worker"
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          narrate: "The migrations applied and the mail Worker deployed."
+          with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+            waitSeconds: 2400
+
+  - name: 05-api
+    title: The public site API and the website
+    description: The one publicly routable Worker, and the Next.js site in front of it.
+    expectedMinutes: 11
+    narrate:
+      start:  "The site API — the only Worker the internet reaches — and the site itself, in one landing. The API binds to the mail Worker phase four deployed; the site health-checks the API, so the convergence deploys them in that order. Usually about {{ .meta.expectedMinutes }} minutes."
+      await:  "Waiting for the API to answer /health and the site to build, prerender and deploy, on both environments."
+      done:   "The API answers /health and the site is live, on stage and prod. {{ .meta.elapsed }}."
+      failed: "The API or the site did not come up. The failing lane above names which, and its log says why."
+    # TWO LANDINGS FOLDED INTO ONE, taken from cirrus (43ca81b), where the
+    # console folded into the edge for the same reason. A landing costs about
+    # four minutes whatever it carries — place, PR, merge, a convergence of
+    # its own — and that was the whole of what a separate `06-site` bought.
+    #
+    # The ORDER is not lost by folding: web-site still `dependsOn: site-api`
+    # (its deploy smoke health-checks the API, so the API must be live first),
+    # and one convergence honours that edge exactly as two did. What goes away
+    # is the second landing's fixed cost, not the ordering.
+    #
+    # The numbering keeps its gap: `06` is not reused, so the surviving names
+    # stay the identities the task plane, the milestones and `--phase` use.
+    modules: [site-api, site-api-tests, web-site, web-site-tests]
+    requires:
+      phases: [04-mail]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Deploy the public site API and the website"
+            prefix: SITE
+            contract: tasks/05-api.TaskContract.yaml
+      post:
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/05-api.TaskContract.yaml"]
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The API and site PR is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "feat(api): the public site API, and the website in front of it"
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          narrate: "The API and the site deployed and the convergence run came back green."
+          with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+            waitSeconds: 1800
+        - id: verify
+          uses: orun.http/probe@v1
+          narrate: "Both /health endpoints and both sites answered."
+          with:
+            urls:
+              - "https://{{ .inputs.repoName }}-site-api-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-site-api-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-site-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.repoName }}-web-site-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"
+
+  - name: 07-domain
+    title: The custom domain
+    description: The product domain in front of the site. OPTIONAL — the Cloudflare zone must already exist.
+    expectedMinutes: 4
+    when: inputs.domain
+    narrate:
+      start:  "Attaching {{ .inputs.productDomain }}. This needs the zone to already be in the Cloudflare account."
+      await:  "Waiting for the domain to attach and the route to propagate."
+      done:   "{{ .inputs.productDomain }} resolves to the site. {{ .meta.elapsed }}."
+      failed: "The domain did not attach. The usual cause is a zone the account does not hold."
+    modules: [cloudflare-domain]
+    requires:
+      phases: [05-api]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Attach the custom domain"
+            prefix: SITE
+            contract: tasks/07-domain.TaskContract.yaml
+      post:
+        - id: retouch
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/retouch.mjs", "--phase", "{{ .phase.name }}", "--affects", "{{ .baseline.dir }}/tasks/07-domain.TaskContract.yaml"]
+        - id: stage
+          run: ["git", "add", "-A"]
+        - id: rebrand
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--values", ".rebrand/values.json", "--allow-dirty"]
+        - id: restage
+          run: ["git", "add", "-A"]
+        - id: rebrand-verify
+          run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
+        - id: pnpm-lockfile
+          run: ["pnpm", "install", "--lockfile-only"]
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The domain PR is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "feat(domain): the custom domain in front of the site"
+      await:
+        - id: converge
+          uses: orun.run/watch@v1
+          narrate: "The domain attached and the convergence run came back green."
+          with:
+            sha: "{{ .phase.hooks.land.outputs.mergeSha }}"
+            repo: "{{ .inputs.githubOrg }}/{{ .inputs.repoName }}"
+            resumeBudget: 3
+            waitSeconds: 1800
+
+  - name: 08-docs
+    title: The deployment, recorded
+    description: The live-deployment manifest and operating contract, rendered from probed reality.
+    expectedMinutes: 3
+    narrate:
+      start:  "The last phase writes down what actually went live — rendered from the deployment, not from this document."
+      await:  "Probing every live URL one more time."
+      done:   "The deployment is recorded and every URL answered. {{ .meta.elapsed }}."
+      failed: "The record could not be written, or a URL stopped answering. The probe above says which."
+    # This phase places no module: its content is RENDERED from the live
+    # deployment by the hook below, so there is nothing in the baseline to
+    # copy. `ai/context/deployment.md` was placed empty by 01-scaffold and is
+    # filled in here.
+    modules: []
+    requires:
+      phases: [05-api]
+    hooks:
+      pre:
+        - id: task
+          uses: orun.task/ensure@v1
+          with:
+            kind: task
+            epic: "{{ .inputs.epicSlug }}"
+            milestone: "{{ .phase.name }}"
+            name: "Record the live deployment"
+            prefix: SITE
+            contract: tasks/08-docs.TaskContract.yaml
+      post:
+        - id: render
+          run: ["bash", "{{ .baseline.dir }}/hooks/render-deployment-docs.sh", ".", "{{ .inputs.orunWorkspace }}", "{{ .baseline.dir }}"]
+        # THE PROMOTION GATE COMES BACK HERE, on the last landing. 01-scaffold
+        # deferred it so stage and prod could deploy side by side through the
+        # bootstrap; from this merge on, a change reaches prod only after it
+        # deployed to stage, which is the right rule for a product that is
+        # live. The restore is byte-for-byte and idempotent, and it is a change
+        # to intent.yaml's `environments` section alone, which `orun plan
+        # --changed` maps to no component: this landing deploys nothing.
+        #
+        # The gate is deferred, never dropped. A bootstrap that stops before
+        # this phase leaves the marker in intent.yaml, and `promotion.mjs
+        # --restore` (or a re-run of 08-docs) is the whole fix.
+        - id: promotion
+          run: ["node", "{{ .baseline.dir }}/tooling/bootstrap/promotion.mjs", "--restore"]
+        - id: land
+          uses: orun.pr/land@v1
+          narrate: "The deployment record is merged into main."
+          with:
+            task: "{{ .phase.hooks.task.outputs.key }}"
+            epic: "{{ .inputs.epicSlug }}"
+            branchSlug: "{{ .phase.name }}"
+            title: "docs(deployment): record the live deployment state"
+      await:
+        - id: verify
+          uses: orun.http/probe@v1
+          narrate: "Every live URL answered on the final probe."
+          with:
+            urls:
+              - "https://{{ .inputs.repoName }}-site-api-stage.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-site-stage.{{ .inputs.workersDevSubdomain }}.workers.dev"
+              - "https://{{ .inputs.repoName }}-site-api-prod.{{ .inputs.workersDevSubdomain }}.workers.dev/health"
+              - "https://{{ .inputs.repoName }}-web-site-prod.{{ .inputs.workersDevSubdomain }}.workers.dev"

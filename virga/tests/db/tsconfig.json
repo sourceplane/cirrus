@@ -1,0 +1,54 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": [
+      "jest",
+      "node"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@site/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@site/db/manifest": [
+        "../../packages/db/src/manifest.ts"
+      ],
+      "@site/db/types": [
+        "../../packages/db/src/types.ts"
+      ],
+      "@site/db/json": [
+        "../../packages/db/src/json.ts"
+      ],
+      "@site/db/*": [
+        "../../packages/db/src/*/index.ts"
+      ],
+      "@site/contracts": [
+        "../../packages/contracts/src/index.ts"
+      ],
+      "@site/contracts/*": [
+        "../../packages/contracts/src/*.ts"
+      ],
+      "@site/testing": [
+        "../../packages/testing/src/index.ts"
+      ],
+      "@site/testing/*": [
+        "../../packages/testing/src/*.ts"
+      ],
+      "@site/db/cursor": [
+        "../../packages/db/src/cursor.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

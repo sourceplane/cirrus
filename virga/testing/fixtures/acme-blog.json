@@ -1,0 +1,10 @@
+{
+  "_comment": "The inputs tier 2 places with. A new REQUIRED input in repo-blueprint.yaml fails placement.test.sh here rather than in front of an operator. Nothing in this file reaches a provider: the placement runs with hooks OFF.",
+  "repoName": "acme-blog",
+  "productName": "Acme Blog",
+  "productDomain": "acme.blog",
+  "githubOrg": "acme-co",
+  "workersDevSubdomain": "acme-dev",
+  "orunWorkspace": "ws_TESTONLY",
+  "domain": true
+}

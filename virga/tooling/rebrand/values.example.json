@@ -1,0 +1,9 @@
+{
+  "repoName": "acme-blog",
+  "productName": "Acme Blog",
+  "productDomain": "acme.blog",
+  "brandSlug": "acme",
+  "cliBin": "acme",
+  "workersDevSubdomain": "your-workers-subdomain",
+  "orunWorkspace": "ws_XXXXXXXX"
+}

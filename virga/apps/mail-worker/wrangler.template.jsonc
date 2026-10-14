@@ -1,0 +1,76 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are
+// resolved from the workspace's orun secrets at deploy time (wire-live) or from the
+// committed wiring.fixture.json for offline dry-runs (wire-fixture).
+//
+// Secrets (never in this file): TOKEN_SECRET (shared with site-api).
+{
+  "name": "virga-mail-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": {
+    "ENVIRONMENT": "local",
+    "MAIL_PROVIDER": "local-debug",
+    "SITE_NAME": "Virga",
+    "SITE_URL": "http://localhost:3000",
+    "SITE_API_URL": "http://localhost:8787"
+  },
+  "env": {
+    "dev": {
+      "vars": {
+        "ENVIRONMENT": "dev",
+        "MAIL_PROVIDER": "local-debug",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "http://localhost:3000",
+        "SITE_API_URL": "http://localhost:8787"
+      }
+    },
+    "stage": {
+      "workers_dev": false,
+      // cloudflare-email sends through the Email Service `send_email` binding.
+      // One-time account prerequisites before real delivery works: Workers
+      // Paid plan, sending domain verified in Email Service (DKIM/SPF), and
+      // EMAIL_FROM_ADDRESS on that verified domain. Until then the worker
+      // still deploys; failed sends are recorded on newsletter_deliveries.
+      "vars": {
+        "ENVIRONMENT": "stage",
+        "MAIL_PROVIDER": "local-debug",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "https://stage.virga.site",
+        "SITE_API_URL": "https://virga-site-api-stage.your-workers-subdomain.workers.dev",
+        "EMAIL_FROM_ADDRESS": "hello@mail.virga.site",
+        "EMAIL_FROM_NAME": "Virga"
+      },
+      "send_email": [{ "name": "EMAIL" }],
+      "d1_databases": [
+        {
+          "binding": "SITE_DB",
+          "database_name": "virga-stage",
+          "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@"
+        }
+      ]
+    },
+    "prod": {
+      "workers_dev": false,
+      "vars": {
+        "ENVIRONMENT": "prod",
+        "MAIL_PROVIDER": "cloudflare-email",
+        "SITE_NAME": "Virga",
+        "SITE_URL": "https://virga.site",
+        "SITE_API_URL": "https://virga-site-api-prod.your-workers-subdomain.workers.dev",
+        "EMAIL_FROM_ADDRESS": "hello@mail.virga.site",
+        "EMAIL_FROM_NAME": "Virga"
+      },
+      "send_email": [{ "name": "EMAIL" }],
+      "d1_databases": [
+        {
+          "binding": "SITE_DB",
+          "database_name": "virga-prod",
+          "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@"
+        }
+      ]
+    }
+  }
+}

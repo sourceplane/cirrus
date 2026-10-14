@@ -69,10 +69,36 @@ for m in bp.get("modules") or []:
         placed_by.setdefault(src, []).append(m["name"])
 phase_of = {n: ph["name"] for ph in (bp.get("phases") or []) for n in ph["modules"]}
 
+# A NESTED FACTORY IS NOT THIS ONE'S COMPONENTS. Any directory below the root
+# that carries its own `repo-blueprint.yaml` is a different baseline, and its
+# components are placed by ITS phases — asking this blueprint to account for
+# them is asking the wrong document. `virga/` is the first such tree: a
+# variation of this baseline developed in-tree until it can be split into its
+# own repository, 17 components none of which Cirrus places or should.
+#
+# Declared as a RULE rather than a path, which is the same argument the
+# BASELINE_ONLY map above makes: the next nested baseline should be covered by
+# the reasoning, not by an edit. A directory that does not carry a blueprint is
+# not exempt, so this cannot be used to hide a component from the gate.
+NESTED_FACTORIES = sorted(
+    bpf.parent.relative_to(root).as_posix()
+    for bpf in root.rglob("repo-blueprint.yaml")
+    if bpf.parent != root
+    and "node_modules" not in bpf.parts
+    and ".git" not in bpf.parts
+)
+
+def in_nested_factory(rel: str) -> bool:
+    return any(rel == f or rel.startswith(f + "/") for f in NESTED_FACTORIES)
+
 components = sorted(
-    p.parent.relative_to(root).as_posix()
-    for p in root.rglob("component.yaml")
-    if "node_modules" not in p.parts and ".git" not in p.parts
+    rel
+    for rel in (
+        p.parent.relative_to(root).as_posix()
+        for p in root.rglob("component.yaml")
+        if "node_modules" not in p.parts and ".git" not in p.parts
+    )
+    if not in_nested_factory(rel)
 )
 if not components:
     sys.exit("no component.yaml anywhere — this check has gone blind")

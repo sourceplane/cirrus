@@ -1,0 +1,107 @@
+name: Baseline tag
+
+# NO `baseline-vN` IS CUT FROM AN UNPROVEN TREE.
+#
+# A baseline tag is what the platform's registry resolves and what every website
+# bootstrapped from this repository is built out of. One cut from a commit whose
+# rehearsal never ran publishes a bootstrap nobody has watched work, to people
+# who find out an hour in.
+#
+# The rule itself lives in `testing/tag-gate.sh`, which is a script rather than
+# forty lines of YAML because a rule that cannot be run on a laptop is a rule
+# nobody checks before they need it. `testing/tag-gate.test.sh` drives it
+# against a fake GitHub API.
+#
+# ─── TWO JOBS, AND WHY BOTH ────────────────────────────────────────────────
+#
+# `cut` is the door: it verifies first and creates the tag only if the commit is
+# proven. Used as intended, an unproven tag cannot exist.
+#
+# `verify` is the backstop, on `push: tags`. It cannot un-push a tag — a tag is
+# created and THEN the event fires — but it turns a bypass into a red check
+# within a minute instead of a discovery a release later.
+#
+# The backstop deliberately does NOT run after `cut`: GitHub does not trigger
+# workflows from events made with the default GITHUB_TOKEN, so a tag this
+# workflow creates fires nothing. That is correct rather than a gap — `cut`
+# already verified, and `verify` exists for the tags it did not create.
+#
+# ─── WHAT MAKES THE REFUSAL BINDING ───────────────────────────────────────
+#
+# One repository setting, which no file in this repo can make: a ruleset on tag
+# `baseline-v*` with "Restrict creations", leaving this workflow's token the
+# only creator. Without it, `cut` is the paved road and `verify` is the alarm.
+#
+# ─── WHERE VIRGA ACTUALLY STANDS ──────────────────────────────────────────
+#
+# Virga has NO `rehearsal.yml` yet — the tier-3 harness (an orun component that
+# bootstraps a throwaway product into a dedicated Cloudflare account, asserts it
+# came up, and destroys it) is not ported, because writing one that deletes real
+# resources without ever running it is worse than not having it.
+#
+# So this gate answers "the question could not be answered" (exit 3) for every
+# commit today, not "unproven" (exit 1). Both refuse; they refuse for different
+# reasons and the message says which. That is the truth about this baseline
+# rather than a misconfiguration: nothing has been deployed. Add
+# `rehearsal.yml` and `testing/rehearsal/`, let one run go green, and the gate
+# starts answering about commits instead of about itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The tag to cut, e.g. baseline-v2."
+        required: true
+        type: string
+      ref:
+        description: "Branch, tag or sha to cut it from. Defaults to main."
+        required: false
+        default: main
+        type: string
+  push:
+    tags:
+      - "baseline-v*"
+
+concurrency:
+  group: baseline-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  cut:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: The commit must be proven
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash testing/tag-gate.sh --repo "${{ github.repository }}" --sha "${{ steps.sha.outputs.sha }}"
+      - name: Create the tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${{ github.repository }}/git/refs" \
+            -d "$(printf '{"ref":"refs/tags/%s","sha":"%s"}' "${{ inputs.version }}" "${{ steps.sha.outputs.sha }}")" \
+            | tee /dev/stderr | grep -q '"ref"'
+
+  verify:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: This tag's commit must be proven
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash testing/tag-gate.sh --repo "${{ github.repository }}" --sha "${{ github.sha }}"

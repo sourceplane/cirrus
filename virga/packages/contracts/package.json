@@ -1,0 +1,28 @@
+{
+  "name": "@site/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./health": "./src/health.ts",
+    "./timing": "./src/timing.ts",
+    "./errors": "./src/errors.ts",
+    "./audience": "./src/audience.ts",
+    "./forms": "./src/forms.ts",
+    "./engagement": "./src/engagement.ts",
+    "./newsletter": "./src/newsletter.ts",
+    "./mail": "./src/mail.ts",
+    "./owner": "./src/owner.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@site/eslint-config": "workspace:*",
+    "@site/tsconfig": "workspace:*",
+    "typescript": "^5.8.3"
+  }
+}
