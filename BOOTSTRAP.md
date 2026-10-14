@@ -1,5 +1,13 @@
 # BOOTSTRAP — fresh product from this baseline, in phases
 
+> **⚠️ This baseline is retired. Bootstrap from
+> [`sourceplane/cirrus-baseline`](https://github.com/sourceplane/cirrus-baseline)
+> instead.** Everything below still describes how the bootstrap works, and it
+> is the same document the successor carries — but the tree it places from, and
+> the registry entry the console resolves, are that repository's now. Running
+> it from here builds a product branded off a baseline that no longer receives
+> versions.
+
 How to go from **nothing** to a **fully deployed, documented baseline**
 (all terraform infra, the 12-worker fleet, api-edge, the console — live on
 stage+prod) with ONE provider consent.

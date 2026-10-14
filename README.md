@@ -1,5 +1,31 @@
 # cirrus
 
+> ## ⚠️ RETIRED AS A BASELINE
+>
+> **The baseline moved to [`sourceplane/cirrus-baseline`](https://github.com/sourceplane/cirrus-baseline).**
+> Build new products from there, not from here.
+>
+> This repository is where the Cloudflare-only SaaS baseline was developed
+> through `baseline-v13`. Its successor is an instantiation of it that was
+> bootstrapped, deployed live on stage and prod, and then promoted to be the
+> baseline — which is how a baseline line is meant to advance. The factory
+> (`repo-blueprint.yaml`, `blueprint.yaml`, `testing/`, `tasks/`, `docs/`,
+> `hooks/`, `tooling/rebrand/`) now lives there, and the registry card there
+> names `sourceplane/cirrus-baseline`.
+>
+> What this means in practice:
+>
+> | | |
+> |---|---|
+> | new products | bootstrap from `sourceplane/cirrus-baseline` |
+> | existing products built from here | unaffected; they carry their own identity |
+> | this repository's own deployment | unaffected |
+> | tags `baseline-v6` … `baseline-v13` | kept, and still resolvable; no new `baseline-vN` is cut here |
+>
+> Registering the successor and retiring this entry in the Orun Cloud registry
+> is a credentialled step (`orun baseline register` / `publish` / `list`); the
+> commands are in `sourceplane/cirrus-baseline`'s promotion pull request.
+
 Reusable **Cloudflare-only** multi-tenant SaaS starter, built as an
 [Orun](https://opencode.ai/docs) component-native desired-state repo. Identity,
 organizations, projects, RBAC, audit, metering, billing, webhooks, and
