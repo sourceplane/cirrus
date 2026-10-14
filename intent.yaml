@@ -47,6 +47,16 @@ discovery:
     - packages/
     - tests/
 
+# The catalog resolver walks the WHOLE repository for component manifests, not
+# only the roots above. A directory that holds manifests which are not this
+# repository's components must be named here, by basename, or they are planned
+# and deployed as if they were — and one that shares a component's name fails
+# the plan outright (`catalog "catalogs/current": object not found`).
+catalog:
+  discovery:
+    exclude:
+      - variations
+
 automation:
   triggerBindings:
     github-pull-request:

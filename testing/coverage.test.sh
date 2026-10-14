@@ -69,10 +69,30 @@ for m in bp.get("modules") or []:
         placed_by.setdefault(src, []).append(m["name"])
 phase_of = {n: ph["name"] for ph in (bp.get("phases") or []) for n in ph["modules"]}
 
+# AN OVERLAY IS NOT THIS BLUEPRINT'S TREE. `variations/<name>/overlay/` holds a
+# product's own files, authored in baseline naming and laid over the product by
+# `tooling/variations/materialize.sh` — never by a phase. A `component.yaml` in
+# there is either a variation's copy of a component this blueprint already
+# places (apps/api-edge, with a route added) or a component only that product
+# has (apps/launches-worker). Asking this blueprint to place either is asking
+# the wrong document, and it was not a hypothetical question: fifteen of them
+# turned this gate red the first time the overlays met it.
+#
+# A rule, not a list, for the reason BASELINE_ONLY gives above — and not a free
+# pass: `testing/variations.test.sh` holds every overlay component to account
+# instead, so a component cannot hide from both gates by sitting here.
+def in_overlay(rel: str) -> bool:
+    parts = rel.split("/")
+    return len(parts) >= 3 and parts[0] == "variations" and parts[2] == "overlay"
+
 components = sorted(
-    p.parent.relative_to(root).as_posix()
-    for p in root.rglob("component.yaml")
-    if "node_modules" not in p.parts and ".git" not in p.parts
+    rel
+    for rel in (
+        p.parent.relative_to(root).as_posix()
+        for p in root.rglob("component.yaml")
+        if "node_modules" not in p.parts and ".git" not in p.parts
+    )
+    if not in_overlay(rel)
 )
 if not components:
     sys.exit("no component.yaml anywhere — this check has gone blind")

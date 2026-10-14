@@ -11,6 +11,9 @@
     "paths": {
       "@saas/contracts": ["../../packages/contracts/src/index.ts"],
       "@saas/contracts/*": ["../../packages/contracts/src/*.ts"],
+      "@saas/db": [
+        "../../packages/db/src/index.ts"
+      ],
       "@saas/db/*": ["../../packages/db/src/*/index.ts"],
       "@events-worker/*": ["../../apps/events-worker/src/*.ts"]
     }

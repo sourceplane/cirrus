@@ -1,0 +1,10 @@
+{
+  "reponame": "launchpad",
+  "productname": "Launchpad",
+  "productdomain": "launchpad.app",
+  "pascalName": "Launchpad",
+  "brandSlug": "launchpad",
+  "cliBin": "launchpad",
+  "subdomain": "your-workers-subdomain",
+  "githuborg": "sourceplane"
+}

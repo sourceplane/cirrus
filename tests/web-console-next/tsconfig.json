@@ -10,6 +10,9 @@
     "paths": {
       "@/*": ["../../apps/web-console-next/src/*"],
       "@web-console-next/*": ["../../apps/web-console-next/src/*"],
+      "@saas/sdk": [
+        "../../packages/sdk/src/index.ts"
+      ],
       "@saas/contracts": ["../../packages/contracts/src/index.ts"],
       "@saas/contracts/*": ["../../packages/contracts/src/*.ts"]
     }

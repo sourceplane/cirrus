@@ -1,0 +1,10 @@
+{
+  "reponame": "pulsewatch",
+  "productname": "Pulsewatch",
+  "productdomain": "pulsewatch.app",
+  "pascalName": "Pulsewatch",
+  "brandSlug": "pulsewatch",
+  "cliBin": "pulsewatch",
+  "subdomain": "your-workers-subdomain",
+  "githuborg": "sourceplane"
+}

@@ -81,13 +81,15 @@ grep -q 'replace marker' "$tmp/two.log" || bad "second run did not report a repl
 ok "a second run replaces the marker (a different phase's too) rather than appending"
 
 echo "── retouch: every other byte is as it was"
-if [ "$(head -n -1 "$tmp/apps/alpha/component.yaml" | cksum)" = "$(cksum < "$tmp/alpha.orig")" ]; then
+# `sed '$d'`, not `head -n -1`: the negative count is GNU-only, and on a Mac
+# this gate failed on the test's own plumbing while retouch.mjs was correct.
+if [ "$(sed '$d' "$tmp/apps/alpha/component.yaml" | cksum)" = "$(cksum < "$tmp/alpha.orig")" ]; then
   ok "apps/alpha: the file above the marker is byte-for-byte the original"
 else
   bad "apps/alpha: bytes above the marker changed"
-  diff <(head -n -1 "$tmp/apps/alpha/component.yaml") "$tmp/alpha.orig" >&2 || true
+  diff <(sed '$d' "$tmp/apps/alpha/component.yaml") "$tmp/alpha.orig" >&2 || true
 fi
-if [ "$(head -n -1 "$tmp/infra/beta/component.yaml" | cksum)" = "$(printf '%s\n' "$(cat "$tmp/beta.orig")" | cksum)" ]; then
+if [ "$(sed '$d' "$tmp/infra/beta/component.yaml" | cksum)" = "$(printf '%s\n' "$(cat "$tmp/beta.orig")" | cksum)" ]; then
   ok "infra/beta: only a newline was added before the marker"
 else
   bad "infra/beta: bytes above the marker changed"

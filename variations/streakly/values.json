@@ -1,0 +1,10 @@
+{
+  "reponame": "streakly",
+  "productname": "Streakly",
+  "productdomain": "streakly.app",
+  "pascalName": "Streakly",
+  "brandSlug": "streakly",
+  "cliBin": "streakly",
+  "subdomain": "your-workers-subdomain",
+  "githuborg": "sourceplane"
+}
