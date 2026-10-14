@@ -1,0 +1,47 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+
+metadata:
+  name: cloudflare-kv
+  description: Provisions the tenants KV namespace and the OpenNext incremental-cache KV namespace (stage and prod)
+  labels:
+    domain: infra
+    scope: tenant-store
+
+spec:
+  type: terraform
+  lifecycle: production
+  owner: platform
+  domain: infra
+
+  parameters:
+    orgName: sourceplane
+    stackName: cloudflare-kv
+    terraformDir: terraform
+    terraformVersion: "1.15.3"
+    # The wiring document (both namespace ids) is lease-published post-apply;
+    # the web component's deploy lane reads it back as WIRING_CLOUDFLARE_KV_<ENV>.
+    secretOutputs: "WIRING_CLOUDFLARE_KV=wiring"
+
+  # Provider credential brokered per run from the workspace's Cloudflare
+  # connection; declared at component level because plan-only lanes refresh
+  # against the live API too.
+  secretEnv:
+    CLOUDFLARE_API_TOKEN: "secret://sourceplane/platforms/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "secret://sourceplane/platforms/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    TF_VAR_cloudflare_account_id: "secret://sourceplane/platforms/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+
+  subscribe:
+    environments:
+      - name: stage
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: plan-only
+        profileRules:
+          - profile: apply
+            when:
+              triggerRef: github-push-main

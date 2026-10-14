@@ -1,0 +1,72 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs. Resource IDs are
+// NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are resolved from
+// the workspace's orun secrets at deploy time (wire-live) or from the committed
+// wiring.fixture.json for offline dry-runs (wire-fixture).
+//
+// Bindings (feature-map rows):
+//   TENANTS                    VC-UPSTASH  subdomain store (was Upstash Redis)
+//   NEXT_INC_CACHE_KV          VC-ISR      OpenNext incremental cache
+//   NEXT_TAG_CACHE_DO_SHARDED  VC-ISR      tag cache behind revalidatePath()
+//   NEXT_CACHE_DO_QUEUE        VC-ISR      background revalidation queue
+//   WORKER_SELF_REFERENCE      VC-ISR      the queue revalidates by calling itself
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "platforms-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"] }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+      { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+    ]
+  },
+  // Local `wrangler dev` / `opennextjs-cloudflare preview`: miniflare
+  // simulates KV, so placeholder ids are fine here and only here.
+  "vars": { "NEXT_PUBLIC_ROOT_DOMAIN": "localhost:8787" },
+  "kv_namespaces": [
+    { "binding": "TENANTS", "id": "local-tenants" },
+    { "binding": "NEXT_INC_CACHE_KV", "id": "local-next-inc-cache" }
+  ],
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "platforms-web" }],
+  "env": {
+    "stage": {
+      "name": "platforms-web-stage",
+      "vars": { "NEXT_PUBLIC_ROOT_DOMAIN": "stage.example.com" },
+      // Tenants live on wildcard subdomains: *.stage.example.com must route
+      // here (workers.dev cannot host wildcard subdomains). Declared once the
+      // zone exists — see docs/migration/decisions.md D4.
+      "kv_namespaces": [
+        { "binding": "TENANTS", "id": "@@wiring(cloudflare-kv/stage:tenants_kv_id)@@" },
+        { "binding": "NEXT_INC_CACHE_KV", "id": "@@wiring(cloudflare-kv/stage:next_inc_cache_kv_id)@@" }
+      ],
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "platforms-web-stage" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+          { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+        ]
+      }
+    },
+    "prod": {
+      "name": "platforms-web-prod",
+      "vars": { "NEXT_PUBLIC_ROOT_DOMAIN": "example.com" },
+      "kv_namespaces": [
+        { "binding": "TENANTS", "id": "@@wiring(cloudflare-kv/prod:tenants_kv_id)@@" },
+        { "binding": "NEXT_INC_CACHE_KV", "id": "@@wiring(cloudflare-kv/prod:next_inc_cache_kv_id)@@" }
+      ],
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "platforms-web-prod" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+          { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+        ]
+      }
+    }
+  }
+}
