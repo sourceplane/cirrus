@@ -1,6 +1,0 @@
-User-Agent: *
-Allow: /
-Disallow: /confirm
-Disallow: /unsubscribe
-
-Sitemap: https://virga.site/sitemap.xml
