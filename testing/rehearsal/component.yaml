@@ -74,6 +74,11 @@ spec:
     ORUN_TOKEN: "secret://lumen/cirrus-rehearsal/rehearsal/ORUN_REHEARSAL_KEY"
     CLOUDFLARE_API_TOKEN: "secret://lumen/cirrus-rehearsal/rehearsal/CLOUDFLARE_REHEARSAL_TOKEN"
     CLOUDFLARE_ACCOUNT_ID: "secret://lumen/cirrus-rehearsal/rehearsal/CLOUDFLARE_REHEARSAL_ACCOUNT"
+    # The account's workers.dev subdomain — a fact, not a secret, kept beside
+    # the account id it belongs to. `subdomain` is a REQUIRED blueprint input
+    # since baseline-v14: the console smoke and 05-edge's probes address
+    # `<worker>.<subdomain>.workers.dev`, and a build without it fails there.
+    CLOUDFLARE_SUBDOMAIN: "secret://lumen/cirrus-rehearsal/rehearsal/CLOUDFLARE_REHEARSAL_SUBDOMAIN"
 
   subscribe:
     environments:
