@@ -120,13 +120,26 @@ Before editing, identify:
 Then validate with the cheapest command that proves the change:
 
 ```bash
-kiox -- orun compositions --intent intent.yaml --long
+kiox -- orun compositions <name>
 kiox -- orun validate --intent intent.yaml
 kiox -- orun component --intent intent.yaml --long
 kiox -- orun plan --intent intent.yaml --view dag
 kiox -- orun plan --intent intent.yaml --output plan.json
 kiox -- orun run --plan plan.json --dry-run --runner github-actions
 ```
+
+`orun compositions <name>` prints a summary of one composition type. The full
+parameter schema lives in the composition cache at
+`~/.orun/cache/compositions/<digest>/compositions/<type>/schema.yaml`; read it
+before adding or renaming component parameters.
+
+`orun validate` checks the intent's shape only. It does not check component
+`spec.parameters` against the composition schema: a component with parameter
+keys the schema forbids (`additionalProperties: false`) still passes
+`validate`. `orun plan` is the step that validates component parameters against
+composition schemas, failing with `component validation failed …
+additionalProperties … not allowed`. A parameter change is not proven until
+`plan` succeeds.
 
 Use `--changed` for PR scoping checks. Use a full plan when changing
 environments, promotions, composition sources, or cross-component dependencies.
